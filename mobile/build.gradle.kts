@@ -1,20 +1,15 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.compose)
 }
 
 android {
     namespace = "mx.utng.ecoviedos"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "mx.utng.ecoviedos"
-        minSdk = 30
-        targetSdk = 36
+        minSdk = 24
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -43,16 +38,13 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
-    implementation(libs.androidx.foundation)
-    implementation(libs.androidx.material3)
-    implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.1")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.1")
     implementation("androidx.navigation:navigation-compose:2.9.0")
-    
+
     // Play Services for Wearable (Data Layer)
     implementation(libs.play.services.wearable)
 
@@ -61,7 +53,6 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
 
     // Room for Local Database
-    implementation(libs.androidx.room.ktx)
     implementation("androidx.room:room-runtime:2.6.1")
     // annotationProcessor("androidx.room:room-compiler:2.6.1") // Using KSP is better but requires plugin
 
