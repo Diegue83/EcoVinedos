@@ -49,8 +49,6 @@ dependencies {
     implementation("androidx.wear.compose:compose-foundation:1.4.0")
     implementation("androidx.wear.compose:compose-navigation:1.4.0")
 
-    implementation(libs.play.services.wearable)
-
     implementation(libs.androidx.core.splashscreen)
 
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.1")
@@ -67,4 +65,6 @@ dependencies {
 
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    implementation("androidx.compose.material:material-icons-extended")
+    implementation("com.google.android.gms:play-services-wearable:18.2.0")
 }

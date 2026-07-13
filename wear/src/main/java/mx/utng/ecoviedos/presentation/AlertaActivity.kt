@@ -11,7 +11,7 @@ import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
 import androidx.wear.compose.material3.Card
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.Text
-import mx.utng.ecoviedos.presentation.theme.EcoVinedosTheme
+import mx.utng.ecoviedos.presentation.theme.AppTheme
 
 class AlertaActivity : ComponentActivity() {
 
@@ -23,7 +23,7 @@ class AlertaActivity : ComponentActivity() {
         val humedad = intent.getStringExtra("humedad") ?: "Humedad crítica"
 
         setContent {
-            EcoVinedosTheme {
+            AppTheme {
                 TransformingLazyColumn(
                     modifier = Modifier.fillMaxSize()
                 ) {

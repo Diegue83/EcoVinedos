@@ -13,10 +13,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddParcelScreen(onNavigateBack: () -> Unit) {
+fun AddParcelScreen(
+    onNavigateBack: () -> Unit,
+    adminViewModel: AdminViewModel = viewModel()
+) {
     var nombre by remember { mutableStateOf("") }
     var variedad by remember { mutableStateOf("") }
     var area by remember { mutableStateOf("") }
@@ -41,7 +45,18 @@ fun AddParcelScreen(onNavigateBack: () -> Unit) {
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = { /* Lógica para guardar en MongoDB */ },
+                onClick = { 
+                    if (nombre.isNotBlank() && variedad.isNotBlank()) {
+                        adminViewModel.addParcel(
+                            nombre, 
+                            variedad, 
+                            area.toIntOrNull() ?: 0, 
+                            umbralHumedad.toFloatOrNull() ?: 30f, 
+                            umbralTemp.toFloatOrNull() ?: 25f
+                        )
+                        onNavigateBack()
+                    }
+                },
                 containerColor = Color(0xFFB4F391),
                 contentColor = Color(0xFF1A1C18),
                 icon = { Icon(Icons.Default.Save, contentDescription = null) },

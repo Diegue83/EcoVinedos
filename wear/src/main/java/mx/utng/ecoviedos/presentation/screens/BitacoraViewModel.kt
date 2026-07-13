@@ -11,6 +11,7 @@ import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.Wearable
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,8 +39,8 @@ class BitacoraViewModel(
     private val _selectedParcelId = MutableStateFlow("4")
     val selectedParcelId: StateFlow<String> = _selectedParcelId.asStateFlow()
 
-    private var mediaRecorder: MediaRecorder? = null
     private var mediaPlayer: MediaPlayer? = null
+    private var mediaRecorder: MediaRecorder? = null
     private var timerJob: Job? = null
     private var audioFile: File? = null
     private val gson = Gson()
@@ -49,10 +50,8 @@ class BitacoraViewModel(
         viewModelScope.launch {
             ParcelaRepository.parcelas.collect { parcelas ->
                 _uiState.value = _uiState.value.copy(parcelas = parcelas)
-                Log.d("BitacoraViewModel", "UI actualizada desde Repositorio: ${parcelas.size} parcelas")
             }
         }
-        cargarBitacoras(_selectedParcelId.value)
     }
 
     override fun onMessageReceived(messageEvent: MessageEvent) {
@@ -76,8 +75,9 @@ class BitacoraViewModel(
                         temperatura = m.temperatura
                     )
                 }
-                ParcelaRepository.updateParcelas(parcelasWear)
-                Log.d("BitacoraViewModel", "Mensaje procesado instantáneamente")
+                viewModelScope.launch(Dispatchers.Main) {
+                    ParcelaRepository.updateParcelas(parcelasWear)
+                }
             } catch (e: Exception) { Log.e("BitacoraViewModel", "Error JSON", e) }
         }
     }
@@ -88,15 +88,16 @@ class BitacoraViewModel(
     }
 
     fun activarRiegoSimulado(idParcela: String) {
-        viewModelScope.launch {
-            val currentList = _uiState.value.parcelas.toMutableList()
-            val index = currentList.indexOfFirst { it.id == idParcela }
-            if (index != -1) {
-                val p = currentList[index]
-                currentList[index] = p.copy(humedad = 45f)
-                ParcelaRepository.updateParcelas(currentList.toList())
-            }
+        // 1. Actualizar localmente para respuesta inmediata
+        val currentList = _uiState.value.parcelas.toMutableList()
+        val index = currentList.indexOfFirst { it.id == idParcela }
+        if (index != -1) {
+            currentList[index] = currentList[index].copy(humedad = 45f)
+            ParcelaRepository.updateParcelas(currentList.toList())
         }
+        // 2. Notificar al móvil para que actualice su simulación
+        Wearable.getMessageClient(getApplication<Application>())
+            .sendMessage("node_id_ignored_by_cloud", "/activate_irrigation", idParcela.toByteArray())
     }
 
     fun cargarBitacoras(idParcela: String) {
@@ -129,7 +130,6 @@ class BitacoraViewModel(
             mediaRecorder?.apply { stop(); release() }
             mediaRecorder = null
             timerJob?.cancel()
-            val finalTime = _uiState.value.recordedTime
             val filePath = audioFile?.absolutePath
             _uiState.value = _uiState.value.copy(isRecording = false, lastAudioPath = filePath)
             guardarBitacora(_selectedParcelId.value, "Nota Parcela ${_selectedParcelId.value}", "Audio grabado (${_uiState.value.recordedTime})", filePath)
@@ -138,20 +138,17 @@ class BitacoraViewModel(
 
     fun playAudio(path: String?) {
         val targetPath = path ?: return
-        if (_uiState.value.isPlaying) stopPlayback()
+        if (_uiState.value.isPlaying) {
+            mediaPlayer?.stop()
+            mediaPlayer?.release()
+        }
         try {
             mediaPlayer = MediaPlayer().apply {
                 setDataSource(targetPath); prepare(); start()
-                setOnCompletionListener { _uiState.value = _uiState.value.copy(isPlaying = false); stopPlayback() }
+                setOnCompletionListener { _uiState.value = _uiState.value.copy(isPlaying = false) }
             }
             _uiState.value = _uiState.value.copy(isPlaying = true)
         } catch (e: Exception) { e.printStackTrace() }
-    }
-
-    fun stopPlayback() {
-        mediaPlayer?.apply { if (isPlaying) stop(); release() }
-        mediaPlayer = null
-        _uiState.value = _uiState.value.copy(isPlaying = false)
     }
 
     private fun startTimer() {

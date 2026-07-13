@@ -28,13 +28,18 @@ import androidx.wear.compose.navigation.SwipeDismissableNavHost
 import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
 import kotlinx.coroutines.launch
+import com.google.android.gms.wearable.Wearable
+import mx.utng.ecoviedos.data.WearableDataService
 import mx.utng.ecoviedos.data.repository.BitacoraRepositoryImpl
 import mx.utng.ecoviedos.domain.usecase.GuardarBitacoraUseCase
 import mx.utng.ecoviedos.domain.usecase.ObtenerBitacorasUseCase
 import mx.utng.ecoviedos.presentation.screens.*
 import mx.utng.ecoviedos.presentation.theme.AppTheme
 
+
 class MainActivity : ComponentActivity() {
+
+    private val messageListener = WearableDataService()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -73,6 +78,18 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Registrar el listener de mensajes al reanudar la actividad para recibir datos del móvil
+        Wearable.getMessageClient(this).addListener(messageListener)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // Remover el listener al pausar para optimizar recursos y evitar actualizaciones innecesarias
+        Wearable.getMessageClient(this).removeListener(messageListener)
     }
 }
 
