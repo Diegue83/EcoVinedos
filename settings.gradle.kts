@@ -25,4 +25,4 @@ dependencyResolutionManagement {
 rootProject.name = "EcoViñedos"
 include(":mobile")
 include(":wear")
- 
+include(":mobile:backend")

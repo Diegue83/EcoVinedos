@@ -2,7 +2,8 @@ package mx.utng.ecoviedos.domain.repository
 
 import mx.utng.ecoviedos.domain.model.Bitacora
 
-interface BitacoraRepository {
+interface git fetch origin
+BitacoraRepository {
 
     /**
      * Guarda una nueva bitácora.

@@ -15,3 +15,5 @@ data class Parcela(
     val humedad: Float = 0f,    // Campo real de sensor
     val temperatura: Float = 0f, // Campo real de sensor
 )
+
+
