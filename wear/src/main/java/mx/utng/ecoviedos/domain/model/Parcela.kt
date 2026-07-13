@@ -14,6 +14,7 @@ data class Parcela(
     val activa: Boolean,
     var humedad: Float = 0f,    // Campo real de sensor
     var temperatura: Float = 0f, // Campo real de sensor
+    var RIEGO_ACT: String = "OFF"
 ) {
     companion object {
         private const val HUMEDAD_CRITICA = 30f
@@ -21,7 +22,7 @@ data class Parcela(
 
     // Verificar si la humedad es crítica
     fun esHumedadCritica(): Boolean {
-        return humedad < HUMEDAD_CRITICA
+        return humedad < HUMEDAD_CRITICA && RIEGO_ACT != "ON"
     }
 
     // Obtener estado de la parcela

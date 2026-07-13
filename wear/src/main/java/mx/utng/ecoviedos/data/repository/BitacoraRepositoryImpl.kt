@@ -4,6 +4,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import mx.utng.ecoviedos.domain.model.Bitacora
 import mx.utng.ecoviedos.domain.repository.BitacoraRepository
+import java.io.File
 
 class BitacoraRepositoryImpl : BitacoraRepository {
 
@@ -20,10 +21,12 @@ class BitacoraRepositoryImpl : BitacoraRepository {
         TODO("Not yet implemented")
     }
 
-    override suspend fun obtenerBitacorasPorParcela(idParcela: String): List<Bitacora> {
-        return mutex.withLock {
-            bitacoras.filter { it.idParcela == idParcela }
-        }
+    override fun obtenerAudiosPorParcela(idParcela: String): List<File> {
+        TODO("Not yet implemented")
+    }
+
+    suspend fun obtenerBitacorasPorParcela(idParcela: String): List<File> {
+        TODO("Not yet implemented")
     }
 
     override suspend fun obtenerTodasLasBitacoras(): List<Bitacora> {

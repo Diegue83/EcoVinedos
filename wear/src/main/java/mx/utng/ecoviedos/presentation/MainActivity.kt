@@ -1,11 +1,13 @@
 package mx.utng.ecoviedos.presentation
 
 import android.Manifest
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -28,19 +30,15 @@ import androidx.wear.compose.navigation.SwipeDismissableNavHost
 import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
 import kotlinx.coroutines.launch
-import com.google.android.gms.wearable.Wearable
-import mx.utng.ecoviedos.data.WearableDataService
 import mx.utng.ecoviedos.data.repository.BitacoraRepositoryImpl
 import mx.utng.ecoviedos.domain.usecase.GuardarBitacoraUseCase
 import mx.utng.ecoviedos.domain.usecase.ObtenerBitacorasUseCase
 import mx.utng.ecoviedos.presentation.screens.*
 import mx.utng.ecoviedos.presentation.theme.AppTheme
 
-
 class MainActivity : ComponentActivity() {
 
-    private val messageListener = WearableDataService()
-
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -79,20 +77,9 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-
-    override fun onResume() {
-        super.onResume()
-        // Registrar el listener de mensajes al reanudar la actividad para recibir datos del móvil
-        Wearable.getMessageClient(this).addListener(messageListener)
-    }
-
-    override fun onPause() {
-        super.onPause()
-        // Remover el listener al pausar para optimizar recursos y evitar actualizaciones innecesarias
-        Wearable.getMessageClient(this).removeListener(messageListener)
-    }
 }
 
+@RequiresApi(Build.VERSION_CODES.S)
 @Composable
 fun MainPagerScreen(viewModel: BitacoraViewModel, onNavigateToSuccess: () -> Unit) {
     val uiState by viewModel.uiState.collectAsState()
@@ -124,12 +111,12 @@ fun MainPagerScreen(viewModel: BitacoraViewModel, onNavigateToSuccess: () -> Uni
         Box(modifier = Modifier.fillMaxSize()) {
             if (uiState.parcelas.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Esperando datos...", textAlign = TextAlign.Center)
+                    Text("Conectando a Mosquitto...", textAlign = TextAlign.Center)
                 }
             } else {
                 HorizontalPager(
                     state = pagerState,
-                    userScrollEnabled = true 
+                    userScrollEnabled = true
                 ) { page ->
                     when (page) {
                         0 -> ParcelDetailScreen(viewModel = viewModel, idParcela = selectedId)
@@ -147,12 +134,12 @@ fun MainPagerScreen(viewModel: BitacoraViewModel, onNavigateToSuccess: () -> Uni
                                     idParcela = selectedParcel.id,
                                     nombreParcela = selectedParcel.nombreParcela,
                                     onActivateIrrigation = {
-                                        viewModel.activarRiegoSimulado(selectedParcel.id)
+                                        viewModel.activarRiego(selectedParcel.id)
                                         onNavigateToSuccess()
                                     }
                                 )
                             } else {
-                                OptimalStateContent(selectedParcel?.id)
+                                OptimalStateContent(selectedParcel?.nombreParcela, selectedParcel?.RIEGO_ACT)
                             }
                         }
                     }
@@ -182,7 +169,7 @@ fun MainPagerScreen(viewModel: BitacoraViewModel, onNavigateToSuccess: () -> Uni
 }
 
 @Composable
-fun OptimalStateContent(parcelId: String?) {
+fun OptimalStateContent(nombrePar: String?, RIEGO_ACT: String?) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(
@@ -193,8 +180,15 @@ fun OptimalStateContent(parcelId: String?) {
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                "PARCELA ${parcelId ?: ""}\nESTADO ÓPTIMO", 
+                "PARCELA: ${nombrePar ?: ""}\nESTADO ÓPTIMO",
                 textAlign = TextAlign.Center, 
+                color = Color.White,
+                style = MaterialTheme.typography.labelMedium
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Riego: ${RIEGO_ACT ?: ""}",
+                textAlign = TextAlign.Center,
                 color = Color.White,
                 style = MaterialTheme.typography.labelMedium
             )

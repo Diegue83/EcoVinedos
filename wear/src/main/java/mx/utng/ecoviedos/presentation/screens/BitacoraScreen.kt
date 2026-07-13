@@ -1,5 +1,7 @@
 package mx.utng.ecoviedos.presentation.screens
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -27,8 +29,10 @@ import androidx.wear.compose.material.Vignette
 import androidx.wear.compose.material.VignettePosition
 import androidx.wear.compose.material3.*
 import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
+@RequiresApi(Build.VERSION_CODES.S)
 @Composable
 fun BitacoraScreen(
     viewModel: BitacoraViewModel,
@@ -85,8 +89,8 @@ fun BitacoraScreen(
                         containerColor = if (uiState.isRecording) Color.Red else Color(0xFF384B2F)
                     ),
                     onClick = {
-                        if (uiState.isRecording) viewModel.stopRecording()
-                        else viewModel.startRecording(context.filesDir) // Usar filesDir para persistencia
+                        if (uiState.isRecording) viewModel.stopRecording(context)
+                        else viewModel.startRecording(context,context.filesDir) // Usar filesDir para persistencia
                     }
                 ) {
                     Icon(
@@ -119,12 +123,12 @@ fun BitacoraScreen(
                 items(uiState.bitacoras.reversed()) { nota ->
                     Card(
                         onClick = { 
-                            if (nota.audio != null) viewModel.playAudio(nota.audio)
+                            if (nota.path != null) viewModel.playAudio(nota.path)
                         },
                         modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (nota.audio != null) {
+                            if (nota.path != null) {
                                 Icon(
                                     Icons.AutoMirrored.Filled.VolumeUp,
                                     contentDescription = null, 
@@ -135,13 +139,13 @@ fun BitacoraScreen(
                             }
                             Column {
                                 Text(
-                                    text = nota.descripcion,
+                                    text = nota.name,
                                     style = MaterialTheme.typography.bodySmall,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
-                                    text = dateFormat.format(nota.fecha),
+                                    text = dateFormat.format(Date(nota.lastModified())),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = Color.Gray
                                 )

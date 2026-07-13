@@ -14,4 +14,7 @@ data class Parcela(
     val activa: Boolean,
     val humedad: Float = 0f,    // Campo real de sensor
     val temperatura: Float = 0f, // Campo real de sensor
+    val brix: Int? = null,
+    val acidez: Float? = null,
+    val phSuelo: Float? = null
 )

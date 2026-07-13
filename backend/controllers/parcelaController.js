@@ -1,22 +1,25 @@
 const Parcela = require('../models/Parcela');
+const { publicarListaParcelas } = require('../mqtt/connecction');
 
 // @desc    Crear parcela
 // @route   POST /api/parcelas
 const crearParcela = async (req, res, next) => {
   try {
-    const { nombre, ubicacion, superficie, cultivo, humedad, temperatura, estado, responsable } =
+    const { nombreParcela, variedad, areaM2, umbralHumedad, umbralTemp, indiceMaduracion, fechaCosecha, activa } =
       req.body;
 
     const parcela = await Parcela.create({
-      nombre,
-      ubicacion,
-      superficie,
-      cultivo,
-      humedad,
-      temperatura,
-      estado,
-      responsable
+      nombreParcela,
+      variedad,
+      areaM2,
+      umbralHumedad,
+      umbralTemp,
+      indiceMaduracion,
+      fechaCosecha,
+      activa,
     });
+
+    await publicarListaParcelas(); // Llamada a la función para enviar la parcela al broker MQTT
 
     res.status(201).json(parcela);
   } catch (error) {
@@ -57,14 +60,17 @@ const obtenerParcelaPorId = async (req, res, next) => {
 const actualizarParcela = async (req, res, next) => {
   try {
     const camposPermitidos = [
-      'nombre',
-      'ubicacion',
-      'superficie',
-      'cultivo',
+      'nombreParcela',
+      'variedad',
+      'areaM2',
+      'umbralHumedad',
+      'umbralTemp',
+      'indiceMaduracion',
+      'fechaCosecha',
+      'activa',
       'humedad',
       'temperatura',
       'estado',
-      'responsable'
     ];
 
     const parcela = await Parcela.findById(req.params.id);
@@ -79,6 +85,7 @@ const actualizarParcela = async (req, res, next) => {
     });
 
     const parcelaActualizada = await parcela.save();
+    await publicarListaParcelas(); // Llamada a la función para enviar la lista de parcelas actualizada al broker MQTT
     res.json(parcelaActualizada);
   } catch (error) {
     next(error);
@@ -94,6 +101,7 @@ const eliminarParcela = async (req, res, next) => {
       return res.status(404).json({ mensaje: 'Parcela no encontrada' });
     }
     await parcela.deleteOne();
+    await publicarListaParcelas(); // Llamada a la función para enviar la lista de parcelas actualizada al broker MQTT
     res.json({ mensaje: 'Parcela eliminada correctamente' });
   } catch (error) {
     next(error);

@@ -1,52 +1,72 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const parcelaSchema = new mongoose.Schema(
-  {
-    nombre: {
-      type: String,
-      required: [true, 'El nombre de la parcela es obligatorio'],
-      trim: true
+{
+    nombreParcela: {
+        type: String,
+        required: [true, "El nombre de la parcela es obligatorio"],
+        trim: true
     },
-    ubicacion: {
-      type: String,
-      required: [true, 'La ubicación es obligatoria'],
-      trim: true
-    },
-    superficie: {
-      type: Number,
-      required: [true, 'La superficie es obligatoria'],
-      min: [0, 'La superficie no puede ser negativa']
-    },
-    cultivo: {
-      type: String,
-      trim: true
-    },
-    humedad: {
-      type: Number,
-      min: 0,
-      max: 100,
-      default: 0
-    },
-    temperatura: {
-      type: Number,
-      default: 0
-    },
-    estado: {
-      type: String,
-      enum: ['activa', 'inactiva', 'mantenimiento'],
-      default: 'activa'
-    },
-    responsable: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Usuario',
-      required: [true, 'La parcela debe tener un responsable asignado']
-    },
-    fechaRegistro: {
-      type: Date,
-      default: Date.now
-    }
-  },
-  { versionKey: false }
-);
 
-module.exports = mongoose.model('Parcela', parcelaSchema);
+    variedad: {
+        type: String,
+        required: [true, "La variedad es obligatoria"],
+        trim: true
+    },
+
+    areaM2: {
+        type: Number,
+        required: [true, "El área es obligatoria"],
+        min: [0, "El área no puede ser negativa"]
+    },
+
+    umbralHumedad: {
+        type: Number,
+        required: true,
+        min: 0,
+        max: 100,
+        default: 60
+    },
+
+    umbralTemp: {
+        type: Number,
+        required: true,
+        default: 30
+    },
+
+    indiceMaduracion: {
+        type: Number,
+        required: true,
+        min: 0,
+        max: 100,
+        default: 0
+    },
+
+    fechaCosecha: {
+        type: Date,
+        required: true
+    },
+
+    activa: {
+        type: Boolean,
+        default: true
+    },
+
+    humedad: {
+        type: Number,
+        min: 0,
+        max: 100,
+        default: 0
+    },
+
+    temperatura: {
+        type: Number,
+        default: 0
+    },
+},
+{
+    versionKey: false,
+    timestamps: true
+});
+
+module.exports = mongoose.model("Parcela", parcelaSchema);
