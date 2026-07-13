@@ -1,15 +1,18 @@
 package mx.utng.ecoviedos.data
 
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
+import com.google.android.gms.wearable.MessageClient
 import com.google.android.gms.wearable.MessageEvent
-import com.google.android.gms.wearable.WearableListenerService
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import mx.utng.ecoviedos.domain.model.Parcela
 import java.util.Date
 
-class WearableDataService : WearableListenerService() {
+class WearableDataService : MessageClient.OnMessageReceivedListener {
     private val gson = Gson()
+
 
     override fun onMessageReceived(messageEvent: MessageEvent) {
         Log.d("WearableDataService", "¡MENSAJE RECIBIDO DESDE EL MÓVIL! Path: ${messageEvent.path}")
@@ -36,8 +39,13 @@ class WearableDataService : WearableListenerService() {
                         temperatura = m.temperatura
                     )
                 }
-                ParcelaRepository.updateParcelas(parcelasWear)
-                Log.d("WearableDataService", "Sincronización por mensaje completada: ${parcelasWear.size} parcelas.")
+
+                // Garantizar que la actualización del repositorio se realice en el hilo principal (Main Thread)
+                // para que Jetpack Compose detecte el cambio de estado e inicie la recomposición inmediatamente.
+                Handler(Looper.getMainLooper()).post {
+                    ParcelaRepository.updateParcelas(parcelasWear)
+                    Log.d("WearableDataService", "Sincronización por mensaje completada en Main Thread: ${parcelasWear.size} parcelas.")
+                }
             } catch (e: Exception) {
                 Log.e("WearableDataService", "Error al procesar mensaje JSON", e)
             }

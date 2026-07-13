@@ -1,42 +1,22 @@
 package mx.utng.ecoviedos.presentation.admin
 
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.launch
-import mx.utng.ecoviedos.data.api.RetrofitClient
-import mx.utng.ecoviedos.domain.model.Parcela
-import java.util.Date
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import mx.utng.ecoviedos.presentation.main.MainViewModel
 
-class AdminViewModel : ViewModel() {
+class AdminViewModel(application: Application) : AndroidViewModel(application) {
+    
+    private var mainViewModel: MainViewModel? = null
+
+    fun setMainViewModel(viewModel: MainViewModel) {
+        mainViewModel = viewModel
+    }
 
     fun addParcel(nombre: String, variedad: String, area: Int, humedad: Float, temp: Float) {
-        viewModelScope.launch {
-            try {
-                val nueva = Parcela(
-                    id = System.currentTimeMillis().toString(),
-                    nombreParcela = nombre,
-                    variedad = variedad,
-                    areaM2 = area,
-                    umbralHumedad = humedad,
-                    umbralTemp = temp,
-                    indiceMaduracion = 0f,
-                    fechaCosecha = Date(),
-                    activa = true
-                )
-                // RetrofitClient.apiService.createParcel(nueva) // Listo para activar
-            } catch (e: Exception) {
-                // Manejar error
-            }
-        }
+        mainViewModel?.addNewParcel(nombre, variedad, area, humedad, temp)
     }
 
     fun addUser(nombre: String, correo: String, rol: String) {
-        viewModelScope.launch {
-            try {
-                // Lógica para enviar al servidor Node.js
-                // val user = User(nombre, correo, rol)
-                // RetrofitClient.apiService.createUser(user)
-            } catch (e: Exception) { }
-        }
+        // Lógica de usuario (sin cambios para el test de parcelas)
     }
 }
