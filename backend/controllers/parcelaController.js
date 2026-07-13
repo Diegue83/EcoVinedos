@@ -4,8 +4,20 @@ const Parcela = require('../models/Parcela');
 // @route   POST /api/parcelas
 const crearParcela = async (req, res, next) => {
   try {
-    const { nombre, ubicacion, superficie, cultivo, humedad, temperatura, estado, responsable } =
-      req.body;
+    const {
+      nombre,
+      ubicacion,
+      superficie,
+      cultivo,
+      humedad,
+      temperatura,
+      estado,
+      umbralHumedad,
+      umbralTemp,
+      indiceMaduracion,
+      fechaCosecha,
+      responsable
+    } = req.body;
 
     const parcela = await Parcela.create({
       nombre,
@@ -15,6 +27,10 @@ const crearParcela = async (req, res, next) => {
       humedad,
       temperatura,
       estado,
+      umbralHumedad,
+      umbralTemp,
+      indiceMaduracion,
+      fechaCosecha,
       responsable
     });
 
@@ -64,6 +80,10 @@ const actualizarParcela = async (req, res, next) => {
       'humedad',
       'temperatura',
       'estado',
+      'umbralHumedad',
+      'umbralTemp',
+      'indiceMaduracion',
+      'fechaCosecha',
       'responsable'
     ];
 

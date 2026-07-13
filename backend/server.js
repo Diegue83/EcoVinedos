@@ -1,10 +1,12 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const connectDB = require('./config/database');
+const connectDB = require('./config/db');
 const errorHandler = require('./middleware/errorHandler');
 const usuarioRoutes = require('./routes/usuarioRoutes');
 const parcelaRoutes = require('./routes/parcelaRoutes');
+const bitacoraRoutes = require('./routes/bitacoraRoutes');
+const riegoRoutes = require('./routes/riegoRoutes');
 
 connectDB();
 
@@ -16,6 +18,8 @@ app.use(express.json());
 // Rutas
 app.use('/api', usuarioRoutes);
 app.use('/api', parcelaRoutes);
+app.use('/api', bitacoraRoutes);
+app.use('/api', riegoRoutes);
 
 app.get('/', (req, res) => {
   res.send('API de administración y riego de parcelas funcionando 🌱');

@@ -36,6 +36,25 @@ const parcelaSchema = new mongoose.Schema(
       enum: ['activa', 'inactiva', 'mantenimiento'],
       default: 'activa'
     },
+    umbralHumedad: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: 30
+    },
+    umbralTemp: {
+      type: Number,
+      default: 25
+    },
+    indiceMaduracion: {
+      type: Number,
+      min: 0,
+      max: 1,
+      default: 0
+    },
+    fechaCosecha: {
+      type: Date
+    },
     responsable: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Usuario',
