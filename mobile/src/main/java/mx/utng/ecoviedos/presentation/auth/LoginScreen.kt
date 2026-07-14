@@ -16,11 +16,13 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
 fun LoginScreen(
-    onLoginSuccess: () -> Unit,
-    onForgotPassword: () -> Unit
+    onLoginSuccess: (rol: String) -> Unit,
+    onForgotPassword: () -> Unit,
+    authViewModel: AuthViewModel = viewModel()
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -28,6 +30,15 @@ fun LoginScreen(
     var selectedTab by remember { mutableIntStateOf(2) } // Default to "Trabajador"
 
     val roles = listOf("Enólogo", "Administrador", "Trabajador")
+    val uiState by authViewModel.uiState.collectAsState()
+
+    // Reacciona cuando el login termina exitosamente
+    LaunchedEffect(uiState) {
+        if (uiState is AuthUiState.Success) {
+            onLoginSuccess((uiState as AuthUiState.Success).rol)
+            authViewModel.resetState()
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -62,7 +73,7 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Role Tabs
+        // Role Tabs (informativo; el rol real lo determina el backend)
         TabRow(
             selectedTabIndex = selectedTab,
             containerColor = Color.Transparent,
@@ -87,7 +98,8 @@ fun LoginScreen(
             label = { Text("CORREO ELECTRÓNICO") },
             modifier = Modifier.fillMaxWidth(),
             trailingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+            isError = uiState is AuthUiState.Error
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -106,8 +118,20 @@ fun LoginScreen(
                         contentDescription = null
                     )
                 }
-            }
+            },
+            isError = uiState is AuthUiState.Error
         )
+
+        // Mensaje de error, si lo hay
+        if (uiState is AuthUiState.Error) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = (uiState as AuthUiState.Error).mensaje,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.align(Alignment.Start)
+            )
+        }
 
         TextButton(
             onClick = onForgotPassword,
@@ -119,14 +143,19 @@ fun LoginScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(
-            onClick = onLoginSuccess,
+            onClick = { authViewModel.login(email.trim(), password) },
             modifier = Modifier.fillMaxWidth().height(56.dp),
+            enabled = uiState !is AuthUiState.Loading,
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB4F391), contentColor = Color(0xFF1A1C18)),
             shape = MaterialTheme.shapes.medium
         ) {
-            Icon(Icons.AutoMirrored.Filled.Login, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text("Iniciar sesión", fontWeight = FontWeight.Bold)
+            if (uiState is AuthUiState.Loading) {
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+            } else {
+                Icon(Icons.AutoMirrored.Filled.Login, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("Iniciar sesión", fontWeight = FontWeight.Bold)
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
