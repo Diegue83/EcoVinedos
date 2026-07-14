@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const connectDB = require('./config/db');
+const connectDB = require('./config/database');
 const errorHandler = require('./middleware/errorHandler');
 const usuarioRoutes = require('./routes/usuarioRoutes');
 const parcelaRoutes = require('./routes/parcelaRoutes');

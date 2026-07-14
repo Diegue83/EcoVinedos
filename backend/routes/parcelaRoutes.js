@@ -7,15 +7,23 @@ const {
   actualizarParcela,
   eliminarParcela
 } = require('../controllers/parcelaController');
-const { protegerRuta, permitirRoles } = require('../middleware/authMiddleware');
+//const {  permitirRoles } = require('../middleware/authMiddleware');
 
 // Cualquier usuario autenticado puede consultar parcelas
-router.get('/parcelas', protegerRuta, obtenerParcelas);
-router.get('/parcelas/:id', protegerRuta, obtenerParcelaPorId);
+// router.get('/parcelas', protegerRuta, obtenerParcelas);
+// router.get('/parcelas/:id', protegerRuta, obtenerParcelaPorId);
+
+// // Solo administradores pueden crear, editar o eliminar parcelas
+// router.post('/parcelas', protegerRuta, permitirRoles('administrador'), crearParcela);
+// router.put('/parcelas/:id', protegerRuta, permitirRoles('administrador'), actualizarParcela);
+// router.delete('/parcelas/:id', protegerRuta, permitirRoles('administrador'), eliminarParcela);
+
+router.get('/parcelas', obtenerParcelas);
+router.get('/parcelas/:id', obtenerParcelaPorId);
 
 // Solo administradores pueden crear, editar o eliminar parcelas
-router.post('/parcelas', protegerRuta, permitirRoles('administrador'), crearParcela);
-router.put('/parcelas/:id', protegerRuta, permitirRoles('administrador'), actualizarParcela);
-router.delete('/parcelas/:id', protegerRuta, permitirRoles('administrador'), eliminarParcela);
+router.post('/parcelas', crearParcela);
+router.put('/parcelas/:id', actualizarParcela);
+router.delete('/parcelas/:id', eliminarParcela);
 
 module.exports = router;

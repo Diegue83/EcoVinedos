@@ -11,12 +11,19 @@ class MqttManager(
     private val onMessageReceived: (parcelId: String, humedad: Float, temp: Float) -> Unit
 ) {
     private var mqttClient: MqttClient? = null
-    // IP de tu servidor Mosquitto (PC con Node-RED)
-    private val serverUri = "tcp://192.168.1.75:1883" 
     private val clientId = "AndroidClient_${System.currentTimeMillis()}"
+    private var currentServerIp: String = "192.168.1.75" // IP por defecto
 
-    fun connect() {
+    fun connect(serverIp: String) {
+        currentServerIp = serverIp
+        val serverUri = "tcp://$serverIp:1883"
+        
         try {
+            // Si ya existe un cliente, desconectarlo antes de crear uno nuevo
+            mqttClient?.let {
+                if (it.isConnected) it.disconnect()
+            }
+
             mqttClient = MqttClient(serverUri, clientId, MemoryPersistence())
             val options = MqttConnectOptions().apply {
                 isAutomaticReconnect = true
@@ -26,7 +33,7 @@ class MqttManager(
 
             mqttClient?.setCallback(object : MqttCallback {
                 override fun connectionLost(cause: Throwable?) {
-                    Log.e("MQTT", "Conexión perdida: ${cause?.message}")
+                    Log.e("MQTT", "Conexión perdida con $serverUri: ${cause?.message}")
                 }
 
                 override fun messageArrived(topic: String?, message: MqttMessage?) {
@@ -34,7 +41,6 @@ class MqttManager(
                     Log.d("MQTT", "Mensaje recibido en $topic: $payload")
                     
                     try {
-                        // Tópico esperado: vinedo/parcela/{id}/stats
                         val parts = topic?.split("/") ?: return
                         if (parts.size >= 3) {
                             val parcelId = parts[2]
@@ -54,21 +60,30 @@ class MqttManager(
             mqttClient?.connect(options)
             Log.d("MQTT", "Conectado exitosamente a $serverUri")
         } catch (e: Exception) {
-            Log.e("MQTT", "Error al conectar: ${e.message}")
+            Log.e("MQTT", "Error al conectar a $serverUri: ${e.message}")
         }
     }
 
     fun subscribeToParcel(parcelId: String) {
         val topic = "vinedo/parcela/$parcelId/stats"
         try {
-            mqttClient?.subscribe(topic, 1)
-            Log.d("MQTT", "Suscrito a: $topic")
+            if (mqttClient?.isConnected == true) {
+                mqttClient?.subscribe(topic, 1)
+                Log.d("MQTT", "Suscrito a: $topic")
+            } else {
+                Log.w("MQTT", "No se pudo suscribir, cliente no conectado")
+            }
         } catch (e: Exception) {
             Log.e("MQTT", "Error al suscribir: ${e.message}")
         }
     }
 
     fun disconnect() {
-        mqttClient?.disconnect()
+        try {
+            mqttClient?.disconnect()
+            mqttClient = null
+        } catch (e: Exception) {
+            Log.e("MQTT", "Error al desconectar", e)
+        }
     }
 }

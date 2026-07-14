@@ -13,7 +13,6 @@ import java.util.Date
 class WearableDataService : MessageClient.OnMessageReceivedListener {
     private val gson = Gson()
 
-
     override fun onMessageReceived(messageEvent: MessageEvent) {
         Log.d("WearableDataService", "¡MENSAJE RECIBIDO DESDE EL MÓVIL! Path: ${messageEvent.path}")
         

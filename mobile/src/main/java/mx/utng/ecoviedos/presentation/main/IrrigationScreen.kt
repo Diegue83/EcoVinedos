@@ -17,10 +17,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import mx.utng.ecoviedos.domain.model.Parcela
 
 @Composable
-fun IrrigationScreen() {
+fun IrrigationScreen(parcelas: List<Parcela>) {
     var isAuto by remember { mutableStateOf(true) }
+
+    // Ordenar por prioridad (humedad más baja primero)
+    val sortedParcelas = parcelas.sortedBy { it.humedad }
 
     Column(
         modifier = Modifier
@@ -55,7 +59,8 @@ fun IrrigationScreen() {
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Tarjeta de consumo hídrico
+        // Tarjeta de consumo hídrico (simulada con datos dinámicos)
+        val totalWaterNeeded = parcelas.sumOf { (100 - it.humedad.toInt()) * 20 } // Estimación ficticia
         ElevatedCard(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.elevatedCardColors(containerColor = Color(0xFF1D2024))
@@ -65,23 +70,20 @@ fun IrrigationScreen() {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.WaterDrop, contentDescription = null, tint = Color(0xFF7CB9FF))
                         Spacer(Modifier.width(8.dp))
-                        Text("Agua usada hoy", fontSize = 14.sp)
+                        Text("Déficit hídrico total", fontSize = 14.sp)
                     }
-                    Text("4,200 L / 6,800 L", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF7CB9FF))
+                    Text("${totalWaterNeeded} L", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF7CB9FF))
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 LinearProgressIndicator(
-                    progress = { 4200f / 6800f },
+                    progress = { (totalWaterNeeded / 10000f).coerceIn(0f, 1f) },
                     modifier = Modifier.fillMaxWidth().height(10.dp),
                     color = Color(0xFF7CB9FF),
                     trackColor = Color.White.copy(alpha = 0.1f),
                     strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("62% cuota diaria", fontSize = 12.sp, color = Color.Gray)
-                    Text("38% disponible", fontSize = 12.sp, color = Color.Gray)
-                }
+                Text("Estimación basada en humedad actual", fontSize = 12.sp, color = Color.Gray)
             }
         }
 
@@ -96,33 +98,20 @@ fun IrrigationScreen() {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            item { 
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(bottom = 16.dp)
+        ) {
+            items(sortedParcelas) { parcela ->
+                val isUrgent = parcela.humedad < parcela.umbralHumedad
                 IrrigationM3Item(
-                    name = "A-1 Viognier", 
-                    status = "Humedad 24% - Faltan 480 L", 
-                    badge = "Urgente", 
-                    color = Color(0xFFFFB4AB), 
-                    onColor = Color(0xFF690005)
-                ) 
-            }
-            item { 
-                IrrigationM3Item(
-                    name = "C-2 Garnacha", 
-                    status = "Humedad 38% - 320 L", 
-                    badge = "14:00", 
-                    color = Color(0xFFFFB951), 
-                    onColor = Color(0xFF452B00)
-                ) 
-            }
-            item { 
-                IrrigationM3Item(
-                    name = "B-3 Merlot", 
-                    status = "Humedad 55% - 210 L", 
-                    badge = "OK", 
-                    color = Color(0xFFB4F391), 
-                    onColor = Color(0xFF00390A)
-                ) 
+                    name = parcela.nombreParcela, 
+                    status = "Humedad ${parcela.humedad.toInt()}% - Umbral ${parcela.umbralHumedad.toInt()}%", 
+                    badge = if (isUrgent) "Urgente" else "Normal", 
+                    color = if (isUrgent) Color(0xFFFFB4AB) else Color(0xFFB4F391), 
+                    onColor = if (isUrgent) Color(0xFF690005) else Color(0xFF00390A)
+                )
             }
         }
     }

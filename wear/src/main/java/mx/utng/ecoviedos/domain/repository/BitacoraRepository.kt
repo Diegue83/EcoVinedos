@@ -1,6 +1,9 @@
 package mx.utng.ecoviedos.domain.repository
 
+import android.app.Application
+import android.content.Context
 import mx.utng.ecoviedos.domain.model.Bitacora
+import java.io.File
 
 interface git fetch origin
 BitacoraRepository {
@@ -18,7 +21,7 @@ BitacoraRepository {
     /**
      * Obtiene todas las bitácoras registradas para una parcela.
      */
-    suspend fun obtenerBitacorasPorParcela(idParcela: String): List<Bitacora>
+    fun obtenerAudiosPorParcela(idParcela: String): List<File>
 
     /**
      * Obtiene todas las bitácoras.

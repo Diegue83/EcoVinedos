@@ -22,13 +22,14 @@ fun AdminPanelScreen(
     onNavigateToAddParcel: () -> Unit,
     onNavigateToSamples: () -> Unit,
     onNavigateToUsers: () -> Unit,
+    onNavigateToSettings: () -> Unit,
     onLogout: () -> Unit
 ) {
     val adminOptions = listOf(
         AdminOption("Gestión Parcelas", Icons.Default.Map, onNavigateToAddParcel, "Registra o edita parcelas"),
         AdminOption("Registro Muestras", Icons.Default.Science, onNavigateToSamples, "Brix, pH y acidez"),
         AdminOption("Usuarios", Icons.Default.People, onNavigateToUsers, "Gestionar personal"),
-        AdminOption("Configuración", Icons.Default.Settings, {}, "Ajustes del sistema")
+        AdminOption("Configuración", Icons.Default.Settings, onNavigateToSettings, "Ajustes del sistema")
     )
 
     Scaffold(

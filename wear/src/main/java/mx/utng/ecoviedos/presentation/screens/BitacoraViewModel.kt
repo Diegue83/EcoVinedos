@@ -1,16 +1,14 @@
 package mx.utng.ecoviedos.presentation.screens
 
 import android.app.Application
+import android.content.Context
 import android.media.MediaPlayer
 import android.media.MediaRecorder
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.android.gms.wearable.MessageClient
-import com.google.android.gms.wearable.MessageEvent
-import com.google.android.gms.wearable.Wearable
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -19,7 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import mx.utng.ecoviedos.data.ParcelaRepository
-import mx.utng.ecoviedos.data.ParcelaMap
+import mx.utng.ecoviedos.data.mqtt.MqttManager
 import mx.utng.ecoviedos.domain.model.Bitacora
 import mx.utng.ecoviedos.domain.model.Parcela
 import mx.utng.ecoviedos.domain.usecase.GuardarBitacoraUseCase
@@ -31,7 +29,7 @@ class BitacoraViewModel(
     application: Application,
     private val guardarBitacoraUseCase: GuardarBitacoraUseCase,
     private val obtenerBitacorasUseCase: ObtenerBitacorasUseCase
-) : AndroidViewModel(application), MessageClient.OnMessageReceivedListener {
+) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(BitacoraUiState())
     val uiState: StateFlow<BitacoraUiState> = _uiState.asStateFlow()
@@ -43,112 +41,155 @@ class BitacoraViewModel(
     private var mediaRecorder: MediaRecorder? = null
     private var timerJob: Job? = null
     private var audioFile: File? = null
-    private val gson = Gson()
+    private var mqttManager: MqttManager? = null
 
     init {
-        Wearable.getMessageClient(application).addListener(this)
+        // Inicializar MQTT para recibir datos directamente del broker
+        mqttManager = MqttManager(
+            onSensorsUpdated = { id, hum, temp ->
+                updateParcelaLocalmente(id, hum, temp)
+            },
+            onRiegoUpdate = { id, estado ->
+                onRiegoUpdate(id, estado)
+            }
+        )
+        
+        viewModelScope.launch(Dispatchers.IO) {
+            mqttManager?.connect()
+        }
+
         viewModelScope.launch {
             ParcelaRepository.parcelas.collect { parcelas ->
+                if (parcelas.isNotEmpty() && _selectedParcelId.value.isBlank()) {
+                    _selectedParcelId.value = parcelas.first().id
+                }
                 _uiState.value = _uiState.value.copy(parcelas = parcelas)
+            }
+        }
+
+    }
+
+    private fun updateParcelaLocalmente(id: String, hum: Float, temp: Float) {
+        val currentList = _uiState.value.parcelas.toMutableList()
+        val index = currentList.indexOfFirst { it.id == id }
+        if (index != -1) {
+            val updatedParcela = currentList[index].copy(humedad = hum, temperatura = temp)
+            currentList[index] = updatedParcela
+            viewModelScope.launch(Dispatchers.Main) {
+                ParcelaRepository.updateParcelas(currentList.toList())
             }
         }
     }
 
-    override fun onMessageReceived(messageEvent: MessageEvent) {
-        if (messageEvent.path == "/parcelas_message") {
-            val json = String(messageEvent.data, Charsets.UTF_8)
-            try {
-                val itemType = object : TypeToken<List<ParcelaMap>>() {}.type
-                val parcelasMobile: List<ParcelaMap> = gson.fromJson(json, itemType)
-                val parcelasWear = parcelasMobile.map { m ->
-                    Parcela(
-                        id = m.id,
-                        nombreParcela = m.nombreParcela ?: "Parcela ${m.id}",
-                        variedad = m.variedad ?: "",
-                        areaM2 = m.areaM2,
-                        umbralHumedad = m.umbralHumedad,
-                        umbralTemp = m.umbralTemp,
-                        indiceMaduracion = m.indiceMaduracion,
-                        fechaCosecha = m.fechaCosecha ?: Date(),
-                        activa = m.activa,
-                        humedad = m.humedad,
-                        temperatura = m.temperatura
-                    )
-                }
-                viewModelScope.launch(Dispatchers.Main) {
-                    ParcelaRepository.updateParcelas(parcelasWear)
-                }
-            } catch (e: Exception) { Log.e("BitacoraViewModel", "Error JSON", e) }
-        }
-    }
-
-    fun seleccionarParcela(idParcela: String) {
+    fun seleccionarParcela( idParcela: String) {
         _selectedParcelId.value = idParcela
         cargarBitacoras(idParcela)
     }
 
-    fun activarRiegoSimulado(idParcela: String) {
-        // 1. Actualizar localmente para respuesta inmediata
+    fun activarRiego(idParcela: String) {
+        mqttManager?.activarRiego(idParcela)
+    }
+
+    fun onRiegoUpdate(idParcela: String, estado: String) {
         val currentList = _uiState.value.parcelas.toMutableList()
         val index = currentList.indexOfFirst { it.id == idParcela }
         if (index != -1) {
-            currentList[index] = currentList[index].copy(humedad = 45f)
-            ParcelaRepository.updateParcelas(currentList.toList())
+            val updatedParcela = currentList[index].copy(RIEGO_ACT=estado)
+            currentList[index] = updatedParcela
+            viewModelScope.launch(Dispatchers.Main) {
+                ParcelaRepository.updateParcelas(currentList.toList())
+            }
         }
-        // 2. Notificar al móvil para que actualice su simulación
-        Wearable.getMessageClient(getApplication<Application>())
-            .sendMessage("node_id_ignored_by_cloud", "/activate_irrigation", idParcela.toByteArray())
     }
+
 
     fun cargarBitacoras(idParcela: String) {
         viewModelScope.launch {
-            val bitacoras = obtenerBitacorasUseCase(idParcela)
+            val filesDir = getApplication<Application>().filesDir
+
+            val bitacoras = filesDir
+                .listFiles()
+                ?.filter {
+                    it.isFile && it.name.startsWith("parcela_${idParcela}_")
+                }
+                ?.sortedByDescending { it.lastModified() }
+                ?: emptyList()
+
             _uiState.value = _uiState.value.copy(bitacoras = bitacoras)
         }
     }
 
-    fun startRecording(outputDir: File) {
+    @RequiresApi(Build.VERSION_CODES.S)
+    fun startRecording(context: Context, outputDir: File) {
         if (_uiState.value.isRecording) return
         try {
             val fileName = "parcela_${_selectedParcelId.value}_${System.currentTimeMillis()}.mp3"
             audioFile = File(outputDir, fileName)
-            mediaRecorder = MediaRecorder().apply {
+            mediaRecorder = MediaRecorder(context).apply {
                 setAudioSource(MediaRecorder.AudioSource.MIC)
                 setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
                 setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
                 setOutputFile(audioFile?.absolutePath)
                 prepare(); start()
+                Log.d("Audio", "Recorder iniciado")
             }
             _uiState.value = _uiState.value.copy(isRecording = true, recordedTime = "00:00")
             startTimer()
         } catch (e: Exception) { e.printStackTrace() }
     }
 
-    fun stopRecording() {
+    fun stopRecording(context: Context) {
         if (!_uiState.value.isRecording) return
         try {
             mediaRecorder?.apply { stop(); release() }
             mediaRecorder = null
             timerJob?.cancel()
+            val finalTime = _uiState.value.recordedTime
             val filePath = audioFile?.absolutePath
             _uiState.value = _uiState.value.copy(isRecording = false, lastAudioPath = filePath)
-            guardarBitacora(_selectedParcelId.value, "Nota Parcela ${_selectedParcelId.value}", "Audio grabado (${_uiState.value.recordedTime})", filePath)
+            guardarBitacora(context,_selectedParcelId.value, "Nota Parcela ${_selectedParcelId.value}", "Audio grabado ($finalTime)", filePath)
         } catch (e: Exception) { e.printStackTrace() }
     }
 
     fun playAudio(path: String?) {
         val targetPath = path ?: return
+
+        val file = File(targetPath)
+
+        Log.d("Audio", "Ruta: ${file.absolutePath}")
+        Log.d("Audio", "Existe: ${file.exists()}")
+        Log.d("Audio", "Tamaño: ${file.length()}")
+
+        if (!file.exists()) {
+            Log.e("Audio", "El archivo no existe")
+            return
+        }
+
         if (_uiState.value.isPlaying) {
             mediaPlayer?.stop()
             mediaPlayer?.release()
+            mediaPlayer = null
         }
+
         try {
             mediaPlayer = MediaPlayer().apply {
-                setDataSource(targetPath); prepare(); start()
-                setOnCompletionListener { _uiState.value = _uiState.value.copy(isPlaying = false) }
+                setDataSource(file.absolutePath)
+                prepare()
+                start()
+
+                setOnCompletionListener {
+                    release()
+                    mediaPlayer = null
+                    _uiState.value = _uiState.value.copy(isPlaying = false)
+                }
             }
+
             _uiState.value = _uiState.value.copy(isPlaying = true)
-        } catch (e: Exception) { e.printStackTrace() }
+            Log.d("Audio", "Reproduciendo: $targetPath")
+
+        } catch (e: Exception) {
+            Log.e("Audio", "Error reproduciendo", e)
+        }
     }
 
     private fun startTimer() {
@@ -161,7 +202,7 @@ class BitacoraViewModel(
         }
     }
 
-    fun guardarBitacora(idParcela: String, titulo: String, descripcion: String, audio: String?) {
+    fun guardarBitacora(context: Context,idParcela: String, titulo: String, descripcion: String, audio: String?) {
         viewModelScope.launch {
             val bitacora = Bitacora(id = (_uiState.value.bitacoras.size + 1), idParcela = idParcela, fecha = Date(), titulo = titulo, descripcion = descripcion, audio = audio, transcripcion = null, sincronizada = false)
             guardarBitacoraUseCase(bitacora)
@@ -171,7 +212,7 @@ class BitacoraViewModel(
 
     override fun onCleared() {
         super.onCleared()
-        Wearable.getMessageClient(getApplication<Application>()).removeListener(this)
+        mqttManager?.disconnect()
         mediaRecorder?.release(); mediaPlayer?.release()
     }
 }

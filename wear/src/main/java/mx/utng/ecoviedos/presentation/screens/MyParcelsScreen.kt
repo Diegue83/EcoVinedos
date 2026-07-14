@@ -46,13 +46,13 @@ fun MyParcelsScreen(
                     onClick = { onParcelClick(parcela.id) },
                     title = {
                         Text(
-                            text = "Parcela ${parcela.id}",
+                            text = "Parcela ${parcela.nombreParcela}",
                             style = MaterialTheme.typography.labelSmall,
                             color = if (isSelected) Color(0xFFB4F391) else Color.White
                         )
                     },
                     subtitle = {
-                        Text(parcela.nombreParcela)
+                        Text(parcela.variedad)
                     }
                 ) {
                     Row(
@@ -62,6 +62,12 @@ fun MyParcelsScreen(
                     ) {
                         Text(
                             text = "${parcela.humedad.toInt()}% Hum.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (parcela.esHumedadCritica()) Color.Red else Color.LightGray
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "${parcela.temperatura.toInt()}°C .",
                             style = MaterialTheme.typography.bodySmall,
                             color = if (parcela.esHumedadCritica()) Color.Red else Color.LightGray
                         )

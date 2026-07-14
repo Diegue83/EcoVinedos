@@ -19,6 +19,7 @@ import mx.utng.ecoviedos.presentation.admin.AdminViewModel
 import mx.utng.ecoviedos.presentation.admin.AddParcelScreen
 import mx.utng.ecoviedos.presentation.admin.SampleRecordsScreen
 import mx.utng.ecoviedos.presentation.admin.UserManagementScreen
+import mx.utng.ecoviedos.presentation.admin.SettingsScreen
 import mx.utng.ecoviedos.presentation.theme.EcoViedosTheme
 
 class MainActivity : ComponentActivity() {
@@ -61,11 +62,18 @@ class MainActivity : ComponentActivity() {
                                 onNavigateToAddParcel = { navController.navigate("add_parcel") },
                                 onNavigateToSamples = { navController.navigate("samples") },
                                 onNavigateToUsers = { navController.navigate("users") },
+                                onNavigateToSettings = { navController.navigate("settings") },
                                 onLogout = { 
                                     navController.navigate("login") {
                                         popUpTo("admin") { inclusive = true }
                                     }
                                 }
+                            )
+                        }
+                        composable("settings") {
+                            SettingsScreen(
+                                onNavigateBack = { navController.popBackStack() },
+                                viewModel = mainViewModel
                             )
                         }
                         composable("users") {
