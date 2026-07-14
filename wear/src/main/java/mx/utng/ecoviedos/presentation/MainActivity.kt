@@ -139,7 +139,11 @@ fun MainPagerScreen(viewModel: BitacoraViewModel, onNavigateToSuccess: () -> Uni
                                     }
                                 )
                             } else {
-                                OptimalStateContent(selectedParcel?.nombreParcela, selectedParcel?.RIEGO_ACT)
+                                OptimalStateContent(
+                                    nombrePar = selectedParcel?.nombreParcela, 
+                                    riegoActivo = selectedParcel?.riegoActivo ?: false,
+                                    tiempoRestante = selectedParcel?.tiempoRestanteRiego ?: 0
+                                )
                             }
                         }
                     }
@@ -169,7 +173,7 @@ fun MainPagerScreen(viewModel: BitacoraViewModel, onNavigateToSuccess: () -> Uni
 }
 
 @Composable
-fun OptimalStateContent(nombrePar: String?, RIEGO_ACT: String?) {
+fun OptimalStateContent(nombrePar: String?, riegoActivo: Boolean, tiempoRestante: Int) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(
@@ -186,12 +190,29 @@ fun OptimalStateContent(nombrePar: String?, RIEGO_ACT: String?) {
                 style = MaterialTheme.typography.labelMedium
             )
             Spacer(Modifier.height(8.dp))
-            Text(
-                "Riego: ${RIEGO_ACT ?: ""}",
-                textAlign = TextAlign.Center,
-                color = Color.White,
-                style = MaterialTheme.typography.labelMedium
-            )
+            
+            if (riegoActivo) {
+                Text(
+                    "Riego: ACTIVO",
+                    textAlign = TextAlign.Center,
+                    color = Color(0xFFB4F391),
+                    style = MaterialTheme.typography.labelMedium
+                )
+                Text(
+                    "Restan: ${tiempoRestante / 60}m ${tiempoRestante % 60}s",
+                    textAlign = TextAlign.Center,
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelSmall
+                )
+            } else {
+                Text(
+                    "Riego: APAGADO",
+                    textAlign = TextAlign.Center,
+                    color = Color.Gray,
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
+
             Text(
                 "Todo está bajo control", 
                 textAlign = TextAlign.Center, 

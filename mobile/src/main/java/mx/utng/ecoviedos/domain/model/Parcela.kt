@@ -12,8 +12,10 @@ data class Parcela(
     val indiceMaduracion: Float,
     val fechaCosecha: Date,
     val activa: Boolean,
-    val humedad: Float = 0f,    // Campo real de sensor
-    val temperatura: Float = 0f, // Campo real de sensor
+    var humedad: Float = 0f,    // Campo real de sensor
+    var temperatura: Float = 0f, // Campo real de sensor
+    var riegoActivo: Boolean = false, // Estado real del riego
+    var tiempoRestanteRiego: Int = 0, // En segundos
     val brix: Int? = null,
     val acidez: Float? = null,
     val phSuelo: Float? = null

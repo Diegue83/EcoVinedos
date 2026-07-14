@@ -8,82 +8,160 @@ import org.json.JSONObject
 
 class MqttManager(
     context: Context,
-    private val onMessageReceived: (parcelId: String, humedad: Float, temp: Float) -> Unit
+    private val onMessageReceived: (parcelId: String, humedad: Float, temp: Float, riegoActivo: Boolean, tiempoRestante: Int) -> Unit,
+    private val onParcelListReceived: (jsonPayload: String) -> Unit,
+    private val onConnectionStatusChanged: (isConnected: Boolean, message: String?) -> Unit
 ) {
     private var mqttClient: MqttClient? = null
-    private val clientId = "AndroidClient_${System.currentTimeMillis()}"
-    private var currentServerIp: String = "192.168.1.75" // IP por defecto
+    private val clientId = "AndroidMobile_${System.currentTimeMillis()}"
+    private var isConnecting = false
 
     fun connect(serverIp: String) {
-        currentServerIp = serverIp
-        val serverUri = "tcp://$serverIp:1883"
+        if (isConnecting) {
+            Log.d("MQTT", "Ya hay un intento de conexión en curso...")
+            return
+        }
+        
+        // Limpiar IP de espacios en blanco
+        val trimmedIp = serverIp.trim()
+        val serverUri = "tcp://$trimmedIp:1883"
         
         try {
-            // Si ya existe un cliente, desconectarlo antes de crear uno nuevo
+            isConnecting = true
+            onConnectionStatusChanged(false, "Intentando conectar...")
+
+            // Cerrar cliente anterior de forma segura
             mqttClient?.let {
-                if (it.isConnected) it.disconnect()
+                try {
+                    if (it.isConnected) it.disconnect()
+                    it.close()
+                } catch (e: Exception) {
+                    Log.w("MQTT", "Aviso al cerrar cliente previo: ${e.message}")
+                }
             }
 
             mqttClient = MqttClient(serverUri, clientId, MemoryPersistence())
             val options = MqttConnectOptions().apply {
                 isAutomaticReconnect = true
                 isCleanSession = true
-                connectionTimeout = 10
+                connectionTimeout = 15 // Tiempo de espera razonable
+                keepAliveInterval = 60
             }
 
-            mqttClient?.setCallback(object : MqttCallback {
+            mqttClient?.setCallback(object : MqttCallbackExtended {
+                override fun connectComplete(reconnect: Boolean, serverURI: String?) {
+                    isConnecting = false
+                    Log.d("MQTT", "Conexión completada a $serverURI (reconnect: $reconnect)")
+                    onConnectionStatusChanged(true, "Conectado a $serverURI")
+                    if (reconnect) {
+                        subscribeToTopics()
+                    }
+                }
+
                 override fun connectionLost(cause: Throwable?) {
-                    Log.e("MQTT", "Conexión perdida con $serverUri: ${cause?.message}")
+                    isConnecting = false
+                    Log.e("MQTT", "Conexión perdida: ${cause?.message}")
+                    onConnectionStatusChanged(false, "Conexión perdida")
                 }
 
                 override fun messageArrived(topic: String?, message: MqttMessage?) {
                     val payload = message?.toString() ?: return
-                    Log.d("MQTT", "Mensaje recibido en $topic: $payload")
+                    Log.d("MQTT", "Mensaje en [$topic]: $payload")
                     
                     try {
-                        val parts = topic?.split("/") ?: return
-                        if (parts.size >= 3) {
-                            val parcelId = parts[2]
-                            val json = JSONObject(payload)
-                            val hum = json.getDouble("humedad").toFloat()
-                            val temp = json.getDouble("temperatura").toFloat()
-                            onMessageReceived(parcelId, hum, temp)
+                        when {
+                            topic == "vinedo/parcelas/lista" -> {
+                                onParcelListReceived(payload)
+                            }
+                            topic?.startsWith("vinedo/parcela/") == true && topic.endsWith("/stats") -> {
+                                val parts = topic.split("/")
+                                if (parts.size >= 3) {
+                                    val parcelId = parts[2]
+                                    val json = JSONObject(payload)
+                                    val hum = json.optDouble("humedad", 0.0).toFloat()
+                                    val temp = json.optDouble("temperatura", 0.0).toFloat()
+                                    val riego = json.optBoolean("riegoActivo", false)
+                                    val tiempo = json.optInt("tiempoRestante", 0)
+                                    onMessageReceived(parcelId, hum, temp, riego, tiempo)
+                                }
+                            }
                         }
                     } catch (e: Exception) {
-                        Log.e("MQTT", "Error parseando JSON: ${e.message}")
+                        Log.e("MQTT", "Error parseando mensaje en $topic", e)
                     }
                 }
 
                 override fun deliveryComplete(token: IMqttDeliveryToken?) {}
             })
 
+            Log.d("MQTT", "Intentando conectar a $serverUri...")
             mqttClient?.connect(options)
-            Log.d("MQTT", "Conectado exitosamente a $serverUri")
+            
+            // Suscripción inicial
+            subscribeToTopics()
+            Log.d("MQTT", "Móvil conectado y suscrito a $serverUri")
+            
+        } catch (e: MqttException) {
+            isConnecting = false
+            val errorMsg = when (e.reasonCode.toInt()) {
+                MqttException.REASON_CODE_SERVER_CONNECT_ERROR.toInt() -> 
+                    "Servidor no disponible"
+                32100 -> "Conexión ya en curso"
+                0 -> "Tiempo de espera agotado"
+                else -> "Error: ${e.reasonCode}"
+            }
+            Log.e("MQTT", "Fallo al conectar a $serverUri: $errorMsg", e)
+            onConnectionStatusChanged(false, errorMsg)
         } catch (e: Exception) {
-            Log.e("MQTT", "Error al conectar a $serverUri: ${e.message}")
+            isConnecting = false
+            Log.e("MQTT", "Error inesperado al conectar a $serverUri", e)
+            onConnectionStatusChanged(false, "Error de conexión")
         }
     }
 
-    fun subscribeToParcel(parcelId: String) {
-        val topic = "vinedo/parcela/$parcelId/stats"
+    private fun subscribeToTopics() {
         try {
-            if (mqttClient?.isConnected == true) {
-                mqttClient?.subscribe(topic, 1)
-                Log.d("MQTT", "Suscrito a: $topic")
-            } else {
-                Log.w("MQTT", "No se pudo suscribir, cliente no conectado")
+            mqttClient?.let {
+                if (it.isConnected) {
+                    it.subscribe("vinedo/parcelas/lista", 1)
+                    it.subscribe("vinedo/parcela/+/stats", 1)
+                    Log.d("MQTT", "Suscrito a tópicos exitosamente")
+                }
             }
         } catch (e: Exception) {
-            Log.e("MQTT", "Error al suscribir: ${e.message}")
+            Log.e("MQTT", "Error al suscribirse", e)
+        }
+    }
+
+    fun toggleRiego(parcelId: String, activo: Boolean, duracionMinutos: Int = 10) {
+        try {
+            mqttClient?.let {
+                if (it.isConnected) {
+                    val topic = "vinedo/parcela/$parcelId/riego/control"
+                    val payload = JSONObject().apply {
+                        put("comando", if (activo) "ON" else "OFF")
+                        put("duracion", duracionMinutos)
+                    }.toString()
+                    val message = MqttMessage(payload.toByteArray()).apply { qos = 1 }
+                    it.publish(topic, message)
+                    Log.d("MQTT", "Comando de riego enviado a $topic: $payload")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("MQTT", "Error al enviar comando de riego", e)
         }
     }
 
     fun disconnect() {
         try {
-            mqttClient?.disconnect()
+            mqttClient?.let {
+                if (it.isConnected) it.disconnect()
+                it.close()
+            }
             mqttClient = null
+            Log.d("MQTT", "Cliente desconectado y recursos liberados")
         } catch (e: Exception) {
-            Log.e("MQTT", "Error al desconectar", e)
+            Log.e("MQTT", "Error al desconectar: ${e.message}")
         }
     }
 }

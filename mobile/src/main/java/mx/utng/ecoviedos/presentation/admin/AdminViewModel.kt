@@ -12,9 +12,9 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
         mainViewModel = viewModel
     }
 
-    fun addParcel(nombre: String, variedad: String, area: Int, humedad: Float, temp: Float) {
-        mainViewModel?.addNewParcel(nombre, variedad, area, humedad, temp)
-    }
+    //fun addParcel(nombre: String, variedad: String, area: Int, humedad: Float, temp: Float) {
+    //    mainViewModel?.addNewParcel(nombre, variedad, area, humedad, temp)
+    //}
 
     fun addUser(nombre: String, correo: String, rol: String) {
         // Lógica de usuario (sin cambios para el test de parcelas)

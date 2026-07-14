@@ -46,11 +46,8 @@ class BitacoraViewModel(
     init {
         // Inicializar MQTT para recibir datos directamente del broker
         mqttManager = MqttManager(
-            onSensorsUpdated = { id, hum, temp ->
-                updateParcelaLocalmente(id, hum, temp)
-            },
-            onRiegoUpdate = { id, estado ->
-                onRiegoUpdate(id, estado)
+            onSensorsUpdated = { id, hum, temp, riego, tiempo ->
+                updateParcelaLocalmente(id, hum, temp, riego, tiempo)
             }
         )
         
@@ -69,11 +66,16 @@ class BitacoraViewModel(
 
     }
 
-    private fun updateParcelaLocalmente(id: String, hum: Float, temp: Float) {
+    private fun updateParcelaLocalmente(id: String, hum: Float, temp: Float, riego: Boolean, tiempo: Int) {
         val currentList = _uiState.value.parcelas.toMutableList()
         val index = currentList.indexOfFirst { it.id == id }
         if (index != -1) {
-            val updatedParcela = currentList[index].copy(humedad = hum, temperatura = temp)
+            val updatedParcela = currentList[index].copy(
+                humedad = hum, 
+                temperatura = temp,
+                riegoActivo = riego,
+                tiempoRestanteRiego = tiempo
+            )
             currentList[index] = updatedParcela
             viewModelScope.launch(Dispatchers.Main) {
                 ParcelaRepository.updateParcelas(currentList.toList())
@@ -90,17 +92,6 @@ class BitacoraViewModel(
         mqttManager?.activarRiego(idParcela)
     }
 
-    fun onRiegoUpdate(idParcela: String, estado: String) {
-        val currentList = _uiState.value.parcelas.toMutableList()
-        val index = currentList.indexOfFirst { it.id == idParcela }
-        if (index != -1) {
-            val updatedParcela = currentList[index].copy(RIEGO_ACT=estado)
-            currentList[index] = updatedParcela
-            viewModelScope.launch(Dispatchers.Main) {
-                ParcelaRepository.updateParcelas(currentList.toList())
-            }
-        }
-    }
 
 
     fun cargarBitacoras(idParcela: String) {

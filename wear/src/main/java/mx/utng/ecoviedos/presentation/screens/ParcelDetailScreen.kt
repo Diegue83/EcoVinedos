@@ -26,6 +26,7 @@ fun ParcelDetailScreen(
     val parcela = uiState.parcelas.find { it.id == idParcela }
 
     val statusColor = when {
+        parcela?.riegoActivo == true -> Color(0xFF1976D2) // Blue for irrigation
         parcela?.esHumedadCritica() == true -> Color(0xFFD32F2F)
         parcela?.activa == false -> Color.Gray
         else -> Color(0xFF2E7D32)
@@ -78,18 +79,32 @@ fun ParcelDetailScreen(
 
             Box(
                 modifier = Modifier
-                    .height(18.dp)
-                    .width(60.dp)
+                    .height(if (parcela?.riegoActivo == true) 28.dp else 18.dp)
+                    .fillMaxWidth(0.8f)
                     .background(statusColor, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = if (parcela?.esHumedadCritica() == true) "ALERTA" else "SISTEMA OK",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White,
-                    fontSize = 8.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = when {
+                            parcela?.riegoActivo == true -> "RIEGO ACTIVO"
+                            parcela?.esHumedadCritica() == true -> "ALERTA"
+                            else -> "SISTEMA OK"
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White,
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (parcela?.riegoActivo == true) {
+                        Text(
+                            text = "${(parcela.tiempoRestanteRiego / 60)}m ${(parcela.tiempoRestanteRiego % 60)}s",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White,
+                            fontSize = 7.sp
+                        )
+                    }
+                }
             }
         }
     }

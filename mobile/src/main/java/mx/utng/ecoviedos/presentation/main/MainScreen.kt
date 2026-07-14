@@ -62,7 +62,7 @@ fun MainScreen(
             when (selectedItem) {
                 0 -> DashboardContent(viewModel, parcelas, onNavigateToAdmin)
                 1 -> MaturationContent(parcelas)
-                2 -> IrrigationScreen(parcelas)
+                2 -> IrrigationScreen(parcelas, viewModel)
                 else -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("Historial (En desarrollo)")
                 }
@@ -80,6 +80,8 @@ fun DashboardContent(
     val avgMaturity = if (parcelas.isNotEmpty()) parcelas.map { it.indiceMaduracion }.average().toFloat() else 0.74f
     val activeCount = parcelas.count { it.activa }
     val alertCount = parcelas.count { it.humedad < it.umbralHumedad }
+    val mqttStatus by viewModel.mqttStatus.collectAsState()
+    val isConnected by viewModel.isMqttConnected.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Row(
@@ -94,7 +96,26 @@ fun DashboardContent(
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFFE2E3DE)
                 )
-                Text("Temporada 2026", color = Color.Gray, fontSize = 14.sp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.height(20.dp) // Altura fija para evitar saltos de UI
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .background(
+                                color = if (isConnected) Color.Green else Color.Red,
+                                shape = RoundedCornerShape(4.dp)
+                            )
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = if (mqttStatus.length > 25) mqttStatus.take(22) + "..." else mqttStatus,
+                        color = Color.Gray,
+                        fontSize = 12.sp,
+                        maxLines = 1
+                    )
+                }
             }
             Row {
                 IconButton(onClick = onNavigateToAdmin) {

@@ -1,6 +1,7 @@
 package mx.utng.ecoviedos.presentation.admin
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Save
@@ -19,6 +20,33 @@ fun SettingsScreen(
     viewModel: MainViewModel
 ) {
     var mqttIp by remember { mutableStateOf(viewModel.getMqttIp()) }
+    val mqttStatus by viewModel.mqttStatus.collectAsState()
+    val isConnected by viewModel.isMqttConnected.collectAsState()
+    var showErrorDialog by remember { mutableStateOf(false) }
+
+    // Mostrar diálogo si hay un error crítico
+    LaunchedEffect(mqttStatus) {
+        if (!isConnected && mqttStatus.contains("Error", ignoreCase = true)) {
+            showErrorDialog = true
+        }
+    }
+
+    if (showErrorDialog) {
+        AlertDialog(
+            onDismissRequest = { showErrorDialog = false },
+            title = { Text("Fallo de Conexión") },
+            text = { Text("No se pudo conectar al servidor MQTT. Revisa la IP y asegúrate de estar en la misma red.\n\nDetalle: $mqttStatus") },
+            confirmButton = {
+                TextButton(onClick = { 
+                    showErrorDialog = false
+                    viewModel.updateMqttIp(mqttIp)
+                }) { Text("Reintentar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showErrorDialog = false }) { Text("Cerrar") }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -50,6 +78,28 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.titleMedium,
                 color = Color(0xFFB4F391)
             )
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFF2A2D26)
+                )
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Estado:", color = Color.White, style = MaterialTheme.typography.bodyMedium)
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = if (mqttStatus.length > 20) mqttStatus.take(17) + "..." else mqttStatus,
+                        color = if (isConnected) Color(0xFFB4F391) else Color(0xFFF39191),
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
 
             OutlinedTextField(
                 value = mqttIp,

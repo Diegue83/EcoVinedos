@@ -120,7 +120,7 @@ fun BitacoraScreen(
                     Text("REGISTROS LOCALES", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                 }
 
-                items(uiState.bitacoras.reversed()) { nota ->
+                items(uiState.bitacoras) { nota ->
                     Card(
                         onClick = { 
                             if (nota.path != null) viewModel.playAudio(nota.path)

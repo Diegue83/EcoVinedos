@@ -46,7 +46,7 @@ fun AddParcelScreen(
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { 
-                    if (nombre.isNotBlank() && variedad.isNotBlank()) {
+                   /* if (nombre.isNotBlank() && variedad.isNotBlank()) {
                         adminViewModel.addParcel(
                             nombre, 
                             variedad, 
@@ -55,7 +55,7 @@ fun AddParcelScreen(
                             umbralTemp.toFloatOrNull() ?: 25f
                         )
                         onNavigateBack()
-                    }
+                    }*/
                 },
                 containerColor = Color(0xFFB4F391),
                 contentColor = Color(0xFF1A1C18),

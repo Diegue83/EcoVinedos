@@ -52,7 +52,14 @@ fun MyParcelsScreen(
                         )
                     },
                     subtitle = {
-                        Text(parcela.variedad)
+                        if (parcela.riegoActivo) {
+                            Text(
+                                "Riego: ${parcela.tiempoRestanteRiego / 60}m ${parcela.tiempoRestanteRiego % 60}s",
+                                color = Color(0xFFB4F391)
+                            )
+                        } else {
+                            Text(parcela.variedad)
+                        }
                     }
                 ) {
                     Row(

@@ -9,6 +9,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.filled.StopCircle
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,8 +22,12 @@ import androidx.compose.ui.unit.sp
 import mx.utng.ecoviedos.domain.model.Parcela
 
 @Composable
-fun IrrigationScreen(parcelas: List<Parcela>) {
+fun IrrigationScreen(
+    parcelas: List<Parcela>,
+    viewModel: MainViewModel
+) {
     var isAuto by remember { mutableStateOf(true) }
+    var selectedDuracion by remember { mutableIntStateOf(10) }
 
     // Ordenar por prioridad (humedad más baja primero)
     val sortedParcelas = parcelas.sortedBy { it.humedad }
@@ -57,7 +63,22 @@ fun IrrigationScreen(parcelas: List<Parcela>) {
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        if (!isAuto) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Duración manual (minutos): $selectedDuracion", color = Color.White, fontSize = 14.sp)
+            Slider(
+                value = selectedDuracion.toFloat(),
+                onValueChange = { selectedDuracion = it.toInt() },
+                valueRange = 1f..60f,
+                steps = 59,
+                colors = SliderDefaults.colors(
+                    thumbColor = Color(0xFFB4F391),
+                    activeTrackColor = Color(0xFFB4F391)
+                )
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Tarjeta de consumo hídrico (simulada con datos dinámicos)
         val totalWaterNeeded = parcelas.sumOf { (100 - it.humedad.toInt()) * 20 } // Estimación ficticia
@@ -105,12 +126,23 @@ fun IrrigationScreen(parcelas: List<Parcela>) {
         ) {
             items(sortedParcelas) { parcela ->
                 val isUrgent = parcela.humedad < parcela.umbralHumedad
+                val statusText = if (parcela.riegoActivo) {
+                    "Riego: ${parcela.tiempoRestanteRiego / 60}m ${parcela.tiempoRestanteRiego % 60}s restantes"
+                } else {
+                    "Humedad ${parcela.humedad.toInt()}% - Umbral ${parcela.umbralHumedad.toInt()}%"
+                }
+
                 IrrigationM3Item(
-                    name = parcela.nombreParcela, 
-                    status = "Humedad ${parcela.humedad.toInt()}% - Umbral ${parcela.umbralHumedad.toInt()}%", 
-                    badge = if (isUrgent) "Urgente" else "Normal", 
-                    color = if (isUrgent) Color(0xFFFFB4AB) else Color(0xFFB4F391), 
-                    onColor = if (isUrgent) Color(0xFF690005) else Color(0xFF00390A)
+                    name = parcela.nombreParcela,
+                    status = statusText,
+                    badge = if (parcela.riegoActivo) "Activo" else if (isUrgent) "Urgente" else "Normal",
+                    color = if (parcela.riegoActivo) Color(0xFF7CB9FF) else if (isUrgent) Color(0xFFFFB4AB) else Color(0xFFB4F391),
+                    onColor = if (parcela.riegoActivo) Color(0xFF003258) else if (isUrgent) Color(0xFF690005) else Color(0xFF00390A),
+                    isManualMode = !isAuto,
+                    riegoActivo = parcela.riegoActivo,
+                    onToggle = {
+                        viewModel.toggleRiego(parcela.id, !parcela.riegoActivo, selectedDuracion)
+                    }
                 )
             }
         }
@@ -118,7 +150,16 @@ fun IrrigationScreen(parcelas: List<Parcela>) {
 }
 
 @Composable
-fun IrrigationM3Item(name: String, status: String, badge: String, color: Color, onColor: Color) {
+fun IrrigationM3Item(
+    name: String,
+    status: String,
+    badge: String,
+    color: Color,
+    onColor: Color,
+    isManualMode: Boolean,
+    riegoActivo: Boolean,
+    onToggle: () -> Unit
+) {
     OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.outlinedCardColors(containerColor = Color.Transparent)
@@ -133,9 +174,22 @@ fun IrrigationM3Item(name: String, status: String, badge: String, color: Color, 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Outlined.Schedule, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.Gray)
                     Spacer(Modifier.width(4.dp))
-                    Text(status, fontSize = 12.sp, color = Color.Gray)
+                    Text(status, fontSize = 12.sp, color = if (riegoActivo) Color(0xFF7CB9FF) else Color.Gray)
                 }
             }
+            
+            if (isManualMode) {
+                IconButton(onClick = onToggle) {
+                    Icon(
+                        imageVector = if (riegoActivo) Icons.Default.StopCircle else Icons.Default.PlayCircle,
+                        contentDescription = if (riegoActivo) "Detener" else "Iniciar",
+                        tint = if (riegoActivo) Color(0xFFFFB4AB) else Color(0xFFB4F391),
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+            }
+
             Badge(
                 containerColor = color,
                 contentColor = onColor,
