@@ -40,11 +40,10 @@ const usuarioSchema = new mongoose.Schema(
 );
 
 // Hashear la contraseña antes de guardar, solo si fue modificada
-usuarioSchema.pre('save', async function (next) {
-  if (!this.isModified('contraseña')) return next();
+usuarioSchema.pre('save', async function () {
+  if (!this.isModified('contraseña')) return;
   const salt = await bcrypt.genSalt(10);
   this.contraseña = await bcrypt.hash(this.contraseña, salt);
-  next();
 });
 
 // Método para comparar contraseña en el login

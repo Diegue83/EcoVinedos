@@ -18,3 +18,5 @@ data class Parcela(
     val acidez: Float? = null,
     val phSuelo: Float? = null
 )
+
+

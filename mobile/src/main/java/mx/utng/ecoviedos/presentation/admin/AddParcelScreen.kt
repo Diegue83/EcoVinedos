@@ -27,6 +27,17 @@ fun AddParcelScreen(
     var umbralHumedad by remember { mutableStateOf("30") }
     var umbralTemp by remember { mutableStateOf("25") }
 
+    val uiState by adminViewModel.uiState.collectAsState()
+    val estaGuardando = uiState is AddParcelUiState.Loading
+
+    // Navega de regreso solo cuando el backend confirma que se guardó
+    LaunchedEffect(uiState) {
+        if (uiState is AddParcelUiState.Success) {
+            adminViewModel.resetState()
+            onNavigateBack()
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -45,22 +56,27 @@ fun AddParcelScreen(
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = { 
-                    if (nombre.isNotBlank() && variedad.isNotBlank()) {
+                onClick = {
+                    if (nombre.isNotBlank() && variedad.isNotBlank() && !estaGuardando) {
                         adminViewModel.addParcel(
-                            nombre, 
-                            variedad, 
-                            area.toIntOrNull() ?: 0, 
-                            umbralHumedad.toFloatOrNull() ?: 30f, 
+                            nombre,
+                            variedad,
+                            area.toIntOrNull() ?: 0,
+                            umbralHumedad.toFloatOrNull() ?: 30f,
                             umbralTemp.toFloatOrNull() ?: 25f
                         )
-                        onNavigateBack()
                     }
                 },
                 containerColor = Color(0xFFB4F391),
                 contentColor = Color(0xFF1A1C18),
-                icon = { Icon(Icons.Default.Save, contentDescription = null) },
-                text = { Text("Guardar Parcela") }
+                icon = {
+                    if (estaGuardando) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    } else {
+                        Icon(Icons.Default.Save, contentDescription = null)
+                    }
+                },
+                text = { Text(if (estaGuardando) "Guardando..." else "Guardar Parcela") }
             )
         },
         containerColor = Color(0xFF1A1C18)
@@ -161,6 +177,21 @@ fun AddParcelScreen(
                         unfocusedTextColor = Color.White
                     )
                 )
+            }
+
+            // Mensaje de error si la creación falla en el backend
+            if (uiState is AddParcelUiState.Error) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF4B2F2F).copy(alpha = 0.4f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        (uiState as AddParcelUiState.Error).mensaje,
+                        modifier = Modifier.padding(16.dp),
+                        color = Color(0xFFFFB4AB),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
             }
 
             Card(

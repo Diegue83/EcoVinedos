@@ -18,6 +18,7 @@ router.get('/usuarios', protegerRuta, obtenerUsuarios);
 router.get('/usuarios/:id', protegerRuta, obtenerUsuarioPorId);
 
 // Solo administradores pueden crear, editar o eliminar usuarios
+//router.post('/usuarios', crearUsuario); 
 router.post('/usuarios', protegerRuta, permitirRoles('administrador'), crearUsuario);
 router.put('/usuarios/:id', protegerRuta, permitirRoles('administrador'), actualizarUsuario);
 router.delete('/usuarios/:id', protegerRuta, permitirRoles('administrador'), eliminarUsuario);
