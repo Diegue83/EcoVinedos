@@ -1,7 +1,7 @@
 const mqtt = require("mqtt");
 const Parcela = require("../models/Parcela");
 
-const BROKER = "mqtt://localhost:1883";
+const BROKER = "mqtt://192.168.7.93:1883";
 
 const client = mqtt.connect(BROKER, {
     reconnectPeriod: 3000,

@@ -56,6 +56,7 @@ dependencies {
 
     // Play Services for Wearable (Data Layer)
     implementation(libs.play.services.wearable)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
 
     // Retrofit for Server Connection
     implementation("com.squareup.retrofit2:retrofit:2.11.0")

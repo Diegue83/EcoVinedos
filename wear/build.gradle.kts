@@ -36,7 +36,7 @@ android {
 dependencies {
 
     implementation(platform(libs.androidx.compose.bom))
-
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
     implementation(libs.androidx.activity.compose)
 
     implementation(libs.androidx.compose.ui)
