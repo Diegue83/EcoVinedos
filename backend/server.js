@@ -7,6 +7,7 @@ const usuarioRoutes = require('./routes/usuarioRoutes');
 const parcelaRoutes = require('./routes/parcelaRoutes');
 const bitacoraRoutes = require('./routes/bitacoraRoutes');
 const riegoRoutes = require('./routes/riegoRoutes');
+const morgan = require('morgan');
 
 connectDB();
 
@@ -14,6 +15,7 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use(morgan('dev'));
 
 // Rutas
 app.use('/api', usuarioRoutes);

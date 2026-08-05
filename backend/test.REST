@@ -73,3 +73,25 @@ Content-Type: application/json
   "fechaCosecha": "2026-09-15T00:00:00.000Z",
   "activa": true
 }
+
+
+###
+POST http://127.0.0.1:3000/api/usuarios
+Content-Type: application/json
+
+{
+  "nombre": "Juan Pérez",
+  "correo": "juan.perez2@example.com",
+  "contraseña": "securepassword",
+  "rol": "administrador",
+  "telefono": "1234567890"
+}
+
+###
+POST http://127.0.0.1:3000/api/login
+Content-Type: application/json
+
+{
+  "correo": "juan.perez2@example.com",
+  "contraseña": "securepassword"
+}

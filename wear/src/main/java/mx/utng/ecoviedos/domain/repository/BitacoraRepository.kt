@@ -5,8 +5,7 @@ import android.content.Context
 import mx.utng.ecoviedos.domain.model.Bitacora
 import java.io.File
 
-interface git fetch origin
-BitacoraRepository {
+interface BitacoraRepository {
 
     /**
      * Guarda una nueva bitácora.

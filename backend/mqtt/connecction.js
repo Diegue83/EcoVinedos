@@ -10,6 +10,7 @@ const client = mqtt.connect(BROKER, {
 
 client.on("connect", () => {
     console.log("✅ Conectado al broker MQTT");
+    publicarListaParcelas()
 });
 
 client.on("reconnect", () => {

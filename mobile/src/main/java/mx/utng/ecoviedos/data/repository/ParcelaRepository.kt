@@ -37,4 +37,30 @@ class ParcelaRepository {
             Result.failure(e)
         }
     }
+
+    suspend fun actualizarParcela(token: String, id: String, request: ParcelaRequest): Result<Parcela> {
+        return try {
+            val response = RetrofitClient.instance.actualizarParcela("Bearer $token", id, request)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!.toDomain())
+            } else {
+                Result.failure(Exception("Error al actualizar: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun eliminarParcela(token: String, id: String): Result<Unit> {
+        return try {
+            val response = RetrofitClient.instance.eliminarParcela("Bearer $token", id)
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Error al eliminar: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

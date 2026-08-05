@@ -8,6 +8,8 @@ const crearParcela = async (req, res, next) => {
     const { nombreParcela, variedad, areaM2, umbralHumedad, umbralTemp, indiceMaduracion, fechaCosecha, activa } =
       req.body;
 
+    console.log(req.body)
+
     const parcela = await Parcela.create({
       nombreParcela,
       variedad,

@@ -27,9 +27,7 @@ fun LoginScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
-    var selectedTab by remember { mutableIntStateOf(2) } // Default to "Trabajador"
 
-    val roles = listOf("Enólogo", "Administrador", "Trabajador")
     val uiState by authViewModel.uiState.collectAsState()
 
     // Reacciona cuando el login termina exitosamente
@@ -70,24 +68,6 @@ fun LoginScreen(
             style = MaterialTheme.typography.bodyMedium,
             color = Color.Gray
         )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Role Tabs (informativo; el rol real lo determina el backend)
-        TabRow(
-            selectedTabIndex = selectedTab,
-            containerColor = Color.Transparent,
-            contentColor = Color(0xFF2E7D32),
-            divider = {}
-        ) {
-            roles.forEachIndexed { index, role ->
-                Tab(
-                    selected = selectedTab == index,
-                    onClick = { selectedTab = index },
-                    text = { Text(role, fontSize = 12.sp) }
-                )
-            }
-        }
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -156,18 +136,6 @@ fun LoginScreen(
                 Spacer(Modifier.width(8.dp))
                 Text("Iniciar sesión", fontWeight = FontWeight.Bold)
             }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        OutlinedButton(
-            onClick = { /* QR Login */ },
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            shape = MaterialTheme.shapes.medium
-        ) {
-            Icon(Icons.Default.Lock, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Entrar con código QR del reloj")
         }
     }
 }

@@ -14,13 +14,13 @@ const { protegerRuta, permitirRoles } = require('../middleware/authMiddleware');
 router.post('/login', login);
 
 // Rutas protegidas (requieren token)
-router.get('/usuarios', protegerRuta, obtenerUsuarios);
-router.get('/usuarios/:id', protegerRuta, obtenerUsuarioPorId);
+router.get('/usuarios', obtenerUsuarios);
+router.get('/usuarios/:id', obtenerUsuarioPorId);
 
 // Solo administradores pueden crear, editar o eliminar usuarios
 //router.post('/usuarios', crearUsuario); 
-router.post('/usuarios', protegerRuta, permitirRoles('administrador'), crearUsuario);
-router.put('/usuarios/:id', protegerRuta, permitirRoles('administrador'), actualizarUsuario);
-router.delete('/usuarios/:id', protegerRuta, permitirRoles('administrador'), eliminarUsuario);
+router.post('/usuarios', crearUsuario);
+router.put('/usuarios/:id', permitirRoles('administrador'), actualizarUsuario);
+router.delete('/usuarios/:id', permitirRoles('administrador'), eliminarUsuario);
 
 module.exports = router;

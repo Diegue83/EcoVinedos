@@ -16,8 +16,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import mx.utng.ecoviedos.data.WearableDataSender
+import mx.utng.ecoviedos.data.local.SessionManager
 import mx.utng.ecoviedos.data.mqtt.MqttManager
+import mx.utng.ecoviedos.data.repository.ParcelaRepository
 import mx.utng.ecoviedos.domain.model.Parcela
+import kotlinx.coroutines.flow.first
 import java.util.Date
 
 class MainViewModel(application: Application) : AndroidViewModel(application), MessageClient.OnMessageReceivedListener {
@@ -31,6 +34,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
     val isMqttConnected: StateFlow<Boolean> = _isMqttConnected.asStateFlow()
     
     private val wearableDataSender = WearableDataSender(application)
+    private val parcelaRepository = ParcelaRepository()
+    private val sessionManager = SessionManager(application)
     private var mqttManager: MqttManager? = null
     private val gson = Gson()
 
@@ -40,6 +45,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
         Wearable.getMessageClient(application).addListener(this)
         val savedIp = prefs.getString("mqtt_server_ip", "192.168.1.75") ?: "192.168.1.75"
         initializeMqtt(savedIp)
+        cargarParcelas()
+    }
+
+    fun cargarParcelas() {
+        viewModelScope.launch {
+            val token = sessionManager.token.first()
+            if (!token.isNullOrBlank()) {
+                val result = parcelaRepository.obtenerParcelas(token)
+                result.onSuccess { list ->
+                    _parcelas.value = list
+                    wearableDataSender.sendParcelas(list)
+                }
+            }
+        }
     }
 
     private fun initializeMqtt(serverIp: String) {

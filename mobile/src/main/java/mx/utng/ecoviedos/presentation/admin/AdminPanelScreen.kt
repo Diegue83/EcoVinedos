@@ -5,7 +5,13 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Science
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.Router
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -19,14 +25,17 @@ import androidx.compose.ui.unit.sp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminPanelScreen(
-    onNavigateToAddParcel: () -> Unit,
+    onNavigateBack: () -> Unit,
+    onNavigateToParcelManagement: () -> Unit,
     onNavigateToSamples: () -> Unit,
     onNavigateToUsers: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToDeviceConfig: () -> Unit,
     onLogout: () -> Unit
 ) {
     val adminOptions = listOf(
-        AdminOption("Gestión Parcelas", Icons.Default.Map, onNavigateToAddParcel, "Registra o edita parcelas"),
+        AdminOption("Gestión Parcelas", Icons.Default.Map, onNavigateToParcelManagement, "Registra o edita parcelas"),
+        AdminOption("Configurar Nodo", Icons.Default.Router, onNavigateToDeviceConfig, "Vincular hardware IoT"),
         AdminOption("Registro Muestras", Icons.Default.Science, onNavigateToSamples, "Brix, pH y acidez"),
         AdminOption("Usuarios", Icons.Default.People, onNavigateToUsers, "Gestionar personal"),
         AdminOption("Configuración", Icons.Default.Settings, onNavigateToSettings, "Ajustes del sistema")
@@ -36,6 +45,11 @@ fun AdminPanelScreen(
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("Panel de Administración", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Regresar")
+                    }
+                },
                 actions = {
                     IconButton(onClick = onLogout) {
                         Icon(Icons.Default.Logout, contentDescription = "Salir", tint = Color(0xFFFFB4AB))
@@ -43,7 +57,9 @@ fun AdminPanelScreen(
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = Color(0xFF1A1C18),
-                    titleContentColor = Color.White
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White,
+                    actionIconContentColor = Color.White
                 )
             )
         },

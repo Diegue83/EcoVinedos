@@ -121,9 +121,6 @@ fun DashboardContent(
                 IconButton(onClick = onNavigateToAdmin) {
                     Icon(Icons.Default.AdminPanelSettings, contentDescription = "Admin", tint = Color(0xFFB4F391))
                 }
-                IconButton(onClick = { viewModel.reloadParcelas() }) {
-                    Icon(Icons.Default.Sync, contentDescription = "Sincronizar", tint = Color(0xFFB4F391))
-                }
                 IconButton(onClick = { }) {
                     Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = Color(0xFFB4F391))
                 }

@@ -14,18 +14,28 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import mx.utng.ecoviedos.presentation.main.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddParcelScreen(
     onNavigateBack: () -> Unit,
-    adminViewModel: AdminViewModel = viewModel()
+    adminViewModel: AdminViewModel = viewModel(),
+    parcelId: String? = null,
+    mainViewModel: MainViewModel = viewModel()
 ) {
-    var nombre by remember { mutableStateOf("") }
-    var variedad by remember { mutableStateOf("") }
-    var area by remember { mutableStateOf("") }
-    var umbralHumedad by remember { mutableStateOf("30") }
-    var umbralTemp by remember { mutableStateOf("25") }
+    val parcelToEdit = remember(parcelId) {
+        if (parcelId != null) {
+            mainViewModel.parcelas.value.find { it.id == parcelId }
+        } else null
+    }
+
+    var nombre by remember { mutableStateOf(parcelToEdit?.nombreParcela ?: "") }
+    var variedad by remember { mutableStateOf(parcelToEdit?.variedad ?: "") }
+    var area by remember { mutableStateOf(parcelToEdit?.areaM2?.toString() ?: "") }
+    var umbralHumedad by remember { mutableStateOf(parcelToEdit?.umbralHumedad?.toInt()?.toString() ?: "30") }
+    var umbralTemp by remember { mutableStateOf(parcelToEdit?.umbralTemp?.toInt()?.toString() ?: "25") }
+    var activa by remember { mutableStateOf(parcelToEdit?.activa ?: true) }
 
     val uiState by adminViewModel.uiState.collectAsState()
     val estaGuardando = uiState is AddParcelUiState.Loading
@@ -41,7 +51,7 @@ fun AddParcelScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Nueva Parcela", fontWeight = FontWeight.Bold) },
+                title = { Text(if (parcelId == null) "Nueva Parcela" else "Editar Parcela", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Regresar")
@@ -58,13 +68,25 @@ fun AddParcelScreen(
             ExtendedFloatingActionButton(
                 onClick = {
                     if (nombre.isNotBlank() && variedad.isNotBlank() && !estaGuardando) {
-                        adminViewModel.addParcel(
-                            nombre,
-                            variedad,
-                            area.toIntOrNull() ?: 0,
-                            umbralHumedad.toFloatOrNull() ?: 30f,
-                            umbralTemp.toFloatOrNull() ?: 25f
-                        )
+                        if (parcelId == null) {
+                            adminViewModel.addParcel(
+                                nombre,
+                                variedad,
+                                area.toIntOrNull() ?: 0,
+                                umbralHumedad.toFloatOrNull() ?: 30f,
+                                umbralTemp.toFloatOrNull() ?: 25f
+                            )
+                        } else {
+                            adminViewModel.updateParcel(
+                                parcelId,
+                                nombre,
+                                variedad,
+                                area.toIntOrNull() ?: 0,
+                                umbralHumedad.toFloatOrNull() ?: 30f,
+                                umbralTemp.toFloatOrNull() ?: 25f,
+                                activa
+                            )
+                        }
                     }
                 },
                 containerColor = Color(0xFFB4F391),
@@ -76,7 +98,7 @@ fun AddParcelScreen(
                         Icon(Icons.Default.Save, contentDescription = null)
                     }
                 },
-                text = { Text(if (estaGuardando) "Guardando..." else "Guardar Parcela") }
+                text = { Text(if (estaGuardando) "Guardando..." else if (parcelId == null) "Guardar Parcela" else "Actualizar Parcela") }
             )
         },
         containerColor = Color(0xFF1A1C18)
@@ -139,6 +161,23 @@ fun AddParcelScreen(
                     unfocusedTextColor = Color.White
                 )
             )
+
+            if (parcelId != null) {
+                Row(
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Parcela Activa", color = Color.White, modifier = Modifier.weight(1f))
+                    Switch(
+                        checked = activa,
+                        onCheckedChange = { activa = it },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color(0xFFB4F391),
+                            checkedTrackColor = Color(0xFF384B2F)
+                        )
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
             Text(

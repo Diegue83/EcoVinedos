@@ -39,37 +39,81 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.value = AddParcelUiState.Loading
 
             val token = sessionManager.token.first()
-            val userId = sessionManager.userId.first()
-
-            if (token.isNullOrBlank() || userId.isNullOrBlank()) {
-                _uiState.value = AddParcelUiState.Error("No hay sesión activa, vuelve a iniciar sesión")
+            if (token.isNullOrBlank()) {
+                _uiState.value = AddParcelUiState.Error("No hay sesión activa")
                 return@launch
             }
 
             val request = ParcelaRequest(
-                nombre = nombre,
-                ubicacion = "Sin especificar",
-                superficie = area.toDouble(),
-                cultivo = variedad,
-                humedad = 0.0,
-                temperatura = 0.0,
-                estado = "activa",
+                nombreParcela = nombre,
+                areaM2 = area.toDouble(),
+                variedad = variedad,
+                activa = true,
                 umbralHumedad = umbralHumedad.toDouble(),
-                umbralTemp = umbralTemp.toDouble(),
-                responsable = userId
+                umbralTemp = umbralTemp.toDouble()
             )
 
             val resultado = parcelaRepository.crearParcela(token, request)
-
             resultado
                 .onSuccess {
-                    // Refresca la lista completa desde el backend en vez de
-                    // solo agregar localmente, así queda sincronizada de verdad
                     mainViewModel?.cargarParcelas()
                     _uiState.value = AddParcelUiState.Success
                 }
                 .onFailure { e ->
-                    _uiState.value = AddParcelUiState.Error(e.message ?: "Error al guardar la parcela")
+                    _uiState.value = AddParcelUiState.Error(e.message ?: "Error al guardar")
+                }
+        }
+    }
+
+    fun updateParcel(id: String, nombre: String, variedad: String, area: Int, umbralHumedad: Float, umbralTemp: Float, activa: Boolean) {
+        viewModelScope.launch {
+            _uiState.value = AddParcelUiState.Loading
+
+            val token = sessionManager.token.first()
+            if (token.isNullOrBlank()) {
+                _uiState.value = AddParcelUiState.Error("No hay sesión activa")
+                return@launch
+            }
+
+            val request = ParcelaRequest(
+                nombreParcela = nombre,
+                areaM2 = area.toDouble(),
+                variedad = variedad,
+                activa = activa,
+                umbralHumedad = umbralHumedad.toDouble(),
+                umbralTemp = umbralTemp.toDouble()
+            )
+
+            val resultado = parcelaRepository.actualizarParcela(token, id, request)
+            resultado
+                .onSuccess {
+                    mainViewModel?.cargarParcelas()
+                    _uiState.value = AddParcelUiState.Success
+                }
+                .onFailure { e ->
+                    _uiState.value = AddParcelUiState.Error(e.message ?: "Error al actualizar")
+                }
+        }
+    }
+
+    fun deleteParcel(id: String) {
+        viewModelScope.launch {
+            _uiState.value = AddParcelUiState.Loading
+
+            val token = sessionManager.token.first()
+            if (token.isNullOrBlank()) {
+                _uiState.value = AddParcelUiState.Error("No hay sesión activa")
+                return@launch
+            }
+
+            val resultado = parcelaRepository.eliminarParcela(token, id)
+            resultado
+                .onSuccess {
+                    mainViewModel?.cargarParcelas()
+                    _uiState.value = AddParcelUiState.Success
+                }
+                .onFailure { e ->
+                    _uiState.value = AddParcelUiState.Error(e.message ?: "Error al eliminar")
                 }
         }
     }

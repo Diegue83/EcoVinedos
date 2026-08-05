@@ -17,9 +17,11 @@ import mx.utng.ecoviedos.presentation.main.MainViewModel
 import mx.utng.ecoviedos.presentation.admin.AdminPanelScreen
 import mx.utng.ecoviedos.presentation.admin.AdminViewModel
 import mx.utng.ecoviedos.presentation.admin.AddParcelScreen
+import mx.utng.ecoviedos.presentation.admin.ParcelManagementScreen
 import mx.utng.ecoviedos.presentation.admin.SampleRecordsScreen
 import mx.utng.ecoviedos.presentation.admin.UserManagementScreen
 import mx.utng.ecoviedos.presentation.admin.SettingsScreen
+import mx.utng.ecoviedos.presentation.admin.DeviceConfigScreen
 import mx.utng.ecoviedos.presentation.theme.EcoViedosTheme
 
 class MainActivity : ComponentActivity() {
@@ -43,7 +45,7 @@ class MainActivity : ComponentActivity() {
                     NavHost(navController = navController, startDestination = "login") {
                         composable("login") {
                             LoginScreen(
-                                onLoginSuccess = { 
+                                onLoginSuccess = { rol ->
                                     navController.navigate("main") {
                                         popUpTo("login") { inclusive = true }
                                     }
@@ -59,15 +61,32 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("admin") {
                             AdminPanelScreen(
-                                onNavigateToAddParcel = { navController.navigate("add_parcel") },
+                                onNavigateBack = { navController.popBackStack() },
+                                onNavigateToParcelManagement = { navController.navigate("parcel_management") },
                                 onNavigateToSamples = { navController.navigate("samples") },
                                 onNavigateToUsers = { navController.navigate("users") },
                                 onNavigateToSettings = { navController.navigate("settings") },
+                                onNavigateToDeviceConfig = { navController.navigate("device_config") },
                                 onLogout = { 
                                     navController.navigate("login") {
                                         popUpTo("admin") { inclusive = true }
                                     }
                                 }
+                            )
+                        }
+                        composable("parcel_management") {
+                            ParcelManagementScreen(
+                                onNavigateBack = { navController.popBackStack() },
+                                onNavigateToAdd = { navController.navigate("add_parcel") },
+                                onNavigateToEdit = { id -> navController.navigate("add_parcel?id=$id") },
+                                viewModel = mainViewModel,
+                                adminViewModel = adminViewModel
+                            )
+                        }
+                        composable("device_config") {
+                            DeviceConfigScreen(
+                                onNavigateBack = { navController.popBackStack() },
+                                viewModel = mainViewModel
                             )
                         }
                         composable("settings") {
@@ -79,10 +98,21 @@ class MainActivity : ComponentActivity() {
                         composable("users") {
                             UserManagementScreen(onNavigateBack = { navController.popBackStack() })
                         }
-                        composable("add_parcel") {
+                        composable(
+                            route = "add_parcel?id={id}",
+                            arguments = listOf(
+                                androidx.navigation.navArgument("id") {
+                                    nullable = true
+                                    defaultValue = null
+                                }
+                            )
+                        ) { backStackEntry ->
+                            val id = backStackEntry.arguments?.getString("id")
                             AddParcelScreen(
                                 onNavigateBack = { navController.popBackStack() },
-                                adminViewModel = adminViewModel
+                                adminViewModel = adminViewModel,
+                                parcelId = id,
+                                mainViewModel = mainViewModel
                             )
                         }
                         composable("samples") {

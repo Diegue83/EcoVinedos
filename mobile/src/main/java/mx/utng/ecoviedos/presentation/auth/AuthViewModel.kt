@@ -38,7 +38,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
                 if (response.isSuccessful && response.body() != null) {
                     val body = response.body()!!
-                    sessionManager.guardarSesion(body.token, body.nombre, body.rol)
+                    sessionManager.guardarSesion(body.token, body._id, body.nombre, body.rol)
                     _uiState.value = AuthUiState.Success(body.rol)
                 } else {
                     _uiState.value = AuthUiState.Error("Correo o contraseña incorrectos")

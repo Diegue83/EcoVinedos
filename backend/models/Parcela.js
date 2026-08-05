@@ -43,8 +43,7 @@ const parcelaSchema = new mongoose.Schema(
     },
 
     fechaCosecha: {
-        type: Date,
-        required: true
+        type: Date
     },
 
     activa: {
