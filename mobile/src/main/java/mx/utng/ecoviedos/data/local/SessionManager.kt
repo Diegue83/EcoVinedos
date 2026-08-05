@@ -15,6 +15,7 @@ class SessionManager(private val context: Context) {
         val USER_ID_KEY = stringPreferencesKey("userId")
         val NOMBRE_KEY = stringPreferencesKey("nombre")
         val ROL_KEY = stringPreferencesKey("rol")
+        val MQTT_IP_KEY = stringPreferencesKey("mqttIp")
     }
 
     suspend fun guardarSesion(token: String, userId: String, nombre: String, rol: String) {
@@ -26,9 +27,16 @@ class SessionManager(private val context: Context) {
         }
     }
 
+    suspend fun guardarMqttIp(ip: String) {
+        context.dataStore.edit { prefs ->
+            prefs[MQTT_IP_KEY] = ip
+        }
+    }
+
     val token: Flow<String?> = context.dataStore.data.map { it[TOKEN_KEY] }
     val userId: Flow<String?> = context.dataStore.data.map { it[USER_ID_KEY] }
     val rol: Flow<String?> = context.dataStore.data.map { it[ROL_KEY] }
+    val mqttIp: Flow<String?> = context.dataStore.data.map { it[MQTT_IP_KEY] }
 
     suspend fun cerrarSesion() {
         context.dataStore.edit { it.clear() }

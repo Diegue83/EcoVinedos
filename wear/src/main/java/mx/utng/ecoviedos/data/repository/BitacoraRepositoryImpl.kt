@@ -4,7 +4,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import mx.utng.ecoviedos.domain.model.Bitacora
 import mx.utng.ecoviedos.domain.repository.BitacoraRepository
-import java.io.File
 
 class BitacoraRepositoryImpl : BitacoraRepository {
 
@@ -18,26 +17,35 @@ class BitacoraRepositoryImpl : BitacoraRepository {
     }
 
     override suspend fun obtenerBitacoraPorId(id: Int): Bitacora? {
-        TODO("Not yet implemented")
+        return mutex.withLock {
+            bitacoras.find { it.id == id }
+        }
     }
 
-    override fun obtenerAudiosPorParcela(idParcela: String): List<File> {
-        TODO("Not yet implemented")
-    }
-
-    suspend fun obtenerBitacorasPorParcela(idParcela: String): List<File> {
-        TODO("Not yet implemented")
+    override suspend fun obtenerBitacorasPorParcela(idParcela: String): List<Bitacora> {
+        return mutex.withLock {
+            bitacoras.filter { it.idParcela == idParcela }
+        }
     }
 
     override suspend fun obtenerTodasLasBitacoras(): List<Bitacora> {
-        TODO("Not yet implemented")
+        return mutex.withLock {
+            bitacoras.toList()
+        }
     }
 
     override suspend fun actualizarBitacora(bitacora: Bitacora) {
-        TODO("Not yet implemented")
+        mutex.withLock {
+            val index = bitacoras.indexOfFirst { it.id == bitacora.id }
+            if (index != -1) {
+                bitacoras[index] = bitacora
+            }
+        }
     }
 
     override suspend fun eliminarBitacora(id: Int) {
-        TODO("Not yet implemented")
+        mutex.withLock {
+            bitacoras.removeAll { it.id == id }
+        }
     }
 }

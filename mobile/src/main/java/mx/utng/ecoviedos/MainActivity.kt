@@ -42,7 +42,7 @@ class MainActivity : ComponentActivity() {
                     // Conectar ViewModels para el testeo local
                     adminViewModel.setMainViewModel(mainViewModel)
 
-                    NavHost(navController = navController, startDestination = "login") {
+                    NavHost(navController = navController, startDestination = "main") {
                         composable("login") {
                             LoginScreen(
                                 onLoginSuccess = { rol ->
