@@ -1,9 +1,11 @@
 const mqtt = require("mqtt");
 const Parcela = require("../models/Parcela");
 
-const BROKER = "mqtt://192.168.7.93:1883";
+const BROKER = "mqtts://" + process.env.MOSQUITTO_BROKER_URL;
 
 const client = mqtt.connect(BROKER, {
+    username: process.env.MQTT_USR,
+    password: process.env.MQTT_PASS,
     reconnectPeriod: 3000,
     clean: true
 });

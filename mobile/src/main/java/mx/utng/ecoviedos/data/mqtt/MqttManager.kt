@@ -24,7 +24,7 @@ class MqttManager(
         
         // Limpiar IP de espacios en blanco
         val trimmedIp = serverIp.trim()
-        val serverUri = "tcp://$trimmedIp:1883"
+        val serverUri = "tcp://af91fb1b08fc4acca8986fd93abf0207.s1.eu.hivemq.cloud:8883"
         
         try {
             isConnecting = true

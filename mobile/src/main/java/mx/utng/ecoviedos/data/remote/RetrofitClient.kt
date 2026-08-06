@@ -8,7 +8,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 object RetrofitClient {
     // Emulador -> 10.0.2.2 apunta al localhost de tu PC
     // Celular físico en la misma WiFi -> usa la IP local de tu PC (ipconfig)
-    private const val BASE_URL = "http://192.168.4.34:3000/"
+    private const val BASE_URL = "https://ecovinedos.onrender.com/"
 
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY
