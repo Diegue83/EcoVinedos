@@ -9,6 +9,7 @@ const bitacoraRoutes = require('./routes/bitacoraRoutes');
 const riegoRoutes = require('./routes/riegoRoutes');
 const morgan = require('morgan');
 
+
 connectDB();
 
 const app = express();
