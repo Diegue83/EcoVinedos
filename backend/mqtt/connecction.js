@@ -38,7 +38,12 @@ const mapParcela = (parcela) => ({
     fechaCosecha: parcela.fechaCosecha,
     activa: parcela.activa,
     humedad: parcela.humedad,
-    temperatura: parcela.temperatura
+    temperatura: parcela.temperatura,
+    humedadSuelo: parcela.humedadSuelo,
+    brix: parcela.brix,
+    ph: parcela.ph,
+    acidez: parcela.acidez,
+    phSuelo: parcela.phSuelo
 });
 
 async function publicarListaParcelas() {

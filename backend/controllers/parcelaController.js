@@ -33,7 +33,7 @@ const crearParcela = async (req, res, next) => {
 // @route   GET /api/parcelas
 const obtenerParcelas = async (req, res, next) => {
   try {
-    const parcelas = await Parcela.find().populate('responsable', 'nombre correo rol');
+    const parcelas = await Parcela.find(); // Se quitó el populate('responsable')
     res.json(parcelas);
   } catch (error) {
     next(error);
@@ -44,10 +44,7 @@ const obtenerParcelas = async (req, res, next) => {
 // @route   GET /api/parcelas/:id
 const obtenerParcelaPorId = async (req, res, next) => {
   try {
-    const parcela = await Parcela.findById(req.params.id).populate(
-      'responsable',
-      'nombre correo rol'
-    );
+    const parcela = await Parcela.findById(req.params.id); // Se quitó el populate('responsable')
     if (!parcela) {
       return res.status(404).json({ mensaje: 'Parcela no encontrada' });
     }

@@ -1,5 +1,6 @@
 package mx.utng.ecoviedos.data.repository
 
+import android.util.Log
 import mx.utng.ecoviedos.data.remote.ParcelaRequest
 import mx.utng.ecoviedos.data.remote.RetrofitClient
 import mx.utng.ecoviedos.domain.model.Parcela
@@ -8,7 +9,9 @@ class ParcelaRepository {
 
     suspend fun obtenerParcelas(token: String): Result<List<Parcela>> {
         return try {
+            Log.d("ParcelaRepository", "Llamando a Retrofit: GET /api/parcelas")
             val response = RetrofitClient.parcelaService.obtenerParcelas("Bearer $token")
+            Log.d("ParcelaRepository", "Respuesta Retrofit: ${response.code()}")
             if (response.isSuccessful && response.body() != null) {
                 val parcelas = response.body()!!.map { it.toDomain() }
                 Result.success(parcelas)
@@ -16,6 +19,7 @@ class ParcelaRepository {
                 Result.failure(Exception("Error del servidor: ${response.code()}"))
             }
         } catch (e: Exception) {
+            Log.e("ParcelaRepository", "Fallo en la llamada Retrofit", e)
             Result.failure(e)
         }
     }

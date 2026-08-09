@@ -1,5 +1,6 @@
 package mx.utng.ecoviedos.presentation.main
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -15,15 +16,20 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import mx.utng.ecoviedos.data.remote.MuestraResponse
 import java.text.SimpleDateFormat
 import java.util.*
-import androidx.compose.ui.platform.LocalLocale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,6 +43,8 @@ fun ParcelDetailsScreen(
     val parcelas by mainViewModel.parcelas.collectAsState()
     val parcela = remember(parcelId, parcelas) { parcelas.find { it.id == parcelId } }
     val uiState by muestraViewModel.uiState.collectAsState()
+    
+    val ultimaMuestra = (uiState as? MuestraUiState.Success)?.historial?.firstOrNull()
 
     LaunchedEffect(parcelId) {
         muestraViewModel.cargarHistorial(parcelId)
@@ -73,10 +81,8 @@ fun ParcelDetailsScreen(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // 1. Cosecha Estimada
                 HarvestEstimateCard(parcela.fechaCosecha, parcela.indiceMaduracion)
 
-                // 2. Monitoreo en tiempo real (Humedad Aire, Temp, Humedad Suelo)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -86,18 +92,17 @@ fun ParcelDetailsScreen(
                     RealTimeCard("Suelo", "${parcela.humedadSuelo.toInt()}%", Icons.Default.Waves, Color(0xFF81C784), Modifier.weight(1f))
                 }
 
-                // 3. Última muestra
                 Text("Última Muestra de Campo", style = MaterialTheme.typography.titleMedium, color = Color(0xFFB4F391))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    SampleStatCard("Brix", parcela.brix?.toString() ?: "-", Modifier.weight(1f))
-                    SampleStatCard("Acidez", parcela.acidez?.toString() ?: "-", Modifier.weight(1f))
-                    SampleStatCard("pH Suelo", parcela.phSuelo?.toString() ?: "-", Modifier.weight(1f))
+                    SampleStatCard("Brix", ultimaMuestra?.brix?.toString() ?: parcela.brix?.toString() ?: "-", Modifier.weight(1f))
+                    SampleStatCard("Acidez", ultimaMuestra?.acidez?.toString() ?: parcela.acidez?.toString() ?: "-", Modifier.weight(1f))
+                    SampleStatCard("pH Fruto", ultimaMuestra?.ph?.toString() ?: parcela.ph?.toString() ?: "-", Modifier.weight(1f))
+                    SampleStatCard("pH Suelo", ultimaMuestra?.phSuelo?.toString() ?: parcela.phSuelo?.toString() ?: "-", Modifier.weight(1f))
                 }
 
-                // 4. Gráfica Historial Brix
                 Text("Historial de Brix", style = MaterialTheme.typography.titleMedium, color = Color.White)
                 if (uiState is MuestraUiState.Success) {
                     val historial = (uiState as MuestraUiState.Success).historial
@@ -108,7 +113,6 @@ fun ParcelDetailsScreen(
 
                 Spacer(Modifier.height(8.dp))
 
-                // 5. Botón Registrar Muestra
                 Button(
                     onClick = { onNavigateToRegisterSample(parcelId) },
                     modifier = Modifier.fillMaxWidth(),
@@ -193,28 +197,98 @@ fun BrixHistoryChart(muestras: List<MuestraResponse>) {
         return
     }
 
-    val chartData = muestras.take(6).reversed() // Mostrar las últimas 6
-    val maxBrix = (chartData.maxOfOrNull { it.brix } ?: 25.0).toFloat()
+    val locale = LocalLocale.current.platformLocale
+    val chartData = muestras.take(7).sortedBy { it.fecha ?: it.createdAt }
+    val maxBrix = (chartData.maxOfOrNull { it.brix } ?: 25.0).toFloat().coerceAtLeast(10f)
+    
+    val dateFormat = SimpleDateFormat("dd/MM", locale)
 
     Card(
-        modifier = Modifier.fillMaxWidth().height(150.dp),
+        modifier = Modifier.fillMaxWidth().height(200.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2D26))
     ) {
-        Row(
-            modifier = Modifier.fillMaxSize().padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.Bottom
-        ) {
-            chartData.forEach { muestra ->
-                val barHeight = (muestra.brix.toFloat() / maxBrix).coerceIn(0.1f, 1f)
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("${muestra.brix.toInt()}°", fontSize = 10.sp, color = Color.White)
-                    Spacer(Modifier.height(4.dp))
-                    Box(
-                        modifier = Modifier
-                            .width(24.dp)
-                            .fillMaxHeight(barHeight)
-                            .background(Color(0xFF1976D2), RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+        Column(modifier = Modifier.padding(16.dp)) {
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val width = size.width
+                    val height = size.height
+                    val spacing = if (chartData.size > 1) width / (chartData.size - 1) else width
+
+                    val path = Path()
+                    val fillPath = Path()
+
+                    chartData.forEachIndexed { index, muestra ->
+                        val x = index * spacing
+                        val brixValue = muestra.brix.toFloat()
+                        val y = height - (brixValue / maxBrix * height)
+
+                        if (index == 0) {
+                            path.moveTo(x, y)
+                            fillPath.moveTo(x, height)
+                            fillPath.lineTo(x, y)
+                        } else {
+                            path.lineTo(x, y)
+                            fillPath.lineTo(x, y)
+                        }
+
+                        if (index == chartData.size - 1) {
+                            fillPath.lineTo(x, height)
+                            fillPath.close()
+                        }
+                    }
+
+                    if (chartData.size > 1) {
+                        drawPath(
+                            path = fillPath,
+                            brush = Brush.verticalGradient(
+                                colors = listOf(Color(0xFF1976D2).copy(alpha = 0.3f), Color.Transparent),
+                                startY = 0f,
+                                endY = height
+                            )
+                        )
+                        drawPath(
+                            path = path,
+                            color = Color(0xFF4FC3F7),
+                            style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+                        )
+                    }
+
+                    chartData.forEachIndexed { index, muestra ->
+                        val x = index * spacing
+                        val y = height - (muestra.brix.toFloat() / maxBrix * height)
+                        drawCircle(
+                            color = Color.White,
+                            radius = 4.dp.toPx(),
+                            center = androidx.compose.ui.geometry.Offset(x, y)
+                        )
+                        drawCircle(
+                            color = Color(0xFF1976D2),
+                            radius = 2.dp.toPx(),
+                            center = androidx.compose.ui.geometry.Offset(x, y)
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                chartData.forEach { muestra ->
+                    val date = try {
+                        val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", locale)
+                        isoFormat.parse(muestra.fecha ?: muestra.createdAt ?: "") ?: Date()
+                    } catch (e: Exception) {
+                        Date()
+                    }
+                    Text(
+                        text = dateFormat.format(date),
+                        fontSize = 10.sp,
+                        color = Color.Gray,
+                        modifier = Modifier.width(35.dp),
+                        textAlign = TextAlign.Center
                     )
                 }
             }

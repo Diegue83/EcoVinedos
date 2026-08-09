@@ -1,5 +1,6 @@
 const Muestra = require('../models/Muestra');
 const Parcela = require('../models/Parcela');
+const { publicarListaParcelas } = require('../mqtt/connecction');
 
 // @desc    Registrar una nueva muestra de campo
 // @route   POST /api/muestras
@@ -28,6 +29,9 @@ const registrarMuestra = async (req, res, next) => {
         parcela.acidez = acidez;
         parcela.phSuelo = phSuelo;
         await parcela.save();
+
+        // Notificar cambios vía MQTT para actualización en tiempo real
+        await publicarListaParcelas();
 
         res.status(201).json(muestra);
     } catch (error) {

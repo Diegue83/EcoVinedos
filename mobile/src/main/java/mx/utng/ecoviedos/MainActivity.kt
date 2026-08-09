@@ -107,7 +107,10 @@ class MainActivity : ComponentActivity() {
                                 val id = backStackEntry.arguments?.getString("id") ?: ""
                                 RegisterSampleScreen(
                                     parcelId = id,
-                                    onNavigateBack = { navController.popBackStack() }
+                                    onNavigateBack = {
+                                        mainViewModel.cargarParcelas()
+                                        navController.popBackStack()
+                                    }
                                 )
                             }
                             composable("parcel_management") {

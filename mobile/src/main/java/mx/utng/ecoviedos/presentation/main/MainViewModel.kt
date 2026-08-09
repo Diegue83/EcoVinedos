@@ -26,17 +26,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
     private val _parcelas = MutableStateFlow<List<Parcela>>(emptyList())
     val parcelas: StateFlow<List<Parcela>> = _parcelas.asStateFlow()
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
     private val _mqttStatus = MutableStateFlow("Desconectado")
     val mqttStatus: StateFlow<String> = _mqttStatus.asStateFlow()
 
     private val _isMqttConnected = MutableStateFlow(false)
     val isMqttConnected: StateFlow<Boolean> = _isMqttConnected.asStateFlow()
     
+    private var authToken: String? = null
+    
     private val wearableDataSender = WearableDataSender(application)
     private val parcelaRepository = ParcelaRepository()
     private val sessionManager = SessionManager(application)
     private var mqttManager: MqttManager? = null
-    private val gson = Gson()
 
     val sessionToken: Flow<String?> = sessionManager.token
 
@@ -47,9 +51,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
         val savedUrl = prefs.getString("mqtt_server_ip", MqttConfig.BROKER_URL) ?: MqttConfig.BROKER_URL
         initializeMqtt(savedUrl)
         
-        // Observar el token para cargar parcelas automáticamente cuando haya sesión
         viewModelScope.launch {
             sessionToken.collect { token ->
+                authToken = token
                 if (!token.isNullOrBlank()) {
                     cargarParcelas()
                 } else {
@@ -67,14 +71,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
     }
 
     fun cargarParcelas() {
+        Log.d("MainViewModel", "Iniciando carga de parcelas via HTTP...")
         viewModelScope.launch {
-            val token = sessionManager.token.first()
-            if (!token.isNullOrBlank()) {
-                val result = parcelaRepository.obtenerParcelas(token)
-                result.onSuccess { list ->
-                    _parcelas.value = list
-                    wearableDataSender.sendParcelas(list)
+            _isRefreshing.value = true
+            try {
+                // Si authToken es nulo, intentar recuperarlo una vez más
+                val token = authToken ?: sessionManager.token.first()
+                if (!token.isNullOrBlank()) {
+                    val result = parcelaRepository.obtenerParcelas(token)
+                    result.onSuccess { list ->
+                        Log.d("MainViewModel", "HTTP GET exitoso: ${list.size} parcelas")
+                        _parcelas.value = list
+                        wearableDataSender.sendParcelas(list)
+                    }
+                    result.onFailure {
+                        Log.e("MainViewModel", "HTTP GET error: ${it.message}")
+                    }
+                } else {
+                    Log.w("MainViewModel", "Token no disponible para la carga")
                 }
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Fallo crítico en cargarParcelas", e)
+            } finally {
+                _isRefreshing.value = false
             }
         }
     }
@@ -89,9 +108,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
                     updateParcelaFromSensor(id, hum, temp,humsuel, riego, tiempo)
                 }
             },
-            onParcelListReceived = { json ->
+            onParcelListReceived = { _ ->
                 viewModelScope.launch(Dispatchers.Main) {
-                    updateFullParcelList(json)
+                    cargarParcelas()
                 }
             },
             onConnectionStatusChanged = { connected, message ->
@@ -104,19 +123,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
         
         viewModelScope.launch(Dispatchers.IO) {
             mqttManager?.connect(serverIp)
-        }
-    }
-
-    private fun updateFullParcelList(json: String) {
-        try {
-            val itemType = object : TypeToken<List<Parcela>>() {}.type
-            val newList: List<Parcela> = gson.fromJson(json, itemType)
-            _parcelas.value = newList
-            // Sincronizar con el reloj también
-            wearableDataSender.sendParcelas(newList)
-            Log.d("MQTT", "Lista completa de parcelas actualizada")
-        } catch (e: Exception) {
-            Log.e("MQTT", "Error al procesar lista de parcelas", e)
         }
     }
 

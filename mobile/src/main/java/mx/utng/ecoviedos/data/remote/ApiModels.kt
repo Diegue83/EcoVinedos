@@ -17,23 +17,23 @@ data class LoginResponse(
 
 data class ParcelaResponse(
     val _id: String,
-    val nombreParcela: String,
-    val variedad: String,
-    val areaM2: Double,
-    val umbralHumedad: Double,
-    val umbralTemp: Double,
-    val indiceMaduracion: Double,
-    val fechaCosecha: String?,
-    val activa: Boolean,
-    val humedad: Double,
-    val temperatura: Double,
+    val nombreParcela: String? = null,
+    val variedad: String? = null,
+    val areaM2: Double? = 0.0,
+    val umbralHumedad: Double? = 0.0,
+    val umbralTemp: Double? = 0.0,
+    val indiceMaduracion: Double? = 0.0,
+    val fechaCosecha: String? = null,
+    val activa: Boolean? = true,
+    val humedad: Double? = 0.0,
+    val temperatura: Double? = 0.0,
     val humedadSuelo: Double? = 0.0,
     val brix: Double? = null,
     val ph: Double? = null,
-    val acidez: Float? = null,
-    val phSuelo: Float? = null,
-    val createdAt: String?,
-    val updatedAt: String?
+    val acidez: Double? = null,
+    val phSuelo: Double? = null,
+    val createdAt: String? = null,
+    val updatedAt: String? = null
 )
 
 data class ParcelaRequest(

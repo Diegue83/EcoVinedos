@@ -1,6 +1,5 @@
 package mx.utng.ecoviedos.data.repository
 
-
 import mx.utng.ecoviedos.data.remote.ParcelaResponse
 import mx.utng.ecoviedos.domain.model.Parcela
 import java.text.SimpleDateFormat
@@ -20,20 +19,22 @@ private fun parseFechaIso(fecha: String?): Date {
 fun ParcelaResponse.toDomain(): Parcela {
     return Parcela(
         id = _id,
-        nombreParcela = nombreParcela,
+        nombreParcela = nombreParcela ?: "Parcela sin nombre",
         variedad = variedad ?: "Sin especificar",
-        areaM2 = areaM2.toInt(),
+        areaM2 = (areaM2 ?: 0.0).toInt(),
         umbralHumedad = (umbralHumedad ?: 30.0).toFloat(),
         umbralTemp = (umbralTemp ?: 25.0).toFloat(),
         indiceMaduracion = (indiceMaduracion ?: 0.0).toFloat(),
         fechaCosecha = parseFechaIso(fechaCosecha),
-        activa = activa,
-        humedad = humedad.toFloat(),
-        temperatura = temperatura.toFloat(),
+        activa = activa ?: true,
+        humedad = (humedad ?: 0.0).toFloat(),
+        temperatura = (temperatura ?: 0.0).toFloat(),
         humedadSuelo = (humedadSuelo ?: 0.0).toFloat(),
+        riegoActivo = false,
+        tiempoRestanteRiego = 0,
         brix = brix?.toFloat(),
         ph = ph?.toFloat(),
-        acidez = acidez,
-        phSuelo = phSuelo
+        acidez = acidez?.toFloat(),
+        phSuelo = phSuelo?.toFloat()
     )
 }
