@@ -8,7 +8,7 @@ class BitacoraRemoteRepository {
 
     suspend fun obtenerBitacoras(token: String, parcelaId: String? = null): Result<List<BitacoraResponse>> {
         return try {
-            val response = RetrofitClient.instance.obtenerBitacoras("Bearer $token", parcelaId)
+            val response = RetrofitClient.bitacoraService.obtenerBitacoras("Bearer $token", parcelaId)
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
             } else {
@@ -21,7 +21,7 @@ class BitacoraRemoteRepository {
 
     suspend fun crearBitacora(token: String, request: BitacoraRequest): Result<BitacoraResponse> {
         return try {
-            val response = RetrofitClient.instance.crearBitacora("Bearer $token", request)
+            val response = RetrofitClient.bitacoraService.crearBitacora("Bearer $token", request)
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
             } else {

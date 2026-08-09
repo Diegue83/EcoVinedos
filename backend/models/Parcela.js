@@ -62,6 +62,31 @@ const parcelaSchema = new mongoose.Schema(
         type: Number,
         default: 0
     },
+
+    humedadSuelo: {
+        type: Number,
+        default: 0
+    },
+
+    brix: {
+        type: Number,
+        default: 0
+    },
+
+    ph: {
+        type: Number,
+        default: 0
+    },
+
+    acidez: {
+        type: Number,
+        default: 0
+    },
+
+    phSuelo: {
+        type: Number,
+        default: 0
+    },
 },
 {
     versionKey: false,

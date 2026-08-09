@@ -35,6 +35,7 @@ fun AddParcelScreen(
     var area by remember { mutableStateOf(parcelToEdit?.areaM2?.toString() ?: "") }
     var umbralHumedad by remember { mutableStateOf(parcelToEdit?.umbralHumedad?.toInt()?.toString() ?: "30") }
     var umbralTemp by remember { mutableStateOf(parcelToEdit?.umbralTemp?.toInt()?.toString() ?: "25") }
+    var indiceMadurez by remember { mutableStateOf(parcelToEdit?.indiceMaduracion?.toString() ?: "0.0") }
     var activa by remember { mutableStateOf(parcelToEdit?.activa ?: true) }
 
     val uiState by adminViewModel.uiState.collectAsState()
@@ -74,7 +75,8 @@ fun AddParcelScreen(
                                 variedad,
                                 area.toIntOrNull() ?: 0,
                                 umbralHumedad.toFloatOrNull() ?: 30f,
-                                umbralTemp.toFloatOrNull() ?: 25f
+                                umbralTemp.toFloatOrNull() ?: 25f,
+                                indiceMadurez.toFloatOrNull() ?: 0f
                             )
                         } else {
                             adminViewModel.updateParcel(
@@ -84,7 +86,8 @@ fun AddParcelScreen(
                                 area.toIntOrNull() ?: 0,
                                 umbralHumedad.toFloatOrNull() ?: 30f,
                                 umbralTemp.toFloatOrNull() ?: 25f,
-                                activa
+                                activa,
+                                indiceMadurez.toFloatOrNull() ?: 0f
                             )
                         }
                     }
@@ -151,6 +154,21 @@ fun AddParcelScreen(
                 value = area,
                 onValueChange = { area = it },
                 label = { Text("Área (m²)") },
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color(0xFFB4F391),
+                    unfocusedBorderColor = Color.Gray,
+                    focusedLabelColor = Color(0xFFB4F391),
+                    unfocusedLabelColor = Color.Gray,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                )
+            )
+
+            OutlinedTextField(
+                value = indiceMadurez,
+                onValueChange = { indiceMadurez = it },
+                label = { Text("Índice de Madurez") },
                 modifier = Modifier.fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFFB4F391),

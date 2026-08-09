@@ -1,11 +1,13 @@
 package mx.utng.ecoviedos.presentation.main
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -22,7 +24,9 @@ import mx.utng.ecoviedos.domain.model.Parcela
 @Composable
 fun MainScreen(
     viewModel: MainViewModel = viewModel(),
-    onNavigateToAdmin: () -> Unit = {}
+    onNavigateToAdmin: () -> Unit = {},
+    onNavigateToParcelDetails: (String) -> Unit = {},
+    onLogout: () -> Unit = {}
 ) {
     val parcelas by viewModel.parcelas.collectAsState()
     var selectedItem by remember { mutableIntStateOf(0) }
@@ -60,8 +64,8 @@ fun MainScreen(
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
             when (selectedItem) {
-                0 -> DashboardContent(viewModel, parcelas, onNavigateToAdmin)
-                1 -> MaturationContent(parcelas)
+                0 -> DashboardContent(viewModel, parcelas, onNavigateToAdmin, onLogout)
+                1 -> MaturationContent(parcelas, onNavigateToParcelDetails)
                 2 -> IrrigationScreen(parcelas, viewModel)
                 else -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("Historial (En desarrollo)")
@@ -75,7 +79,8 @@ fun MainScreen(
 fun DashboardContent(
     viewModel: MainViewModel, 
     parcelas: List<Parcela>, 
-    onNavigateToAdmin: () -> Unit
+    onNavigateToAdmin: () -> Unit,
+    onLogout: () -> Unit
 ) {
     val avgMaturity = if (parcelas.isNotEmpty()) parcelas.map { it.indiceMaduracion }.average().toFloat() else 0.74f
     val activeCount = parcelas.count { it.activa }
@@ -120,6 +125,9 @@ fun DashboardContent(
             Row {
                 IconButton(onClick = onNavigateToAdmin) {
                     Icon(Icons.Default.AdminPanelSettings, contentDescription = "Admin", tint = Color(0xFFB4F391))
+                }
+                IconButton(onClick = onLogout) {
+                    Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Cerrar Sesión", tint = Color(0xFFFFB4AB))
                 }
                 IconButton(onClick = { }) {
                     Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = Color(0xFFB4F391))
@@ -179,7 +187,7 @@ fun DashboardContent(
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             items(parcelas) { parcela ->
-                MaturityRow(parcela.nombreParcela, parcela.humedad / 100f)
+                MaturityRow(parcela.nombreParcela, parcela.humedadSuelo / 100f)
             }
         }
     }
@@ -208,10 +216,10 @@ fun M3StatCard(title: String, value: String, icon: androidx.compose.ui.graphics.
 }
 
 @Composable
-fun MaturationContent(parcelas: List<Parcela>) {
+fun MaturationContent(parcelas: List<Parcela>, onNavigateToParcelDetails: (String) -> Unit) {
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Text("Maduración", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Color(0xFFE2E3DE))
-        Text("Datos en tiempo real", color = Color.Gray, fontSize = 14.sp)
+        Text("Estimación de cosecha y calidad", color = Color.Gray, fontSize = 14.sp)
         
         Spacer(modifier = Modifier.height(24.dp))
         
@@ -223,21 +231,28 @@ fun MaturationContent(parcelas: List<Parcela>) {
         ) {
             Column {
                 Row(modifier = Modifier.fillMaxWidth().background(Color(0xFF384B2F)).padding(12.dp)) {
-                    Text("Nombre", modifier = Modifier.weight(1.5f), fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.White)
-                    Text("Brix", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.White)
-                    Text("pH", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.White)
-                    Text("Temp", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.White)
-                    Text("Est.", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.White)
+                    Text("Nombre", modifier = Modifier.weight(1.5f), fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color.White)
+                    Text("Brix", modifier = Modifier.weight(0.8f), fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color.White)
+                    Text("pH", modifier = Modifier.weight(0.8f), fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color.White)
+                    Text("Acidez", modifier = Modifier.weight(0.8f), fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color.White)
+                    Text("Madurez", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color.White)
                 }
                 
                 parcelas.forEach { parcela ->
-                    Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onNavigateToParcelDetails(parcela.id) }
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(parcela.nombreParcela, modifier = Modifier.weight(1.5f), fontSize = 12.sp, color = Color.White)
-                        Text(parcela.brix?.toString() ?: "-", modifier = Modifier.weight(1f), fontSize = 12.sp, color = Color(0xFFB4F391), fontWeight = FontWeight.Bold)
-                        Text(parcela.phSuelo?.toString() ?: "-", modifier = Modifier.weight(1f), fontSize = 12.sp, color = Color.White)
-                        Text("${parcela.temperatura.toInt()}°", modifier = Modifier.weight(1f), fontSize = 12.sp, color = Color.White)
+                        Text(parcela.brix?.toString() ?: "-", modifier = Modifier.weight(0.8f), fontSize = 12.sp, color = Color(0xFFB4F391), fontWeight = FontWeight.Bold)
+                        Text(parcela.ph?.toString() ?: "-", modifier = Modifier.weight(0.8f), fontSize = 12.sp, color = Color.White)
+                        Text(parcela.acidez?.toString() ?: "-", modifier = Modifier.weight(0.8f), fontSize = 12.sp, color = Color.White)
+                        
                         AssistChip(
-                            onClick = { },
+                            onClick = { onNavigateToParcelDetails(parcela.id) },
                             label = { Text("${(parcela.indiceMaduracion * 100).toInt()}%", fontSize = 10.sp) },
                             modifier = Modifier.weight(1f).height(24.dp),
                             colors = AssistChipDefaults.assistChipColors(labelColor = Color(0xFFB4F391))

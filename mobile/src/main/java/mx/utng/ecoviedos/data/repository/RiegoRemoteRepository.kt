@@ -12,7 +12,7 @@ class RiegoRemoteRepository {
         estado: String? = null
     ): Result<List<RiegoResponse>> {
         return try {
-            val response = RetrofitClient.instance.obtenerRiegos("Bearer $token", parcelaId, estado)
+            val response = RetrofitClient.riegoService.obtenerRiegos("Bearer $token", parcelaId, estado)
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
             } else {
@@ -25,7 +25,7 @@ class RiegoRemoteRepository {
 
     suspend fun crearRiego(token: String, request: RiegoRequest): Result<RiegoResponse> {
         return try {
-            val response = RetrofitClient.instance.crearRiego("Bearer $token", request)
+            val response = RetrofitClient.riegoService.crearRiego("Bearer $token", request)
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
             } else {
@@ -38,7 +38,7 @@ class RiegoRemoteRepository {
 
     suspend fun actualizarRiego(token: String, id: String, request: RiegoRequest): Result<RiegoResponse> {
         return try {
-            val response = RetrofitClient.instance.actualizarRiego("Bearer $token", id, request)
+            val response = RetrofitClient.riegoService.actualizarRiego("Bearer $token", id, request)
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
             } else {

@@ -34,7 +34,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.instance.login(LoginRequest(correo, contraseña))
+                val response = RetrofitClient.usuarioService.login(LoginRequest(correo, contraseña))
 
                 if (response.isSuccessful && response.body() != null) {
                     val body = response.body()!!

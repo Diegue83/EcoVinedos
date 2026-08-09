@@ -7,6 +7,7 @@ const usuarioRoutes = require('./routes/usuarioRoutes');
 const parcelaRoutes = require('./routes/parcelaRoutes');
 const bitacoraRoutes = require('./routes/bitacoraRoutes');
 const riegoRoutes = require('./routes/riegoRoutes');
+const muestraRoutes = require('./routes/muestraRoutes');
 const morgan = require('morgan');
 
 
@@ -23,6 +24,7 @@ app.use('/api', usuarioRoutes);
 app.use('/api', parcelaRoutes);
 app.use('/api', bitacoraRoutes);
 app.use('/api', riegoRoutes);
+app.use('/api', muestraRoutes);
 
 app.get('/', (req, res) => {
   res.send('API de administración y riego de parcelas funcionando 🌱');

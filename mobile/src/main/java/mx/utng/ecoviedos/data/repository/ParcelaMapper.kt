@@ -20,15 +20,20 @@ private fun parseFechaIso(fecha: String?): Date {
 fun ParcelaResponse.toDomain(): Parcela {
     return Parcela(
         id = _id,
-        nombreParcela,
-        variedad ?: "Sin especificar",
+        nombreParcela = nombreParcela,
+        variedad = variedad ?: "Sin especificar",
         areaM2 = areaM2.toInt(),
         umbralHumedad = (umbralHumedad ?: 30.0).toFloat(),
         umbralTemp = (umbralTemp ?: 25.0).toFloat(),
         indiceMaduracion = (indiceMaduracion ?: 0.0).toFloat(),
         fechaCosecha = parseFechaIso(fechaCosecha),
-        activa,
+        activa = activa,
         humedad = humedad.toFloat(),
-        temperatura = temperatura.toFloat()
+        temperatura = temperatura.toFloat(),
+        humedadSuelo = (humedadSuelo ?: 0.0).toFloat(),
+        brix = brix?.toFloat(),
+        ph = ph?.toFloat(),
+        acidez = acidez,
+        phSuelo = phSuelo
     )
 }

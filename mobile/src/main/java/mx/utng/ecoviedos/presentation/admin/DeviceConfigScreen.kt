@@ -1,16 +1,19 @@
 package mx.utng.ecoviedos.presentation.admin
 
+import android.Manifest
+import android.annotation.SuppressLint
+import android.bluetooth.BluetoothDevice
 import android.content.Context
 import android.net.wifi.WifiManager
-import androidx.compose.animation.AnimatedVisibility
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import mx.utng.ecoviedos.domain.model.Parcela
 import mx.utng.ecoviedos.presentation.main.MainViewModel
@@ -26,11 +30,16 @@ import mx.utng.ecoviedos.presentation.main.MainViewModel
 @Composable
 fun DeviceConfigScreen(
     onNavigateBack: () -> Unit,
-    viewModel: MainViewModel
+    mainViewModel: MainViewModel,
+    configViewModel: DeviceConfigViewModel
 ) {
     val context = LocalContext.current
+    val uiState by configViewModel.uiState.collectAsState()
+    val discoveredDevices by configViewModel.discoveredDevices.collectAsState()
+    val isBluetoothEnabled by configViewModel.isBluetoothEnabled.collectAsState()
+    
     var step by remember { mutableIntStateOf(1) }
-    var selectedDevice by remember { mutableStateOf<String?>(null) }
+    var selectedDeviceName by remember { mutableStateOf("") }
     
     // Obtener SSID actual
     val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
@@ -41,16 +50,56 @@ fun DeviceConfigScreen(
     
     var ssid by remember { mutableStateOf(if (currentSsid == "<unknown ssid>") "" else currentSsid) }
     var password by remember { mutableStateOf("") }
-    val parcelas by viewModel.parcelas.collectAsState()
+    val parcelas by mainViewModel.parcelas.collectAsState()
     var selectedParcela by remember { mutableStateOf<Parcela?>(null) }
-    var isConfiguring by remember { mutableStateOf(false) }
+
+    // Manejo de permisos
+    val bluetoothPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        listOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.ACCESS_FINE_LOCATION)
+    } else {
+        listOf(Manifest.permission.BLUETOOTH, Manifest.permission.BLUETOOTH_ADMIN, Manifest.permission.ACCESS_FINE_LOCATION)
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        if (permissions.values.all { it }) {
+            configViewModel.startScanning()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        permissionLauncher.launch(bluetoothPermissions.toTypedArray())
+        configViewModel.checkBluetoothStatus()
+    }
+
+    // Detener escaneo al salir de la pantalla
+    DisposableEffect(Unit) {
+        onDispose {
+            configViewModel.stopScanning()
+        }
+    }
+
+    // Navegación automática por estados de BLE
+    LaunchedEffect(uiState) {
+        when (uiState) {
+            is BleUiState.Connected -> if (step == 1) step = 2
+            is BleUiState.Success -> {
+                // Diálogo de éxito ya manejado abajo
+            }
+            else -> {}
+        }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Configurar Nodo IoT", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = {
+                        configViewModel.resetState()
+                        onNavigateBack()
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Regresar")
                     }
                 },
@@ -82,10 +131,18 @@ fun DeviceConfigScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             when (step) {
-                1 -> ScanDevicesStep { device ->
-                    selectedDevice = device
-                    step = 2
-                }
+                1 -> ScanDevicesStep(
+                    devices = discoveredDevices,
+                    uiState = uiState,
+                    isBluetoothEnabled = isBluetoothEnabled,
+                    onDeviceSelected = { device ->
+                        @SuppressLint("MissingPermission")
+                        val name = device.name ?: "Desconocido"
+                        selectedDeviceName = name
+                        configViewModel.connectToDevice(device)
+                    },
+                    onRetry = { configViewModel.startScanning() }
+                )
                 2 -> WifiConfigStep(
                     ssid = ssid,
                     onSsidChange = { ssid = it },
@@ -98,28 +155,69 @@ fun DeviceConfigScreen(
                     selectedParcela = selectedParcela,
                     onParcelaSelected = { selectedParcela = it },
                     onFinish = {
-                        isConfiguring = true
-                    }
-                )
-            }
-
-            if (isConfiguring) {
-                AlertDialog(
-                    onDismissRequest = { isConfiguring = false },
-                    title = { Text("Configurando...") },
-                    text = { Text("Enviando configuración al nodo '$selectedDevice' para la parcela '${selectedParcela?.nombreParcela}'\nSSID: $ssid") },
-                    confirmButton = {
-                        TextButton(onClick = { 
-                            isConfiguring = false
-                            onNavigateBack()
-                        }) {
-                            Text("Aceptar")
+                        selectedParcela?.let {
+                            configViewModel.sendConfig(ssid, password, it.id, it.nombreParcela)
                         }
                     }
                 )
             }
+
+            // Diálogos de Estado
+            when (val state = uiState) {
+                is BleUiState.Connecting -> LoadingDialog("Conectando con $selectedDeviceName...")
+                is BleUiState.Sending -> LoadingDialog("Enviando configuración...")
+                is BleUiState.VerifyingWiFi -> LoadingDialog(state.message)
+                is BleUiState.Success -> {
+                    AlertDialog(
+                        onDismissRequest = { configViewModel.resetState(); onNavigateBack() },
+                        title = { Text("Configuración Exitosa") },
+                        text = { Text("El nodo '$selectedDeviceName' ha sido configurado y vinculado correctamente.") },
+                        confirmButton = {
+                            TextButton(onClick = { 
+                                configViewModel.resetState()
+                                onNavigateBack()
+                            }) { Text("Finalizar") }
+                        }
+                    )
+                }
+                is BleUiState.Error -> {
+                    AlertDialog(
+                        onDismissRequest = { configViewModel.resetState() },
+                        title = { Text("Error") },
+                        text = { Text(state.message) },
+                        confirmButton = {
+                            TextButton(onClick = { 
+                                val wasWifiError = state.message.contains("WiFi", ignoreCase = true)
+                                if (wasWifiError) {
+                                    configViewModel.clearError()
+                                    step = 2
+                                } else {
+                                    configViewModel.resetState()
+                                    step = 1
+                                }
+                            }) { Text("Reintentar") }
+                        }
+                    )
+                }
+                else -> {}
+            }
         }
     }
+}
+
+@Composable
+fun LoadingDialog(message: String) {
+    AlertDialog(
+        onDismissRequest = {},
+        confirmButton = {},
+        title = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                CircularProgressIndicator(color = Color(0xFFB4F391))
+                Spacer(Modifier.height(16.dp))
+                Text(message, textAlign = TextAlign.Center)
+            }
+        }
+    )
 }
 
 @Composable
@@ -139,73 +237,85 @@ fun StepIndicator(num: Int, label: String, active: Boolean) {
 }
 
 @Composable
-fun ScanDevicesStep(onDeviceSelected: (String) -> Unit) {
-    var isScanning by remember { mutableStateOf(false) }
-    val discoveredDevices = remember { mutableStateListOf<String>() } // Realmente vacío al inicio
-
-    LaunchedEffect(Unit) {
-        isScanning = true
-        // Simulamos un escaneo real que no encuentra nada si no hay hardware
-        kotlinx.coroutines.delay(3000)
-        isScanning = false
-    }
-    
-    Text("1. Escaneando dispositivos cercanos", style = MaterialTheme.typography.titleMedium, color = Color(0xFFB4F391))
+fun ScanDevicesStep(
+    devices: List<BluetoothDevice>,
+    uiState: BleUiState,
+    isBluetoothEnabled: Boolean,
+    onDeviceSelected: (BluetoothDevice) -> Unit,
+    onRetry: () -> Unit
+) {
+    Text("1. Selecciona tu placa ESP32", style = MaterialTheme.typography.titleMedium, color = Color(0xFFB4F391))
     Spacer(modifier = Modifier.height(16.dp))
     
-    if (isScanning) {
-        Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                CircularProgressIndicator(color = Color(0xFFB4F391))
-                Spacer(Modifier.height(16.dp))
-                Text("Buscando placas de desarrollo...", color = Color.Gray)
-            }
-        }
-    } else if (discoveredDevices.isEmpty()) {
+    if (!isBluetoothEnabled) {
         Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF3D1916))
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF410002))
         ) {
-            Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Default.Bluetooth, contentDescription = null, tint = Color(0xFFF2B8B5), modifier = Modifier.size(48.dp))
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    "No se detectó hardware disponible",
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFFF2B8B5),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                )
-                Text(
-                    "Asegúrate de que la placa esté en modo emparejamiento y el Bluetooth de tu celular esté encendido.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFFF2B8B5),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                )
-                Spacer(Modifier.height(16.dp))
-                Button(
-                    onClick = { /* Reiniciar escaneo */ },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF2B8B5), contentColor = Color(0xFF3D1916))
-                ) {
-                    Icon(Icons.Default.Refresh, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Reintentar Escaneo")
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.BluetoothDisabled, contentDescription = null, tint = Color(0xFFF2B8B5))
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Text("Bluetooth apagado", fontWeight = FontWeight.Bold, color = Color(0xFFF2B8B5))
+                    Text("Por favor, enciende el Bluetooth para buscar nodos IoT.", style = MaterialTheme.typography.bodySmall, color = Color(0xFFF2B8B5))
                 }
             }
         }
-    } else {
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(discoveredDevices) { device ->
-                OutlinedCard(
-                    onClick = { onDeviceSelected(device) },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+    }
+    
+    Box(modifier = Modifier.fillMaxWidth()) {
+        if (devices.isEmpty() && uiState !is BleUiState.Scanning) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF3D1916))
+            ) {
+                Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Default.BluetoothDisabled, contentDescription = null, tint = Color(0xFFF2B8B5), modifier = Modifier.size(48.dp))
+                    Spacer(Modifier.height(8.dp))
+                    Text("No se detectó hardware", fontWeight = FontWeight.Bold, color = Color(0xFFF2B8B5))
+                    Spacer(Modifier.height(16.dp))
+                    Button(onClick = onRetry, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF2B8B5), contentColor = Color(0xFF3D1916))) {
+                        Text("Reintentar Escaneo")
+                    }
+                }
+            }
+        } else {
+            Column {
+                if (uiState is BleUiState.Scanning) {
                     Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(bottom = 8.dp)
                     ) {
-                        Icon(Icons.Default.Bluetooth, contentDescription = null, tint = Color(0xFFB4F391))
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Text(device, fontWeight = FontWeight.Bold)
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = Color(0xFFB4F391),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Buscando dispositivos...", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(devices) { device ->
+                        @SuppressLint("MissingPermission")
+                        val name = device.name ?: "Dispositivo sin nombre"
+                        OutlinedCard(
+                            onClick = { onDeviceSelected(device) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Bluetooth, contentDescription = null, tint = Color(0xFFB4F391))
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Column {
+                                    Text(name, fontWeight = FontWeight.Bold)
+                                    Text(device.address, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -237,8 +347,9 @@ fun WifiConfigStep(
     OutlinedTextField(
         value = password,
         onValueChange = onPasswordChange,
-        label = { Text("Contraseña") },
-        modifier = Modifier.fillMaxWidth()
+        label = { Text("Contraseña WiFi") },
+        modifier = Modifier.fillMaxWidth(),
+        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation()
     )
     
     Spacer(modifier = Modifier.height(24.dp))
@@ -246,10 +357,10 @@ fun WifiConfigStep(
     Button(
         onClick = onNext,
         modifier = Modifier.fillMaxWidth(),
-        enabled = ssid.isNotBlank(),
+        enabled = ssid.isNotBlank() && password.length >= 8,
         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB4F391), contentColor = Color.Black)
     ) {
-        Text("Siguiente")
+        Text("Continuar a Vinculación")
     }
 }
 
@@ -271,10 +382,7 @@ fun ColumnScope.LinkParcelaStep(
                 modifier = Modifier.fillMaxWidth(),
                 colors = if (isSelected) CardDefaults.outlinedCardColors(containerColor = Color(0xFF384B2F)) else CardDefaults.outlinedCardColors()
             ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     RadioButton(selected = isSelected, onClick = { onParcelaSelected(parcela) })
                     Spacer(modifier = Modifier.width(8.dp))
                     Column {
@@ -294,6 +402,6 @@ fun ColumnScope.LinkParcelaStep(
         enabled = selectedParcela != null,
         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB4F391), contentColor = Color.Black)
     ) {
-        Text("Finalizar Configuración")
+        Text("Enviar Configuración al Nodo")
     }
 }

@@ -10,7 +10,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import mx.utng.ecoviedos.data.local.SessionManager
 import mx.utng.ecoviedos.data.remote.ParcelaRequest
+import mx.utng.ecoviedos.data.remote.UsuarioRequest
+import mx.utng.ecoviedos.data.remote.UsuarioResponse
 import mx.utng.ecoviedos.data.repository.ParcelaRepository
+import mx.utng.ecoviedos.data.repository.UsuarioRepository
 import mx.utng.ecoviedos.presentation.main.MainViewModel
 
 sealed class AddParcelUiState {
@@ -20,21 +23,32 @@ sealed class AddParcelUiState {
     data class Error(val mensaje: String) : AddParcelUiState()
 }
 
+sealed class UserManagementUiState {
+    data object Idle : UserManagementUiState()
+    data object Loading : UserManagementUiState()
+    data class Success(val users: List<UsuarioResponse>) : UserManagementUiState()
+    data class Error(val mensaje: String) : UserManagementUiState()
+}
+
 class AdminViewModel(application: Application) : AndroidViewModel(application) {
 
     private val sessionManager = SessionManager(application)
     private val parcelaRepository = ParcelaRepository()
+    private val usuarioRepository = UsuarioRepository()
 
     private var mainViewModel: MainViewModel? = null
 
     private val _uiState = MutableStateFlow<AddParcelUiState>(AddParcelUiState.Idle)
     val uiState: StateFlow<AddParcelUiState> = _uiState.asStateFlow()
 
+    private val _userUiState = MutableStateFlow<UserManagementUiState>(UserManagementUiState.Idle)
+    val userUiState: StateFlow<UserManagementUiState> = _userUiState.asStateFlow()
+
     fun setMainViewModel(viewModel: MainViewModel) {
         mainViewModel = viewModel
     }
 
-    fun addParcel(nombre: String, variedad: String, area: Int, umbralHumedad: Float, umbralTemp: Float) {
+    fun addParcel(nombre: String, variedad: String, area: Int, umbralHumedad: Float, umbralTemp: Float, indiceMaduracion: Float) {
         viewModelScope.launch {
             _uiState.value = AddParcelUiState.Loading
 
@@ -50,7 +64,8 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
                 variedad = variedad,
                 activa = true,
                 umbralHumedad = umbralHumedad.toDouble(),
-                umbralTemp = umbralTemp.toDouble()
+                umbralTemp = umbralTemp.toDouble(),
+                indiceMaduracion = indiceMaduracion.toDouble()
             )
 
             val resultado = parcelaRepository.crearParcela(token, request)
@@ -65,7 +80,7 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun updateParcel(id: String, nombre: String, variedad: String, area: Int, umbralHumedad: Float, umbralTemp: Float, activa: Boolean) {
+    fun updateParcel(id: String, nombre: String, variedad: String, area: Int, umbralHumedad: Float, umbralTemp: Float, activa: Boolean, indiceMaduracion: Float) {
         viewModelScope.launch {
             _uiState.value = AddParcelUiState.Loading
 
@@ -81,7 +96,8 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
                 variedad = variedad,
                 activa = activa,
                 umbralHumedad = umbralHumedad.toDouble(),
-                umbralTemp = umbralTemp.toDouble()
+                umbralTemp = umbralTemp.toDouble(),
+                indiceMaduracion = indiceMaduracion.toDouble()
             )
 
             val resultado = parcelaRepository.actualizarParcela(token, id, request)
@@ -122,7 +138,56 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.value = AddParcelUiState.Idle
     }
 
-    fun addUser(nombre: String, correo: String, rol: String) {
-        // Lógica de usuario (pendiente, siguiente paso)
+    // --- User Management ---
+
+    fun loadUsers() {
+        viewModelScope.launch {
+            _userUiState.value = UserManagementUiState.Loading
+            val token = sessionManager.token.first()
+            if (token.isNullOrBlank()) {
+                _userUiState.value = UserManagementUiState.Error("No hay sesión activa")
+                return@launch
+            }
+
+            usuarioRepository.obtenerUsuarios(token)
+                .onSuccess { users ->
+                    _userUiState.value = UserManagementUiState.Success(users)
+                }
+                .onFailure { e ->
+                    _userUiState.value = UserManagementUiState.Error(e.message ?: "Fallo al cargar usuarios")
+                }
+        }
+    }
+
+    fun createUser(nombre: String, correo: String, contrasena: String, rol: String, telefono: String?) {
+        viewModelScope.launch {
+            val token = sessionManager.token.first()
+            if (token.isNullOrBlank()) return@launch
+
+            val request = UsuarioRequest(nombre, correo, contrasena, rol, telefono)
+            usuarioRepository.crearUsuario(token, request)
+                .onSuccess { loadUsers() }
+        }
+    }
+
+    fun updateUser(id: String, nombre: String, correo: String, rol: String, telefono: String?) {
+        viewModelScope.launch {
+            val token = sessionManager.token.first()
+            if (token.isNullOrBlank()) return@launch
+
+            val request = UsuarioRequest(nombre, correo, null, rol, telefono)
+            usuarioRepository.actualizarUsuario(token, id, request)
+                .onSuccess { loadUsers() }
+        }
+    }
+
+    fun deleteUser(id: String) {
+        viewModelScope.launch {
+            val token = sessionManager.token.first()
+            if (token.isNullOrBlank()) return@launch
+
+            usuarioRepository.eliminarUsuario(token, id)
+                .onSuccess { loadUsers() }
+        }
     }
 }

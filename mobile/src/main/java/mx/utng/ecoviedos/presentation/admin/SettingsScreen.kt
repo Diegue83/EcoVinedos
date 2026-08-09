@@ -19,34 +19,8 @@ fun SettingsScreen(
     onNavigateBack: () -> Unit,
     viewModel: MainViewModel
 ) {
-    var mqttIp by remember { mutableStateOf(viewModel.getMqttIp()) }
     val mqttStatus by viewModel.mqttStatus.collectAsState()
     val isConnected by viewModel.isMqttConnected.collectAsState()
-    var showErrorDialog by remember { mutableStateOf(false) }
-
-    // Mostrar diálogo si hay un error crítico
-    LaunchedEffect(mqttStatus) {
-        if (!isConnected && mqttStatus.contains("Error", ignoreCase = true)) {
-            showErrorDialog = true
-        }
-    }
-
-    if (showErrorDialog) {
-        AlertDialog(
-            onDismissRequest = { showErrorDialog = false },
-            title = { Text("Fallo de Conexión") },
-            text = { Text("No se pudo conectar al servidor MQTT. Revisa la IP y asegúrate de estar en la misma red.\n\nDetalle: $mqttStatus") },
-            confirmButton = {
-                TextButton(onClick = { 
-                    showErrorDialog = false
-                    viewModel.updateMqttIp(mqttIp)
-                }) { Text("Reintentar") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showErrorDialog = false }) { Text("Cerrar") }
-            }
-        )
-    }
 
     Scaffold(
         topBar = {
@@ -74,7 +48,7 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                "Conexión con Mosquitto",
+                "Conexión MQTT (Mosquitto)",
                 style = MaterialTheme.typography.titleMedium,
                 color = Color(0xFFB4F391)
             )
@@ -101,40 +75,8 @@ fun SettingsScreen(
                 }
             }
 
-            OutlinedTextField(
-                value = mqttIp,
-                onValueChange = { mqttIp = it },
-                label = { Text("Dirección IP del Servidor") },
-                placeholder = { Text("Ej: 192.168.1.75") },
-                modifier = Modifier.fillMaxWidth(),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFFB4F391),
-                    unfocusedBorderColor = Color.Gray,
-                    focusedLabelColor = Color(0xFFB4F391),
-                    unfocusedLabelColor = Color.Gray,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White
-                )
-            )
-
-            Button(
-                onClick = { 
-                    viewModel.updateMqttIp(mqttIp)
-                    onNavigateBack()
-                },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFB4F391),
-                    contentColor = Color(0xFF1A1C18)
-                )
-            ) {
-                Icon(Icons.Default.Save, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("Guardar y Reconectar")
-            }
-
             Text(
-                "Nota: Asegúrate de que el teléfono y el servidor Mosquitto (Node-RED) estén en la misma red Wi-Fi.",
+                "Nota: El sistema utiliza un servidor Mosquitto fijo configurado internamente.",
                 style = MaterialTheme.typography.bodySmall,
                 color = Color.Gray
             )

@@ -11,12 +11,11 @@ import com.google.android.gms.wearable.Wearable
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import mx.utng.ecoviedos.data.WearableDataSender
 import mx.utng.ecoviedos.data.local.SessionManager
+import mx.utng.ecoviedos.data.mqtt.MqttConfig
 import mx.utng.ecoviedos.data.mqtt.MqttManager
 import mx.utng.ecoviedos.data.repository.ParcelaRepository
 import mx.utng.ecoviedos.domain.model.Parcela
@@ -39,13 +38,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
     private var mqttManager: MqttManager? = null
     private val gson = Gson()
 
+    val sessionToken: Flow<String?> = sessionManager.token
+
     private val prefs = application.getSharedPreferences("EcoViñedosPrefs", Context.MODE_PRIVATE)
 
     init {
         Wearable.getMessageClient(application).addListener(this)
-        val savedIp = prefs.getString("mqtt_server_ip", "192.168.1.75") ?: "192.168.1.75"
-        initializeMqtt(savedIp)
-        cargarParcelas()
+        val savedUrl = prefs.getString("mqtt_server_ip", MqttConfig.BROKER_URL) ?: MqttConfig.BROKER_URL
+        initializeMqtt(savedUrl)
+        
+        // Observar el token para cargar parcelas automáticamente cuando haya sesión
+        viewModelScope.launch {
+            sessionToken.collect { token ->
+                if (!token.isNullOrBlank()) {
+                    cargarParcelas()
+                } else {
+                    _parcelas.value = emptyList()
+                }
+            }
+        }
+    }
+
+    fun logout() {
+        viewModelScope.launch {
+            mqttManager?.disconnect()
+            sessionManager.cerrarSesion()
+        }
     }
 
     fun cargarParcelas() {
@@ -66,9 +84,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
         
         mqttManager = MqttManager(
             context = getApplication(),
-            onMessageReceived = { id, hum, temp, riego, tiempo ->
+            onMessageReceived = { id, hum, temp,humsuel , riego, tiempo ->
                 viewModelScope.launch(Dispatchers.Main) {
-                    updateParcelaFromSensor(id, hum, temp, riego, tiempo)
+                    updateParcelaFromSensor(id, hum, temp,humsuel, riego, tiempo)
                 }
             },
             onParcelListReceived = { json ->
@@ -102,13 +120,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
         }
     }
 
-    private fun updateParcelaFromSensor(id: String, hum: Float, temp: Float, riego: Boolean, tiempo: Int) {
+    private fun updateParcelaFromSensor(id: String, hum: Float, temp: Float,humsuel: Float, riego: Boolean, tiempo: Int) {
         val currentList = _parcelas.value.toMutableList()
         val index = currentList.indexOfFirst { it.id == id }
         if (index != -1) {
             currentList[index] = currentList[index].copy(
                 humedad = hum,
                 temperatura = temp,
+                humedadSuelo = humsuel,
                 riegoActivo = riego,
                 tiempoRestanteRiego = tiempo
             )
@@ -128,7 +147,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
     }
 
     fun getMqttIp(): String {
-        return prefs.getString("mqtt_server_ip", "192.168.1.75") ?: "192.168.1.75"
+        return prefs.getString("mqtt_server_ip", MqttConfig.BROKER_URL) ?: MqttConfig.BROKER_URL
     }
 
     fun reloadParcelas() {

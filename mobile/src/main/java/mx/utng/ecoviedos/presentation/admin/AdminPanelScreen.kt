@@ -36,7 +36,6 @@ fun AdminPanelScreen(
     val adminOptions = listOf(
         AdminOption("Gestión Parcelas", Icons.Default.Map, onNavigateToParcelManagement, "Registra o edita parcelas"),
         AdminOption("Configurar Nodo", Icons.Default.Router, onNavigateToDeviceConfig, "Vincular hardware IoT"),
-        AdminOption("Registro Muestras", Icons.Default.Science, onNavigateToSamples, "Brix, pH y acidez"),
         AdminOption("Usuarios", Icons.Default.People, onNavigateToUsers, "Gestionar personal"),
         AdminOption("Configuración", Icons.Default.Settings, onNavigateToSettings, "Ajustes del sistema")
     )

@@ -72,6 +72,11 @@ const actualizarParcela = async (req, res, next) => {
       'activa',
       'humedad',
       'temperatura',
+      'humedadSuelo',
+      'brix',
+      'ph',
+      'acidez',
+      'phSuelo',
       'estado',
     ];
 

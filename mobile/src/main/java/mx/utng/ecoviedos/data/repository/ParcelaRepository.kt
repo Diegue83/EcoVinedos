@@ -8,7 +8,7 @@ class ParcelaRepository {
 
     suspend fun obtenerParcelas(token: String): Result<List<Parcela>> {
         return try {
-            val response = RetrofitClient.instance.obtenerParcelas("Bearer $token")
+            val response = RetrofitClient.parcelaService.obtenerParcelas("Bearer $token")
             if (response.isSuccessful && response.body() != null) {
                 val parcelas = response.body()!!.map { it.toDomain() }
                 Result.success(parcelas)
@@ -22,7 +22,7 @@ class ParcelaRepository {
 
     suspend fun crearParcela(token: String, request: ParcelaRequest): Result<Parcela> {
         return try {
-            val response = RetrofitClient.instance.crearParcela("Bearer $token", request)
+            val response = RetrofitClient.parcelaService.crearParcela("Bearer $token", request)
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!.toDomain())
             } else {
@@ -40,7 +40,7 @@ class ParcelaRepository {
 
     suspend fun actualizarParcela(token: String, id: String, request: ParcelaRequest): Result<Parcela> {
         return try {
-            val response = RetrofitClient.instance.actualizarParcela("Bearer $token", id, request)
+            val response = RetrofitClient.parcelaService.actualizarParcela("Bearer $token", id, request)
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!.toDomain())
             } else {
@@ -53,7 +53,7 @@ class ParcelaRepository {
 
     suspend fun eliminarParcela(token: String, id: String): Result<Unit> {
         return try {
-            val response = RetrofitClient.instance.eliminarParcela("Bearer $token", id)
+            val response = RetrofitClient.parcelaService.eliminarParcela("Bearer $token", id)
             if (response.isSuccessful) {
                 Result.success(Unit)
             } else {
