@@ -114,8 +114,12 @@ class DeviceConfigViewModel(application: Application) : AndroidViewModel(applica
     private fun handleFeedback(json: String) {
         viewModelScope.launch {
             try {
-                val obj = JSONObject(json)
-                val status = obj.optString("status", "")
+                // Limpiar la cadena de caracteres basura que puedan venir del ESP32
+                val cleanJson = json.trim().substringAfter("{").substringBeforeLast("}")
+                val finalJson = "{$cleanJson}"
+                
+                val obj = JSONObject(finalJson)
+                val status = obj.optString("status", "").lowercase()
                 val message = obj.optString("message", "Procesando...")
 
                 when (status) {
@@ -124,8 +128,13 @@ class DeviceConfigViewModel(application: Application) : AndroidViewModel(applica
                     else -> _uiState.value = BleUiState.VerifyingWiFi(message)
                 }
             } catch (e: Exception) {
-                // Si no es JSON, mostrar el texto bruto
-                _uiState.value = BleUiState.VerifyingWiFi(json)
+                // Si falla el parseo, intentar buscar palabras clave si es un mensaje de texto plano
+                val lower = json.lowercase()
+                when {
+                    lower.contains("\"status\":\"ok\"") || lower.contains("conectado") -> _uiState.value = BleUiState.Success
+                    lower.contains("\"status\":\"error\"") || lower.contains("error") -> _uiState.value = BleUiState.Error(json)
+                    else -> _uiState.value = BleUiState.VerifyingWiFi(json)
+                }
             }
         }
     }

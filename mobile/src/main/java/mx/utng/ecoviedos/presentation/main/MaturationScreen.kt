@@ -21,7 +21,8 @@ import mx.utng.ecoviedos.domain.model.Parcela
 fun MaturationContent(
     parcelas: List<Parcela>, 
     onNavigateToParcelDetails: (String) -> Unit,
-    onRefresh: () -> Unit = {}
+    onRefresh: () -> Unit = {},
+    userRol: String = ""
 ) {
     LaunchedEffect(Unit) {
         onRefresh()

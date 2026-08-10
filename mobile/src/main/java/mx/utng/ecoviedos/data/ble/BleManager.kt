@@ -68,12 +68,18 @@ class BleManager(private val context: Context) {
             }
 
             if (newState == BluetoothProfile.STATE_CONNECTED) {
-                Log.i(TAG, "GATT Conectado. Descubriendo servicios...")
-                gatt.discoverServices()
+                Log.i(TAG, "GATT Conectado. Solicitando MTU mayor...")
+                gatt.requestMtu(512) // Solicitar MTU de 512 bytes para paquetes JSON largos
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 Log.i(TAG, "GATT Desconectado.")
                 onConnectionStateChanged?.invoke(newState)
             }
+        }
+
+        @SuppressLint("MissingPermission")
+        override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
+            Log.i(TAG, "MTU cambiado a: $mtu, status: $status")
+            gatt.discoverServices()
         }
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
@@ -102,7 +108,7 @@ class BleManager(private val context: Context) {
         @Deprecated("Deprecated in Java")
         override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
             if (characteristic.uuid == STATUS_CHAR_UUID) {
-                val data = String(characteristic.value)
+                val data = String(characteristic.value).trim().replace("\u0000", "")
                 Log.d(TAG, "Notificación recibida: $data")
                 onNotificationReceived?.invoke(data)
             }
@@ -110,7 +116,7 @@ class BleManager(private val context: Context) {
 
         override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, value: ByteArray) {
             if (characteristic.uuid == STATUS_CHAR_UUID) {
-                val data = String(value)
+                val data = String(value).trim().replace("\u0000", "")
                 Log.d(TAG, "Notificación recibida (v2): $data")
                 onNotificationReceived?.invoke(data)
             }

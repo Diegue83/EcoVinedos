@@ -26,13 +26,14 @@ fun DashboardContent(
     viewModel: MainViewModel, 
     parcelas: List<Parcela>, 
     onNavigateToAdmin: () -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    userRol: String
 ) {
     // Normalizar madurez de 0-100 a 0.0-1.0
     val avgMaturity = if (parcelas.isNotEmpty()) {
         parcelas.map { it.indiceMaduracion }.average().toFloat() / 100f
     } else 0.74f
-
+    
     val activeCount = parcelas.count { it.activa }
     val alertCount = parcelas.count { it.humedad < it.umbralHumedad }
     val mqttStatus by viewModel.mqttStatus.collectAsState()
@@ -49,7 +50,7 @@ fun DashboardContent(
                     "Eco-Viñedo", 
                     style = MaterialTheme.typography.headlineMedium, 
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFFE2E3DE)
+                    color = Color.White
                 )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -73,14 +74,13 @@ fun DashboardContent(
                 }
             }
             Row {
-                IconButton(onClick = onNavigateToAdmin) {
-                    Icon(Icons.Default.AdminPanelSettings, contentDescription = "Admin", tint = Color(0xFFB4F391))
+                if (userRol == "superusuario" || userRol == "administrador") {
+                    IconButton(onClick = onNavigateToAdmin) {
+                        Icon(Icons.Default.AdminPanelSettings, contentDescription = "Admin", tint = Color(0xFFB4F391))
+                    }
                 }
                 IconButton(onClick = onLogout) {
                     Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Cerrar Sesión", tint = Color(0xFFFFB4AB))
-                }
-                IconButton(onClick = { }) {
-                    Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = Color(0xFFB4F391))
                 }
             }
         }

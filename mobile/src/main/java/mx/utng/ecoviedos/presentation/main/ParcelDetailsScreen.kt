@@ -38,7 +38,8 @@ fun ParcelDetailsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToRegisterSample: (String) -> Unit,
     mainViewModel: MainViewModel,
-    muestraViewModel: MuestraViewModel = viewModel()
+    muestraViewModel: MuestraViewModel = viewModel(),
+    userRol: String = ""
 ) {
     val parcelas by mainViewModel.parcelas.collectAsState()
     val parcela = remember(parcelId, parcelas) { parcelas.find { it.id == parcelId } }
@@ -113,15 +114,17 @@ fun ParcelDetailsScreen(
 
                 Spacer(Modifier.height(8.dp))
 
-                Button(
-                    onClick = { onNavigateToRegisterSample(parcelId) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB4F391), contentColor = Color.Black),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Registrar muestra de campo")
+                if (userRol == "superusuario" || userRol == "trabajador") {
+                    Button(
+                        onClick = { onNavigateToRegisterSample(parcelId) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB4F391), contentColor = Color.Black),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Registrar muestra de campo")
+                    }
                 }
             }
         }
@@ -148,14 +151,14 @@ fun HarvestEstimateCard(fecha: Date?, indice: Float) {
             
             Spacer(Modifier.height(12.dp))
             LinearProgressIndicator(
-                progress = { indice },
+                progress = { indice / 100f },
                 modifier = Modifier.fillMaxWidth().height(8.dp),
                 color = Color(0xFF1976D2),
                 trackColor = Color.White.copy(alpha = 0.5f)
             )
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("Inicio", fontSize = 10.sp, color = Color.Gray)
-                Text("Brix ${ (indice * 100).toInt() }°", fontSize = 10.sp, color = Color.Gray)
+                Text("Brix ${ indice.toInt() }°", fontSize = 10.sp, color = Color.Gray)
                 Text("Cosecha", fontSize = 10.sp, color = Color.Gray)
             }
         }

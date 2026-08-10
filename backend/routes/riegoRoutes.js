@@ -9,14 +9,13 @@ const {
 } = require('../controllers/riegoController');
 const { protegerRuta, permitirRoles } = require('../middleware/authMiddleware');
 
-// Cualquier usuario autenticado puede ver, crear y actualizar riegos
-// (un trabajador necesita poder programar riego y marcarlo como completado)
-router.get('/riegos', protegerRuta, obtenerRiegos);
-router.get('/riegos/:id', protegerRuta, obtenerRiegoPorId);
-router.post('/riegos', protegerRuta, crearRiego);
-router.put('/riegos/:id', protegerRuta, actualizarRiego);
+// Todos pueden ver historial de riego
+router.get('/riego', protegerRuta, obtenerRiegos);
+router.get('/riego/:id', protegerRuta, obtenerRiegoPorId);
 
-// Solo administradores pueden eliminar registros de riego
-router.delete('/riegos/:id', protegerRuta, permitirRoles('administrador'), eliminarRiego);
+// Solo superusuarios y administradores pueden controlar o programar riego
+router.post('/riego', protegerRuta, permitirRoles('superusuario', 'administrador'), crearRiego);
+router.put('/riego/:id', protegerRuta, permitirRoles('superusuario', 'administrador'), actualizarRiego);
+router.delete('/riego/:id', protegerRuta, permitirRoles('superusuario', 'administrador'), eliminarRiego);
 
 module.exports = router;

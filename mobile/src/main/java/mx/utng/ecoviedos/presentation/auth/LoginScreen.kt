@@ -72,22 +72,35 @@ fun LoginScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         // Email Field
+        var emailError by remember { mutableStateOf<String?>(null) }
         OutlinedTextField(
             value = email,
-            onValueChange = { email = it },
+            onValueChange = { 
+                email = it
+                emailError = if (it.isBlank()) "El correo es obligatorio" 
+                             else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(it).matches()) "Formato de correo inválido"
+                             else null
+            },
             label = { Text("CORREO ELECTRÓNICO") },
             modifier = Modifier.fillMaxWidth(),
             trailingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-            isError = uiState is AuthUiState.Error
+            isError = emailError != null || uiState is AuthUiState.Error,
+            supportingText = { emailError?.let { Text(it) } }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
         // Password Field
+        var passError by remember { mutableStateOf<String?>(null) }
         OutlinedTextField(
             value = password,
-            onValueChange = { password = it },
+            onValueChange = { 
+                password = it
+                passError = if (it.isBlank()) "La contraseña es obligatoria"
+                            else if (it.length < 6) "Mínimo 6 caracteres"
+                            else null
+            },
             label = { Text("CONTRASEÑA") },
             modifier = Modifier.fillMaxWidth(),
             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -99,7 +112,8 @@ fun LoginScreen(
                     )
                 }
             },
-            isError = uiState is AuthUiState.Error
+            isError = passError != null || uiState is AuthUiState.Error,
+            supportingText = { passError?.let { Text(it) } }
         )
 
         // Mensaje de error, si lo hay
@@ -122,10 +136,14 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
+        val isFormValid = email.isNotBlank() && 
+                         android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches() && 
+                         password.length >= 6
+
         Button(
             onClick = { authViewModel.login(email.trim(), password) },
             modifier = Modifier.fillMaxWidth().height(56.dp),
-            enabled = uiState !is AuthUiState.Loading,
+            enabled = uiState !is AuthUiState.Loading && isFormValid,
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB4F391), contentColor = Color(0xFF1A1C18)),
             shape = MaterialTheme.shapes.medium
         ) {

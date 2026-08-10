@@ -38,6 +38,19 @@ fun AddParcelScreen(
     var indiceMadurez by remember { mutableStateOf(parcelToEdit?.indiceMaduracion?.toString() ?: "0.0") }
     var activa by remember { mutableStateOf(parcelToEdit?.activa ?: true) }
 
+    // Validaciones
+    val areaNum = area.toIntOrNull() ?: 0
+    val humNum = umbralHumedad.toFloatOrNull() ?: -1f
+    val tempNum = umbralTemp.toFloatOrNull() ?: -100f
+    val maturityNum = indiceMadurez.toFloatOrNull() ?: -1f
+
+    val isFormValid = nombre.isNotBlank() && 
+                     variedad.isNotBlank() && 
+                     areaNum > 0 && 
+                     humNum in 0f..100f && 
+                     tempNum in -20f..60f &&
+                     maturityNum in 0f..100f
+
     val uiState by adminViewModel.uiState.collectAsState()
     val estaGuardando = uiState is AddParcelUiState.Loading
 
@@ -68,31 +81,31 @@ fun AddParcelScreen(
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = {
-                    if (nombre.isNotBlank() && variedad.isNotBlank() && !estaGuardando) {
+                    if (isFormValid && !estaGuardando) {
                         if (parcelId == null) {
                             adminViewModel.addParcel(
                                 nombre,
                                 variedad,
-                                area.toIntOrNull() ?: 0,
-                                umbralHumedad.toFloatOrNull() ?: 30f,
-                                umbralTemp.toFloatOrNull() ?: 25f,
-                                indiceMadurez.toFloatOrNull() ?: 0f
+                                areaNum,
+                                humNum,
+                                tempNum,
+                                maturityNum
                             )
                         } else {
                             adminViewModel.updateParcel(
                                 parcelId,
                                 nombre,
                                 variedad,
-                                area.toIntOrNull() ?: 0,
-                                umbralHumedad.toFloatOrNull() ?: 30f,
-                                umbralTemp.toFloatOrNull() ?: 25f,
+                                areaNum,
+                                humNum,
+                                tempNum,
                                 activa,
-                                indiceMadurez.toFloatOrNull() ?: 0f
+                                maturityNum
                             )
                         }
                     }
                 },
-                containerColor = Color(0xFFB4F391),
+                containerColor = if (isFormValid) Color(0xFFB4F391) else Color.Gray,
                 contentColor = Color(0xFF1A1C18),
                 icon = {
                     if (estaGuardando) {
@@ -125,6 +138,8 @@ fun AddParcelScreen(
                 onValueChange = { nombre = it },
                 label = { Text("Nombre de la Parcela") },
                 modifier = Modifier.fillMaxWidth(),
+                isError = nombre.isBlank(),
+                supportingText = { if (nombre.isBlank()) Text("El nombre es obligatorio") },
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFFB4F391),
                     unfocusedBorderColor = Color.Gray,
@@ -140,6 +155,8 @@ fun AddParcelScreen(
                 onValueChange = { variedad = it },
                 label = { Text("Variedad de Uva") },
                 modifier = Modifier.fillMaxWidth(),
+                isError = variedad.isBlank(),
+                supportingText = { if (variedad.isBlank()) Text("La variedad es obligatoria") },
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFFB4F391),
                     unfocusedBorderColor = Color.Gray,
@@ -155,6 +172,8 @@ fun AddParcelScreen(
                 onValueChange = { area = it },
                 label = { Text("Área (m²)") },
                 modifier = Modifier.fillMaxWidth(),
+                isError = areaNum <= 0,
+                supportingText = { if (areaNum <= 0) Text("Debe ser un número positivo") },
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFFB4F391),
                     unfocusedBorderColor = Color.Gray,
@@ -168,8 +187,10 @@ fun AddParcelScreen(
             OutlinedTextField(
                 value = indiceMadurez,
                 onValueChange = { indiceMadurez = it },
-                label = { Text("Índice de Madurez") },
+                label = { Text("Índice de Madurez (0-100)") },
                 modifier = Modifier.fillMaxWidth(),
+                isError = maturityNum !in 0f..100f,
+                supportingText = { if (maturityNum !in 0f..100f) Text("Debe estar entre 0 y 100") },
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFFB4F391),
                     unfocusedBorderColor = Color.Gray,
@@ -210,6 +231,7 @@ fun AddParcelScreen(
                     onValueChange = { umbralHumedad = it },
                     label = { Text("Humedad Mín (%)") },
                     modifier = Modifier.weight(1f),
+                    isError = humNum !in 0f..100f,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Color(0xFFB4F391),
                         unfocusedBorderColor = Color.Gray,
@@ -225,6 +247,7 @@ fun AddParcelScreen(
                     onValueChange = { umbralTemp = it },
                     label = { Text("Temp Máx (°C)") },
                     modifier = Modifier.weight(1f),
+                    isError = tempNum !in -20f..60f,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Color(0xFFB4F391),
                         unfocusedBorderColor = Color.Gray,

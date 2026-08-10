@@ -178,30 +178,68 @@ fun UserFormDialog(
     var rol by remember { mutableStateOf(user?.rol ?: "trabajador") }
     var telefono by remember { mutableStateOf(user?.telefono ?: "") }
 
+    val isEmailValid = android.util.Patterns.EMAIL_ADDRESS.matcher(correo).matches()
+    val isFormValid = nombre.isNotBlank() && isEmailValid && (user != null || contrasena.length >= 6)
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (user == null) "Nuevo Usuario" else "Editar Usuario") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = nombre, onValueChange = { nombre = it }, label = { Text("Nombre") })
-                OutlinedTextField(value = correo, onValueChange = { correo = it }, label = { Text("Correo") })
+                OutlinedTextField(
+                    value = nombre, 
+                    onValueChange = { nombre = it }, 
+                    label = { Text("Nombre") },
+                    isError = nombre.isBlank(),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = correo, 
+                    onValueChange = { correo = it }, 
+                    label = { Text("Correo") },
+                    isError = correo.isNotBlank() && !isEmailValid,
+                    modifier = Modifier.fillMaxWidth(),
+                    supportingText = { if (correo.isNotBlank() && !isEmailValid) Text("Correo inválido") }
+                )
                 if (user == null) {
-                    OutlinedTextField(value = contrasena, onValueChange = { contrasena = it }, label = { Text("Contraseña") })
+                    OutlinedTextField(
+                        value = contrasena, 
+                        onValueChange = { contrasena = it }, 
+                        label = { Text("Contraseña") },
+                        isError = contrasena.isNotBlank() && contrasena.length < 6,
+                        modifier = Modifier.fillMaxWidth(),
+                        supportingText = { if (contrasena.isNotBlank() && contrasena.length < 6) Text("Mínimo 6 caracteres") }
+                    )
                 }
-                OutlinedTextField(value = telefono, onValueChange = { telefono = it }, label = { Text("Teléfono") })
+                OutlinedTextField(
+                    value = telefono, 
+                    onValueChange = { telefono = it }, 
+                    label = { Text("Teléfono (Opcional)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
                 
                 Text("Rol:", style = MaterialTheme.typography.labelMedium)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(selected = rol == "administrador", onClick = { rol = "administrador" })
-                    Text("Admin", color = Color.White)
-                    Spacer(Modifier.width(16.dp))
-                    RadioButton(selected = rol == "trabajador", onClick = { rol = "trabajador" })
-                    Text("Trabajador", color = Color.White)
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(selected = rol == "superusuario", onClick = { rol = "superusuario" })
+                        Text("Super", color = Color.White, fontSize = 12.sp)
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(selected = rol == "administrador", onClick = { rol = "administrador" })
+                        Text("Admin", color = Color.White, fontSize = 12.sp)
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(selected = rol == "trabajador", onClick = { rol = "trabajador" })
+                        Text("Trabajador", color = Color.White, fontSize = 12.sp)
+                    }
                 }
             }
         },
         confirmButton = {
-            Button(onClick = { onSave(nombre, correo, contrasena.takeIf { it.isNotBlank() }, rol, telefono) }) {
+            Button(
+                onClick = { onSave(nombre, correo, contrasena.takeIf { it.isNotBlank() }, rol, telefono) },
+                enabled = isFormValid
+            ) {
                 Text("Guardar")
             }
         },

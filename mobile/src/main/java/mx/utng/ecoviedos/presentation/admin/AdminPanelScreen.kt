@@ -31,14 +31,20 @@ fun AdminPanelScreen(
     onNavigateToUsers: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToDeviceConfig: () -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    userRol: String
 ) {
-    val adminOptions = listOf(
+    val allOptions = listOf(
         AdminOption("Gestión Parcelas", Icons.Default.Map, onNavigateToParcelManagement, "Registra o edita parcelas"),
         AdminOption("Configurar Nodo", Icons.Default.Router, onNavigateToDeviceConfig, "Vincular hardware IoT"),
         AdminOption("Usuarios", Icons.Default.People, onNavigateToUsers, "Gestionar personal"),
         AdminOption("Configuración", Icons.Default.Settings, onNavigateToSettings, "Ajustes del sistema")
     )
+
+    // Solo el superusuario puede ver y acceder a la gestión de usuarios
+    val adminOptions = allOptions.filter { option ->
+        if (option.title == "Usuarios") userRol == "superusuario" else true
+    }
 
     Scaffold(
         topBar = {

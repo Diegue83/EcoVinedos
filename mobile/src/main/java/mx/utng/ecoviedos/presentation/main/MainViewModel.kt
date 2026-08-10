@@ -43,13 +43,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
     private var mqttManager: MqttManager? = null
 
     val sessionToken: Flow<String?> = sessionManager.token
+    val sessionRol: Flow<String?> = sessionManager.rol
 
     private val prefs = application.getSharedPreferences("EcoViñedosPrefs", Context.MODE_PRIVATE)
 
     init {
         Wearable.getMessageClient(application).addListener(this)
-        val savedUrl = prefs.getString("mqtt_server_ip", MqttConfig.BROKER_URL) ?: MqttConfig.BROKER_URL
-        initializeMqtt(savedUrl)
+        initializeMqtt()
         
         viewModelScope.launch {
             sessionToken.collect { token ->
@@ -98,7 +98,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
         }
     }
 
-    private fun initializeMqtt(serverIp: String) {
+    private fun initializeMqtt() {
         mqttManager?.disconnect()
         
         mqttManager = MqttManager(
@@ -122,7 +122,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
         )
         
         viewModelScope.launch(Dispatchers.IO) {
-            mqttManager?.connect(serverIp)
+            mqttManager?.connect()
         }
     }
 
@@ -145,15 +145,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
 
     fun toggleRiego(parcelId: String, activo: Boolean, duracionMinutos: Int) {
         mqttManager?.toggleRiego(parcelId, activo, duracionMinutos)
-    }
-
-    fun updateMqttIp(newIp: String) {
-        prefs.edit().putString("mqtt_server_ip", newIp).apply()
-        initializeMqtt(newIp)
-    }
-
-    fun getMqttIp(): String {
-        return prefs.getString("mqtt_server_ip", MqttConfig.BROKER_URL) ?: MqttConfig.BROKER_URL
     }
 
     fun reloadParcelas() {

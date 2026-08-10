@@ -5,12 +5,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
@@ -22,7 +22,9 @@ fun MainScreen(
 ) {
     val parcelas by viewModel.parcelas.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
-    var selectedItem by remember { mutableIntStateOf(0) }
+    val userRol by viewModel.sessionRol.collectAsState(initial = "")
+    var selectedItem by rememberSaveable { mutableIntStateOf(0) }
+
     val items = listOf("Inicio", "Madurez", "Riego", "Historial")
     
     LaunchedEffect(selectedItem) {
@@ -70,8 +72,8 @@ fun MainScreen(
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
             when (selectedItem) {
-                0 -> DashboardContent(viewModel, parcelas, onNavigateToAdmin, onLogout)
-                1 -> MaturationContent(parcelas, onNavigateToParcelDetails, onRefresh = { viewModel.cargarParcelas() })
+                0 -> DashboardContent(viewModel, parcelas, onNavigateToAdmin, onLogout, userRol ?: "")
+                1 -> MaturationContent(parcelas, onNavigateToParcelDetails, onRefresh = { viewModel.cargarParcelas() }, userRol = userRol ?: "")
                 2 -> IrrigationScreen(parcelas, viewModel)
                 else -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("Historial (En desarrollo)")

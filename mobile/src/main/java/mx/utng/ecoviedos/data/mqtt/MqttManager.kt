@@ -28,7 +28,7 @@ class MqttManager(
         
         try {
             isConnecting = true
-            onConnectionStatusChanged(false, "Conectando a HiveMQ...")
+            onConnectionStatusChanged(false, "Conectando al broker...")
 
             mqttClient?.let {
                 try {
@@ -39,20 +39,25 @@ class MqttManager(
 
             mqttClient = MqttClient(serverUri, clientId, MemoryPersistence())
             val options = MqttConnectOptions().apply {
-                userName = MqttConfig.USERNAME
-                password = MqttConfig.PASSWORD.toCharArray()
+                if (MqttConfig.USERNAME.isNotEmpty()) {
+                    userName = MqttConfig.USERNAME
+                    password = MqttConfig.PASSWORD.toCharArray()
+                }
                 isAutomaticReconnect = true
                 isCleanSession = true
                 connectionTimeout = 20
                 keepAliveInterval = 60
-                // HiveMQ Cloud requiere SSL/TLS
-                sslProperties = java.util.Properties()
+                
+                // Solo usar SSL si la URL lo indica
+                if (serverUri.startsWith("ssl://")) {
+                    sslProperties = java.util.Properties()
+                }
             }
 
             mqttClient?.setCallback(object : MqttCallbackExtended {
                 override fun connectComplete(reconnect: Boolean, serverURI: String?) {
                     isConnecting = false
-                    Log.d("MQTT", "Conectado a HiveMQ: $serverURI")
+                    Log.d("MQTT", "Conectado al broker: $serverURI")
                     onConnectionStatusChanged(true, "Conectado")
                     subscribeToTopics()
                 }
@@ -154,7 +159,7 @@ class MqttManager(
         } catch (e: Exception) { }
     }
 
-    fun toggleRiego(parcelId: String, activo: Boolean, duracionMinutos: Int = 10) {
+    fun toggleRiego(parcelId: String, activo: Boolean, duracionMinutos: Int = 1) {
         try {
             mqttClient?.let {
                 if (it.isConnected) {

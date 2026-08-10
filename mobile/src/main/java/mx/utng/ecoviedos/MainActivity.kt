@@ -79,6 +79,7 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             composable("admin") {
+                                val userRol by mainViewModel.sessionRol.collectAsState(initial = "")
                                 AdminPanelScreen(
                                     onNavigateBack = { navController.popBackStack() },
                                     onNavigateToParcelManagement = { navController.navigate("parcel_management") },
@@ -91,16 +92,19 @@ class MainActivity : ComponentActivity() {
                                         navController.navigate("login") {
                                             popUpTo("main") { inclusive = true }
                                         }
-                                    }
+                                    },
+                                    userRol = userRol ?: ""
                                 )
                             }
                             composable("parcel_details/{id}") { backStackEntry ->
                                 val id = backStackEntry.arguments?.getString("id") ?: ""
+                                val userRol by mainViewModel.sessionRol.collectAsState(initial = "")
                                 ParcelDetailsScreen(
                                     parcelId = id,
                                     onNavigateBack = { navController.popBackStack() },
                                     onNavigateToRegisterSample = { navController.navigate("register_sample/$id") },
-                                    mainViewModel = mainViewModel
+                                    mainViewModel = mainViewModel,
+                                    userRol = userRol ?: ""
                                 )
                             }
                             composable("register_sample/{id}") { backStackEntry ->

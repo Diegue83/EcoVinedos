@@ -27,6 +27,17 @@ fun RegisterSampleScreen(
     var phSuelo by remember { mutableStateOf("") }
     var observaciones by remember { mutableStateOf("") }
 
+    // Validaciones
+    val brixNum = brix.toDoubleOrNull() ?: -1.0
+    val phNum = ph.toDoubleOrNull() ?: -1.0
+    val acidezNum = acidez.toDoubleOrNull() ?: -1.0
+    val phSueloNum = phSuelo.toDoubleOrNull() ?: -1.0
+
+    val isFormValid = brixNum in 0.0..100.0 && 
+                     phNum in 0.0..14.0 && 
+                     acidezNum in 0.0..50.0 && 
+                     phSueloNum in 0.0..14.0
+
     val registroExitoso by muestraViewModel.registroExitoso.collectAsState()
     val uiState by muestraViewModel.uiState.collectAsState()
 
@@ -66,16 +77,20 @@ fun RegisterSampleScreen(
             OutlinedTextField(
                 value = brix,
                 onValueChange = { brix = it },
-                label = { Text("Grados Brix (°)") },
+                label = { Text("Grados Brix (0-100)") },
                 modifier = Modifier.fillMaxWidth(),
+                isError = brix.isNotBlank() && brixNum !in 0.0..100.0,
+                supportingText = { if (brix.isNotBlank() && brixNum !in 0.0..100.0) Text("Debe estar entre 0 y 100") },
                 colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White)
             )
 
             OutlinedTextField(
                 value = ph,
                 onValueChange = { ph = it },
-                label = { Text("pH del Fruto") },
+                label = { Text("pH del Fruto (0-14)") },
                 modifier = Modifier.fillMaxWidth(),
+                isError = ph.isNotBlank() && phNum !in 0.0..14.0,
+                supportingText = { if (ph.isNotBlank() && phNum !in 0.0..14.0) Text("Debe estar entre 0 y 14") },
                 colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White)
             )
 
@@ -84,14 +99,18 @@ fun RegisterSampleScreen(
                 onValueChange = { acidez = it },
                 label = { Text("Acidez (g/L)") },
                 modifier = Modifier.fillMaxWidth(),
+                isError = acidez.isNotBlank() && acidezNum !in 0.0..50.0,
+                supportingText = { if (acidez.isNotBlank() && acidezNum !in 0.0..50.0) Text("Valor inválido") },
                 colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White)
             )
 
             OutlinedTextField(
                 value = phSuelo,
                 onValueChange = { phSuelo = it },
-                label = { Text("pH del Suelo") },
+                label = { Text("pH del Suelo (0-14)") },
                 modifier = Modifier.fillMaxWidth(),
+                isError = phSuelo.isNotBlank() && phSueloNum !in 0.0..14.0,
+                supportingText = { if (phSuelo.isNotBlank() && phSueloNum !in 0.0..14.0) Text("Debe estar entre 0 y 14") },
                 colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White)
             )
 
@@ -109,14 +128,12 @@ fun RegisterSampleScreen(
 
             Button(
                 onClick = {
-                    val b = brix.toDoubleOrNull() ?: 0.0
-                    val p = ph.toDoubleOrNull() ?: 0.0
-                    val a = acidez.toDoubleOrNull() ?: 0.0
-                    val ps = phSuelo.toDoubleOrNull() ?: 0.0
-                    muestraViewModel.registrarMuestra(parcelId, b, p, a, ps, observaciones)
+                    if (isFormValid) {
+                        muestraViewModel.registrarMuestra(parcelId, brixNum, phNum, acidezNum, phSueloNum, observaciones)
+                    }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = uiState !is MuestraUiState.Loading,
+                enabled = uiState !is MuestraUiState.Loading && isFormValid,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB4F391), contentColor = Color.Black)
             ) {
                 if (uiState is MuestraUiState.Loading) {

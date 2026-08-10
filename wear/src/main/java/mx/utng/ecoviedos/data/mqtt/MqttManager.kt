@@ -16,23 +16,29 @@ class MqttManager(
 ) {
     private var mqttClient: MqttClient? = null
     private val gson = Gson()
-    private val serverUri = "tcp://10.0.2.2:1883" // IP por defecto
     private val clientId = "WearClient_${System.currentTimeMillis()}"
 
     fun connect() {
         try {
-            mqttClient = MqttClient(serverUri, clientId, MemoryPersistence())
+            mqttClient = MqttClient(MqttConfig.BROKER_URL, clientId, MemoryPersistence())
             val options = MqttConnectOptions().apply {
+                userName = MqttConfig.USERNAME
+                password = MqttConfig.PASSWORD.toCharArray()
                 isAutomaticReconnect = true
                 isCleanSession = true
                 connectionTimeout = 30
+                keepAliveInterval = 60
+                
+                if (MqttConfig.BROKER_URL.startsWith("ssl://")) {
+                    sslProperties = java.util.Properties()
+                }
             }
 
             mqttClient?.setCallback(object : MqttCallbackExtended {
                 override fun connectComplete(reconnect: Boolean, serverURI: String?) {
                     Log.d("MQTT_Wear", "Conectado a $serverURI")
-                    mqttClient?.subscribe("vinedo/parcelas/lista", 1)
-                    mqttClient?.subscribe("vinedo/parcela/+/stats", 1)
+                    mqttClient?.subscribe(MqttConfig.TOPIC_PARCELAS_LISTA, 1)
+                    mqttClient?.subscribe(MqttConfig.TOPIC_PARCELA_STATS, 1)
                 }
 
                 override fun connectionLost(cause: Throwable?) {
@@ -43,7 +49,7 @@ class MqttManager(
                     val payload = message?.toString() ?: return
                     try {
                         when {
-                            topic == "vinedo/parcelas/lista" -> {
+                            topic == MqttConfig.TOPIC_PARCELAS_LISTA -> {
                                 val itemType = object : TypeToken<List<ParcelaMap>>() {}.type
                                 val parcelasMobile: List<ParcelaMap> = gson.fromJson(payload, itemType)
                                 val parcelasWear = parcelasMobile.map { m ->
@@ -90,9 +96,9 @@ class MqttManager(
         }
     }
 
-    fun activarRiego(idParcela: String, duracionMinutos: Int = 60) {
+    fun activarRiego(idParcela: String, duracionMinutos: Int = 1) {
         try {
-            val topic = "vinedo/parcela/$idParcela/riego/control"
+            val topic = String.format(MqttConfig.TOPIC_RIEGO_CONTROL, idParcela)
             val payload = JSONObject().apply {
                 put("comando", "ON")
                 put("duracion", duracionMinutos)

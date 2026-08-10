@@ -339,7 +339,9 @@ fun WifiConfigStep(
         onValueChange = onSsidChange,
         label = { Text("Nombre de Red (SSID)") },
         modifier = Modifier.fillMaxWidth(),
-        leadingIcon = { Icon(Icons.Default.Wifi, contentDescription = null) }
+        leadingIcon = { Icon(Icons.Default.Wifi, contentDescription = null) },
+        isError = ssid.isBlank(),
+        supportingText = { if (ssid.isBlank()) Text("El SSID es obligatorio") }
     )
     
     Spacer(modifier = Modifier.height(16.dp))
@@ -347,8 +349,10 @@ fun WifiConfigStep(
     OutlinedTextField(
         value = password,
         onValueChange = onPasswordChange,
-        label = { Text("Contraseña WiFi") },
+        label = { Text("Contraseña WiFi (Mín. 8 caracteres)") },
         modifier = Modifier.fillMaxWidth(),
+        isError = password.isNotBlank() && password.length < 8,
+        supportingText = { if (password.isNotBlank() && password.length < 8) Text("Contraseña demasiado corta") },
         visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation()
     )
     
