@@ -120,3 +120,13 @@ data class MuestraRequest(
     val observaciones: String?,
     val fecha: String? = null
 )
+
+data class NotificacionResponse(
+    val _id: String,
+    val tipo: String,
+    val titulo: String,
+    val mensaje: String,
+    val parcela: String?,
+    val leida: Boolean,
+    val fecha: String
+)

@@ -93,6 +93,11 @@ const parcelaSchema = new mongoose.Schema(
         default: null,
         index: true
     },
+
+    ultimaConexion: {
+        type: Date,
+        default: Date.now
+    }
 },
 {
     versionKey: false,

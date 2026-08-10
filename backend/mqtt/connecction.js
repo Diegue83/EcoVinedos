@@ -1,10 +1,12 @@
 const mqtt = require("mqtt");
 const Parcela = require("../models/Parcela");
+const HistorialSensor = require("../models/HistorialSensor");
 
 const BROKER = "mqtts://" + process.env.MOSQUITTO_BROKER_URL;
 
-const HistorialSensor = require("../models/HistorialSensor");
-
+/**
+ * Cliente MQTT configurado para conectarse al broker especificado.
+ */
 const client = mqtt.connect(BROKER, {
     username: process.env.MQTT_USR,
     password: process.env.MQTT_PASS,
@@ -12,16 +14,25 @@ const client = mqtt.connect(BROKER, {
     clean: true
 });
 
-// Para controlar el guardado cada 15 minutos
+/**
+ * Almacena el timestamp del último guardado de historial por parcela para controlar
+ * la frecuencia de 15 minutos.
+ * @type {Map<string, number>}
+ */
 const ultimosGuardados = new Map();
 
 client.on("connect", () => {
     console.log("✅ Conectado al broker MQTT");
     client.subscribe("vinedo/parcela/+/stats");
     client.subscribe("vinedo/nodo/vincular");
-    publicarListaParcelas()
+    publicarListaParcelas();
 });
 
+/**
+ * Manejador principal de mensajes MQTT.
+ *
+ * Procesa estadísticas de sensores (cada 15 min) y eventos de vinculación de nodos.
+ */
 client.on("message", async (topic, message) => {
     const payload = message.toString();
 
@@ -41,7 +52,8 @@ client.on("message", async (topic, message) => {
             await Parcela.findByIdAndUpdate(parcelaId, {
                 humedad: humAire,
                 temperatura: tempAire,
-                humedadSuelo: humSuelo
+                humedadSuelo: humSuelo,
+                ultimaConexion: new Date()
             });
 
             // Guardar en historial solo cada 15 minutos
@@ -96,6 +108,12 @@ client.on("error", (err) => {
     console.error("Error MQTT:", err.message);
 });
 
+/**
+ * Mapea un objeto de parcela de Mongoose a un objeto plano para envío MQTT.
+ *
+ * @param {Object} parcela - Objeto parcela de la base de datos.
+ * @returns {Object} Objeto parcela formateado.
+ */
 const mapParcela = (parcela) => ({
     id: String(parcela._id),
     nombreParcela: parcela.nombreParcela,
@@ -112,9 +130,15 @@ const mapParcela = (parcela) => ({
     brix: parcela.brix,
     ph: parcela.ph,
     acidez: parcela.acidez,
-    phSuelo: parcela.phSuelo
+    phSuelo: parcela.phSuelo,
+    nodoVinculado: parcela.nodoVinculado
 });
 
+/**
+ * Publica la lista completa de parcelas en el tópico de lista MQTT.
+ *
+ * @returns {Promise<void>}
+ */
 async function publicarListaParcelas() {
 
     if (!client.connected) {

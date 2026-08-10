@@ -18,6 +18,7 @@ import mx.utng.ecoviedos.presentation.main.MainScreen
 import mx.utng.ecoviedos.presentation.main.MainViewModel
 import mx.utng.ecoviedos.presentation.main.ParcelDetailsScreen
 import mx.utng.ecoviedos.presentation.main.RegisterSampleScreen
+import mx.utng.ecoviedos.presentation.main.NotificationScreen
 import mx.utng.ecoviedos.presentation.admin.AdminPanelScreen
 import mx.utng.ecoviedos.presentation.admin.AdminViewModel
 import mx.utng.ecoviedos.presentation.admin.AddParcelScreen
@@ -70,6 +71,7 @@ class MainActivity : ComponentActivity() {
                                     viewModel = mainViewModel,
                                     onNavigateToAdmin = { navController.navigate("admin") },
                                     onNavigateToParcelDetails = { id -> navController.navigate("parcel_details/$id") },
+                                    onNavigateToNotifications = { navController.navigate("notifications") },
                                     onLogout = {
                                         mainViewModel.logout()
                                         navController.navigate("login") {
@@ -164,6 +166,9 @@ class MainActivity : ComponentActivity() {
                             }
                             composable("samples") {
                                 SampleRecordsScreen(onNavigateBack = { navController.popBackStack() })
+                            }
+                            composable("notifications") {
+                                NotificationScreen(onNavigateBack = { navController.popBackStack() })
                             }
                         }
                     }

@@ -10,6 +10,9 @@ import mx.utng.ecoviedos.data.remote.HistorialSensorResponse
 import mx.utng.ecoviedos.data.remote.ResumenDiarioResponse
 import mx.utng.ecoviedos.data.repository.HistorialRepository
 
+/**
+ * Estados de la pantalla de consulta histórica.
+ */
 sealed class HistorialUiState {
     data object Idle : HistorialUiState()
     data object Loading : HistorialUiState()
@@ -20,12 +23,20 @@ sealed class HistorialUiState {
     data class Error(val mensaje: String) : HistorialUiState()
 }
 
+/**
+ * ViewModel encargado de la consulta de datos históricos de telemetría.
+ */
 class HistorialViewModel : ViewModel() {
     private val repository = HistorialRepository()
 
     private val _uiState = MutableStateFlow<HistorialUiState>(HistorialUiState.Idle)
     val uiState: StateFlow<HistorialUiState> = _uiState.asStateFlow()
 
+    /**
+     * Carga tanto el historial reciente como los resúmenes diarios de una parcela.
+     * 
+     * @param parcelaId Identificador de la parcela a consultar.
+     */
     fun cargarDatos(parcelaId: String) {
         viewModelScope.launch {
             _uiState.value = HistorialUiState.Loading

@@ -8,8 +8,6 @@ import androidx.lifecycle.viewModelScope
 import com.google.android.gms.wearable.MessageClient
 import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.Wearable
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -20,8 +18,13 @@ import mx.utng.ecoviedos.data.mqtt.MqttManager
 import mx.utng.ecoviedos.data.repository.ParcelaRepository
 import mx.utng.ecoviedos.domain.model.Parcela
 import kotlinx.coroutines.flow.first
-import java.util.Date
 
+/**
+ * ViewModel principal de la aplicación.
+ * 
+ * Gestiona el estado global de las parcelas, la comunicación con Wearable,
+ * la sincronización vía MQTT y las peticiones HTTP al servidor.
+ */
 class MainViewModel(application: Application) : AndroidViewModel(application), MessageClient.OnMessageReceivedListener {
     private val _parcelas = MutableStateFlow<List<Parcela>>(emptyList())
     val parcelas: StateFlow<List<Parcela>> = _parcelas.asStateFlow()
@@ -63,6 +66,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
         }
     }
 
+    /**
+     * Cierra la sesión del usuario actual y libera recursos.
+     */
     fun logout() {
         viewModelScope.launch {
             mqttManager?.disconnect()
@@ -70,12 +76,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
         }
     }
 
+    /**
+     * Realiza una petición HTTP GET al servidor para obtener la lista actualizada de parcelas.
+     * 
+     * Sincroniza los datos con la interfaz y con el dispositivo Wearable.
+     */
     fun cargarParcelas() {
         Log.d("MainViewModel", "Iniciando carga de parcelas via HTTP...")
         viewModelScope.launch {
             _isRefreshing.value = true
             try {
-                // Si authToken es nulo, intentar recuperarlo una vez más
                 val token = authToken ?: sessionManager.token.first()
                 if (!token.isNullOrBlank()) {
                     val result = parcelaRepository.obtenerParcelas(token)
@@ -98,6 +108,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
         }
     }
 
+    /**
+     * Inicializa el cliente MQTT y configura los callbacks para recibir telemetría.
+     */
     private fun initializeMqtt() {
         mqttManager?.disconnect()
         
@@ -126,6 +139,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
         }
     }
 
+    /**
+     * Actualiza localmente los valores de una parcela recibidos por sensores vía MQTT.
+     */
     private fun updateParcelaFromSensor(id: String, hum: Float, temp: Float,humsuel: Float, riego: Boolean, tiempo: Int) {
         val currentList = _parcelas.value.toMutableList()
         val index = currentList.indexOfFirst { it.id == id }
@@ -138,21 +154,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
                 tiempoRestanteRiego = tiempo
             )
             _parcelas.value = currentList.toList()
-            // Sincronizar con el reloj
             wearableDataSender.sendParcelas(currentList.toList())
         }
     }
 
+    /**
+     * Envía una orden de activación o desactivación de riego vía MQTT.
+     * 
+     * @param parcelId Identificador de la parcela.
+     * @param activo true para encender, false para apagar.
+     * @param duracionMinutos Tiempo de riego en minutos.
+     */
     fun toggleRiego(parcelId: String, activo: Boolean, duracionMinutos: Int) {
         mqttManager?.toggleRiego(parcelId, activo, duracionMinutos)
     }
 
+    /**
+     * Reenvía la lista actual de parcelas al dispositivo Wearable conectado.
+     */
     fun reloadParcelas() {
         wearableDataSender.sendParcelas(_parcelas.value)
     }
 
     override fun onMessageReceived(event: MessageEvent) {
-        // Manejar activación de riego desde el reloj si es necesario
+        // Manejar mensajes entrantes desde el reloj
     }
 
     override fun onCleared() {

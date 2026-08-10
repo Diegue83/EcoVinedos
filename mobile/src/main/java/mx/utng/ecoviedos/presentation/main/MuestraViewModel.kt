@@ -13,6 +13,9 @@ import mx.utng.ecoviedos.data.remote.MuestraRequest
 import mx.utng.ecoviedos.data.remote.MuestraResponse
 import mx.utng.ecoviedos.data.repository.MuestraRepository
 
+/**
+ * Estados posibles de la interfaz de muestras.
+ */
 sealed class MuestraUiState {
     data object Idle : MuestraUiState()
     data object Loading : MuestraUiState()
@@ -20,6 +23,9 @@ sealed class MuestraUiState {
     data class Error(val mensaje: String) : MuestraUiState()
 }
 
+/**
+ * ViewModel encargado de la gestión de muestras de laboratorio.
+ */
 class MuestraViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = MuestraRepository()
     private val sessionManager = SessionManager(application)
@@ -30,6 +36,11 @@ class MuestraViewModel(application: Application) : AndroidViewModel(application)
     private val _registroExitoso = MutableStateFlow(false)
     val registroExitoso: StateFlow<Boolean> = _registroExitoso.asStateFlow()
 
+    /**
+     * Carga el historial de muestras para una parcela determinada.
+     * 
+     * @param parcelaId Identificador de la parcela.
+     */
     fun cargarHistorial(parcelaId: String) {
         viewModelScope.launch {
             _uiState.value = MuestraUiState.Loading
@@ -49,6 +60,16 @@ class MuestraViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    /**
+     * Registra una nueva muestra de campo en el servidor.
+     * 
+     * @param parcelaId ID de la parcela.
+     * @param brix Grados Brix medidos.
+     * @param ph pH medido.
+     * @param acidez Acidez medida.
+     * @param phSuelo pH del suelo medido.
+     * @param observaciones Notas adicionales del técnico.
+     */
     fun registrarMuestra(
         parcelaId: String,
         brix: Double,
@@ -74,6 +95,9 @@ class MuestraViewModel(application: Application) : AndroidViewModel(application)
         }
     }
     
+    /**
+     * Resetea el estado de éxito tras navegar de regreso.
+     */
     fun resetRegistroState() {
         _registroExitoso.value = false
     }

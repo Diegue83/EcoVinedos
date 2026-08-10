@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import mx.utng.ecoviedos.domain.model.Parcela
 
 @Composable
@@ -27,15 +28,19 @@ fun DashboardContent(
     parcelas: List<Parcela>, 
     onNavigateToAdmin: () -> Unit,
     onLogout: () -> Unit,
-    userRol: String
+    userRol: String,
+    onNavigateToNotifications: () -> Unit,
+    notifViewModel: NotificacionViewModel = viewModel()
 ) {
     // Normalizar madurez de 0-100 a 0.0-1.0
+    val unreadCount by notifViewModel.unreadCount.collectAsState()
+
     val avgMaturity = if (parcelas.isNotEmpty()) {
         parcelas.map { it.indiceMaduracion }.average().toFloat() / 100f
     } else 0.74f
     
     val activeCount = parcelas.count { it.activa }
-    val alertCount = parcelas.count { it.humedad < it.umbralHumedad }
+    val alertCount = parcelas.count { it.nodoVinculado != null && it.humedad < it.umbralHumedad }
     val mqttStatus by viewModel.mqttStatus.collectAsState()
     val isConnected by viewModel.isMqttConnected.collectAsState()
 
@@ -81,6 +86,19 @@ fun DashboardContent(
                 }
                 IconButton(onClick = onLogout) {
                     Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Cerrar Sesión", tint = Color(0xFFFFB4AB))
+                }
+                IconButton(onClick = onNavigateToNotifications) {
+                    BadgedBox(
+                        badge = {
+                            if (unreadCount > 0) {
+                                Badge(containerColor = Color.Red) {
+                                    Text(unreadCount.toString(), color = Color.White)
+                                }
+                            }
+                        }
+                    ) {
+                        Icon(Icons.Default.NotificationsActive, contentDescription = "Notificaciones", tint = Color(0xFFB4F391))
+                    }
                 }
             }
         }
@@ -135,9 +153,19 @@ fun DashboardContent(
         
         Spacer(modifier = Modifier.height(12.dp))
 
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            items(parcelas) { parcela ->
-                MaturityRow(parcela.nombreParcela, parcela.humedadSuelo / 100f)
+        val linkedParcelas = remember(parcelas) {
+            parcelas.filter { it.nodoVinculado != null }
+        }
+
+        if (linkedParcelas.isEmpty()) {
+            Box(modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) {
+                Text("No hay nodos vinculados para monitorear", color = Color.Gray, fontSize = 12.sp)
+            }
+        } else {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                items(linkedParcelas) { parcela ->
+                    MaturityRow(parcela.nombreParcela, parcela.humedadSuelo / 100f)
+                }
             }
         }
     }

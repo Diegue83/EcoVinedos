@@ -2,6 +2,15 @@ const HistorialSensor = require('../models/HistorialSensor');
 const ResumenDiario = require('../models/ResumenDiario');
 const Parcela = require('../models/Parcela');
 
+/**
+ * Genera promedios diarios de las lecturas de los sensores para cada parcela.
+ *
+ * Consulta todas las lecturas del día anterior en el historial detallado,
+ * calcula el promedio de humedad y temperatura, y guarda un resumen en la
+ * colección ResumenDiario para análisis a largo plazo.
+ *
+ * @returns {Promise<void>}
+ */
 async function generarResumenesDiarios() {
     console.log("🕒 Iniciando generación de resúmenes diarios...");
     try {
@@ -44,9 +53,13 @@ async function generarResumenesDiarios() {
     }
 }
 
-// Ejecutar cada 24 horas
+/**
+ * Inicia el temporizador para la ejecución de tareas programadas (Cron).
+ *
+ * Actualmente ejecuta la generación de resúmenes cada 24 horas.
+ */
 function iniciarTareasProgramadas() {
-    // Primera ejecución en 1 minuto para pruebas (opcional)
+    // Primera ejecución en 1 minuto para pruebas tras reinicio del servidor
     setTimeout(generarResumenesDiarios, 60000);
 
     // Intervalo de 24 horas

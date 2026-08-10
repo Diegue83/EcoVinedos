@@ -11,6 +11,14 @@ import android.os.Looper
 import android.util.Log
 import java.util.*
 
+/**
+ * Gestor de comunicaciones Bluetooth Low Energy (BLE).
+ * 
+ * Centraliza la lógica de escaneo, conexión GATT, lectura/escritura de características
+ * y recepción de notificaciones desde dispositivos periféricos (ESP32).
+ * 
+ * @property context Contexto de la aplicación necesario para acceder a los servicios de sistema.
+ */
 class BleManager(private val context: Context) {
 
     companion object {
@@ -24,6 +32,11 @@ class BleManager(private val context: Context) {
     private val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
     private val adapter = bluetoothManager.adapter
 
+    /**
+     * Verifica si el adaptador Bluetooth está encendido.
+     * 
+     * @return true si el Bluetooth está disponible y activo.
+     */
     fun isBluetoothEnabled(): Boolean = adapter?.isEnabled == true
 
     private var bluetoothGatt: BluetoothGatt? = null
@@ -33,11 +46,13 @@ class BleManager(private val context: Context) {
     private var onDataSent: ((Boolean) -> Unit)? = null
     private var onNotificationReceived: ((String) -> Unit)? = null
 
+    /**
+     * Callback invocado por el sistema durante el escaneo BLE.
+     */
     private val scanCallback = object : ScanCallback() {
         @SuppressLint("MissingPermission")
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             val device = result.device
-            // Intentar obtener el nombre del anuncio (más fiable que device.name)
             val name = result.scanRecord?.deviceName ?: device.name
 
             if (name != null) {
@@ -51,6 +66,9 @@ class BleManager(private val context: Context) {
         }
     }
 
+    /**
+     * Callback principal para el manejo de la conexión GATT y descubrimiento de servicios.
+     */
     private val gattCallback = object : BluetoothGattCallback() {
         @SuppressLint("MissingPermission")
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
@@ -69,7 +87,7 @@ class BleManager(private val context: Context) {
 
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 Log.i(TAG, "GATT Conectado. Solicitando MTU mayor...")
-                gatt.requestMtu(512) // Solicitar MTU de 512 bytes para paquetes JSON largos
+                gatt.requestMtu(512) 
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 Log.i(TAG, "GATT Desconectado.")
                 onConnectionStateChanged?.invoke(newState)
@@ -85,7 +103,6 @@ class BleManager(private val context: Context) {
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 Log.i(TAG, "Servicios descubiertos con éxito.")
-                // Verificamos si el servicio que buscamos existe
                 val service = gatt.getService(SERVICE_UUID)
                 if (service != null) {
                     Log.i(TAG, "Servicio EcoViñedos encontrado.")
@@ -123,6 +140,11 @@ class BleManager(private val context: Context) {
         }
     }
 
+    /**
+     * Inicia el escaneo de dispositivos de bajo consumo.
+     * 
+     * @param onDiscovered Callback invocado cada vez que se detecta un dispositivo válido.
+     */
     @SuppressLint("MissingPermission")
     fun startScan(onDiscovered: (BluetoothDevice) -> Unit) {
         onDeviceDiscovered = onDiscovered
@@ -135,22 +157,28 @@ class BleManager(private val context: Context) {
         }
     }
 
+    /**
+     * Detiene el escaneo activo de dispositivos BLE.
+     */
     @SuppressLint("MissingPermission")
     fun stopScan() {
         adapter.bluetoothLeScanner?.stopScan(scanCallback)
     }
 
+    /**
+     * Inicia una solicitud de conexión GATT con un dispositivo específico.
+     * 
+     * @param address Dirección MAC del dispositivo.
+     * @param onStateChange Callback para notificar cambios en el estado de la conexión.
+     */
     @SuppressLint("MissingPermission")
     fun connect(address: String, onStateChange: (Int) -> Unit) {
         onConnectionStateChanged = onStateChange
-        
-        // Limpiar cualquier conexión previa antes de intentar una nueva
         disconnect()
         
         val device = adapter.getRemoteDevice(address)
         Log.d(TAG, "Intentando conectar a ${device.address}...")
 
-        // Forzar la conexión en el hilo principal con un pequeño retardo
         Handler(Looper.getMainLooper()).postDelayed({
             bluetoothGatt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
@@ -160,6 +188,12 @@ class BleManager(private val context: Context) {
         }, 500)
     }
 
+    /**
+     * Envía una cadena JSON al dispositivo mediante la característica de configuración.
+     * 
+     * @param json Contenido a enviar.
+     * @param onResult Callback que indica si la escritura fue exitosa.
+     */
     @SuppressLint("MissingPermission")
     fun sendConfig(json: String, onResult: (Boolean) -> Unit) {
         onDataSent = onResult
@@ -178,6 +212,11 @@ class BleManager(private val context: Context) {
         }
     }
 
+    /**
+     * Habilita las notificaciones asíncronas para la característica de estado del nodo.
+     * 
+     * @param onReceived Callback invocado cada vez que llega un nuevo mensaje del nodo.
+     */
     @SuppressLint("MissingPermission")
     fun enableStatusNotifications(onReceived: (String) -> Unit) {
         onNotificationReceived = onReceived
@@ -195,6 +234,9 @@ class BleManager(private val context: Context) {
         }
     }
 
+    /**
+     * Cierra la conexión GATT activa y libera los recursos del adaptador.
+     */
     @SuppressLint("MissingPermission")
     fun disconnect() {
         bluetoothGatt?.disconnect()

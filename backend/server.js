@@ -9,12 +9,15 @@ const bitacoraRoutes = require('./routes/bitacoraRoutes');
 const riegoRoutes = require('./routes/riegoRoutes');
 const muestraRoutes = require('./routes/muestraRoutes');
 const historialRoutes = require('./routes/historialRoutes');
+const notificacionRoutes = require('./routes/notificacionRoutes');
 const { iniciarTareasProgramadas } = require('./utils/cronJobs');
+const { iniciarVerificacionAlertas } = require('./utils/notificationService');
 const morgan = require('morgan');
 
 
 connectDB();
 iniciarTareasProgramadas();
+iniciarVerificacionAlertas();
 
 const app = express();
 
@@ -29,6 +32,7 @@ app.use('/api', bitacoraRoutes);
 app.use('/api', riegoRoutes);
 app.use('/api', muestraRoutes);
 app.use('/api', historialRoutes);
+app.use('/api', notificacionRoutes);
 
 app.get('/', (req, res) => {
   res.send('API de administración y riego de parcelas funcionando 🌱');

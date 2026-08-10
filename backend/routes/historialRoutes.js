@@ -5,7 +5,7 @@ const { protegerRuta } = require('../middleware/authMiddleware');
 
 // Por ahora usaremos protegerRuta pero sin validar token si así se prefiere,
 // o podemos usarla directamente si ya arreglamos el 500
-router.get('/parcela/:parcelaId', obtenerHistorialParcela);
-router.get('/resumen/:parcelaId', obtenerResumenParcela);
+router.get('/historial/parcela/:parcelaId', obtenerHistorialParcela);
+router.get('/historial/resumen/:parcelaId', obtenerResumenParcela);
 
 module.exports = router;

@@ -30,4 +30,5 @@ object RetrofitClient {
     val riegoService: RiegoService by lazy { retrofit.create(RiegoService::class.java) }
     val muestraService: MuestraService by lazy { retrofit.create(MuestraService::class.java) }
     val historialService: HistorialService by lazy { retrofit.create(HistorialService::class.java) }
+    val notificacionService: NotificacionService by lazy { retrofit.create(NotificacionService::class.java) }
 }

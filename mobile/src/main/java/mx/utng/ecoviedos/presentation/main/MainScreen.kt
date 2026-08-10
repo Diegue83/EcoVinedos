@@ -18,6 +18,7 @@ fun MainScreen(
     viewModel: MainViewModel = viewModel(),
     onNavigateToAdmin: () -> Unit = {},
     onNavigateToParcelDetails: (String) -> Unit = {},
+    onNavigateToNotifications: () -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
     val parcelas by viewModel.parcelas.collectAsStateWithLifecycle()
@@ -72,7 +73,7 @@ fun MainScreen(
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
             when (selectedItem) {
-                0 -> DashboardContent(viewModel, parcelas, onNavigateToAdmin, onLogout, userRol ?: "")
+                0 -> DashboardContent(viewModel, parcelas, onNavigateToAdmin, onLogout, userRol ?: "", onNavigateToNotifications)
                 1 -> MaturationContent(parcelas, onNavigateToParcelDetails, onRefresh = { viewModel.cargarParcelas() }, userRol = userRol ?: "")
                 2 -> IrrigationScreen(parcelas, viewModel)
                 3 -> HistoryScreen(parcelas)

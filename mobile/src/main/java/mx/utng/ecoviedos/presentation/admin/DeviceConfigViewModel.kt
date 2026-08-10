@@ -18,6 +18,9 @@ import kotlinx.coroutines.launch
 import mx.utng.ecoviedos.data.ble.BleManager
 import org.json.JSONObject
 
+/**
+ * Estados del proceso de configuración de hardware vía BLE.
+ */
 sealed class BleUiState {
     data object Idle : BleUiState()
     data object Scanning : BleUiState()
@@ -26,9 +29,12 @@ sealed class BleUiState {
     data object Sending : BleUiState()
     data class VerifyingWiFi(val message: String) : BleUiState()
     data object Success : BleUiState()
-    data class Error(val message: String) : BleUiState()
+    data class Error(val mensaje: String) : BleUiState()
 }
 
+/**
+ * ViewModel que gestiona la vinculación de nodos IoT mediante Bluetooth Low Energy.
+ */
 class DeviceConfigViewModel(application: Application) : AndroidViewModel(application) {
 
     private val bleManager = BleManager(application)
@@ -44,6 +50,9 @@ class DeviceConfigViewModel(application: Application) : AndroidViewModel(applica
 
     private var selectedDevice: BluetoothDevice? = null
 
+    /**
+     * Receptor de eventos del sistema para detectar cambios en el estado del adaptador Bluetooth.
+     */
     private val bluetoothReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == BluetoothAdapter.ACTION_STATE_CHANGED) {
@@ -58,10 +67,16 @@ class DeviceConfigViewModel(application: Application) : AndroidViewModel(applica
         application.registerReceiver(bluetoothReceiver, filter)
     }
 
+    /**
+     * Sincroniza el estado local de activación del Bluetooth con el adaptador del sistema.
+     */
     fun checkBluetoothStatus() {
         _isBluetoothEnabled.value = bleManager.isBluetoothEnabled()
     }
 
+    /**
+     * Inicia el proceso de escaneo de dispositivos BLE cercanos.
+     */
     fun startScanning() {
         checkBluetoothStatus()
         if (!_isBluetoothEnabled.value) {
@@ -81,10 +96,18 @@ class DeviceConfigViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
+    /**
+     * Detiene el escaneo de dispositivos BLE.
+     */
     fun stopScanning() {
         bleManager.stopScan()
     }
 
+    /**
+     * Establece una conexión GATT con el dispositivo seleccionado e inicia el monitoreo de notificaciones.
+     * 
+     * @param device Dispositivo Bluetooth a conectar.
+     */
     @SuppressLint("MissingPermission")
     fun connectToDevice(device: BluetoothDevice) {
         selectedDevice = device
@@ -111,10 +134,14 @@ class DeviceConfigViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
+    /**
+     * Procesa la respuesta JSON enviada por el ESP32 tras el intento de configuración.
+     * 
+     * @param json Cadena de texto recibida por BLE.
+     */
     private fun handleFeedback(json: String) {
         viewModelScope.launch {
             try {
-                // Limpiar la cadena de caracteres basura que puedan venir del ESP32
                 val cleanJson = json.trim().substringAfter("{").substringBeforeLast("}")
                 val finalJson = "{$cleanJson}"
                 
@@ -128,7 +155,6 @@ class DeviceConfigViewModel(application: Application) : AndroidViewModel(applica
                     else -> _uiState.value = BleUiState.VerifyingWiFi(message)
                 }
             } catch (e: Exception) {
-                // Si falla el parseo, intentar buscar palabras clave si es un mensaje de texto plano
                 val lower = json.lowercase()
                 when {
                     lower.contains("\"status\":\"ok\"") || lower.contains("conectado") -> _uiState.value = BleUiState.Success
@@ -139,6 +165,14 @@ class DeviceConfigViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
+    /**
+     * Envía las credenciales WiFi y el ID de la parcela al nodo mediante una característica BLE.
+     * 
+     * @param ssid Nombre de la red WiFi.
+     * @param pass Contraseña de la red WiFi.
+     * @param parcelaId Identificador de la parcela a vincular.
+     * @param nombreParcela Nombre descriptivo de la parcela.
+     */
     fun sendConfig(ssid: String, pass: String, parcelaId: String, nombreParcela: String) {
         _uiState.value = BleUiState.Sending
         
@@ -155,10 +189,16 @@ class DeviceConfigViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
+    /**
+     * Limpia el estado de error y permite reintentar el proceso.
+     */
     fun clearError() {
         _uiState.value = BleUiState.Connected
     }
 
+    /**
+     * Reinicia el estado del ViewModel y desconecta cualquier dispositivo activo.
+     */
     fun resetState() {
         stopScanning()
         _uiState.value = BleUiState.Idle
