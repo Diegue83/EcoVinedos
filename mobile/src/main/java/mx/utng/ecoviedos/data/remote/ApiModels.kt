@@ -32,6 +32,7 @@ data class ParcelaResponse(
     val ph: Double? = null,
     val acidez: Double? = null,
     val phSuelo: Double? = null,
+    val nodoVinculado: String? = null,
     val createdAt: String? = null,
     val updatedAt: String? = null
 )

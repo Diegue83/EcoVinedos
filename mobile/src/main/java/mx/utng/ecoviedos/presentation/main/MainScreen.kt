@@ -35,7 +35,7 @@ fun MainScreen(
         Icons.Default.GridView,
         Icons.Default.Grass,
         Icons.Default.Opacity,
-        Icons.Default.Analytics
+        Icons.Default.History
     )
 
     Scaffold(
@@ -75,8 +75,9 @@ fun MainScreen(
                 0 -> DashboardContent(viewModel, parcelas, onNavigateToAdmin, onLogout, userRol ?: "")
                 1 -> MaturationContent(parcelas, onNavigateToParcelDetails, onRefresh = { viewModel.cargarParcelas() }, userRol = userRol ?: "")
                 2 -> IrrigationScreen(parcelas, viewModel)
+                3 -> HistoryScreen(parcelas)
                 else -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Historial (En desarrollo)")
+                    Text("Configuración (En desarrollo)")
                 }
             }
         }

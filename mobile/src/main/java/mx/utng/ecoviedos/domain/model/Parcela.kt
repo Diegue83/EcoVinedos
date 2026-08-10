@@ -20,7 +20,8 @@ data class Parcela(
     val brix: Float? = null,
     val ph: Float? = null,
     val acidez: Float? = null,
-    val phSuelo: Float? = null
+    val phSuelo: Float? = null,
+    val nodoVinculado: String? = null
 )
 
 

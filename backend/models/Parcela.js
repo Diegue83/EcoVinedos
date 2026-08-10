@@ -87,6 +87,12 @@ const parcelaSchema = new mongoose.Schema(
         type: Number,
         default: 0
     },
+
+    nodoVinculado: {
+        type: String,
+        default: null,
+        index: true
+    },
 },
 {
     versionKey: false,

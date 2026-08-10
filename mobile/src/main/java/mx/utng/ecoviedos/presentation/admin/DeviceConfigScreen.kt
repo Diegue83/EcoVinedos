@@ -375,23 +375,33 @@ fun ColumnScope.LinkParcelaStep(
     onParcelaSelected: (Parcela) -> Unit,
     onFinish: () -> Unit
 ) {
+    val availableParcelas = remember(parcelas) {
+        parcelas.filter { it.nodoVinculado == null }
+    }
+
     Text("3. Vincular a Parcela", style = MaterialTheme.typography.titleMedium, color = Color(0xFFB4F391))
     Spacer(modifier = Modifier.height(16.dp))
     
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f)) {
-        items(parcelas) { parcela ->
-            val isSelected = selectedParcela?.id == parcela.id
-            OutlinedCard(
-                onClick = { onParcelaSelected(parcela) },
-                modifier = Modifier.fillMaxWidth(),
-                colors = if (isSelected) CardDefaults.outlinedCardColors(containerColor = Color(0xFF384B2F)) else CardDefaults.outlinedCardColors()
-            ) {
-                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(selected = isSelected, onClick = { onParcelaSelected(parcela) })
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column {
-                        Text(parcela.nombreParcela, fontWeight = FontWeight.Bold)
-                        Text(parcela.variedad, style = MaterialTheme.typography.bodySmall)
+    if (availableParcelas.isEmpty()) {
+        Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Text("No hay parcelas disponibles para vincular", color = Color.Gray, textAlign = TextAlign.Center)
+        }
+    } else {
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f)) {
+            items(availableParcelas) { parcela ->
+                val isSelected = selectedParcela?.id == parcela.id
+                OutlinedCard(
+                    onClick = { onParcelaSelected(parcela) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = if (isSelected) CardDefaults.outlinedCardColors(containerColor = Color(0xFF384B2F)) else CardDefaults.outlinedCardColors()
+                ) {
+                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(selected = isSelected, onClick = { onParcelaSelected(parcela) })
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(parcela.nombreParcela, fontWeight = FontWeight.Bold)
+                            Text(parcela.variedad, style = MaterialTheme.typography.bodySmall)
+                        }
                     }
                 }
             }

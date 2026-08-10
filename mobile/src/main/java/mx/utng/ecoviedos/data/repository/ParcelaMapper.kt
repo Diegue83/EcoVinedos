@@ -35,6 +35,7 @@ fun ParcelaResponse.toDomain(): Parcela {
         brix = brix?.toFloat(),
         ph = ph?.toFloat(),
         acidez = acidez?.toFloat(),
-        phSuelo = phSuelo?.toFloat()
+        phSuelo = phSuelo?.toFloat(),
+        nodoVinculado = nodoVinculado
     )
 }

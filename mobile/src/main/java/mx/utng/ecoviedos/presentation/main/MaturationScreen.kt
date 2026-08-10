@@ -40,7 +40,7 @@ fun MaturationContent(
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
-                Text("Temporada 2024", color = Color.Gray, fontSize = 14.sp)
+                //Text("Temporada 2024", color = Color.Gray, fontSize = 14.sp)
             }
             Surface(
                 color = Color(0xFFD0E4FF).copy(alpha = 0.2f),
@@ -71,7 +71,8 @@ fun MaturationContent(
 
         // Cabecera de Tabla
         Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-            Text("Variedad", modifier = Modifier.weight(1.5f), color = Color.Gray, fontSize = 12.sp)
+            Text("Nombre", modifier = Modifier.weight(1f), color = Color.Gray, fontSize = 12.sp)
+            Text("Variedad", modifier = Modifier.weight(1f), color = Color.Gray, fontSize = 12.sp)
             Text("Brix", modifier = Modifier.weight(0.7f), color = Color.Gray, fontSize = 12.sp, textAlign = TextAlign.Center)
             Text("pH", modifier = Modifier.weight(0.7f), color = Color.Gray, fontSize = 12.sp, textAlign = TextAlign.Center)
             Text("Acid.", modifier = Modifier.weight(0.7f), color = Color.Gray, fontSize = 12.sp, textAlign = TextAlign.Center)
@@ -88,7 +89,15 @@ fun MaturationContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        parcela.variedad.ifBlank { parcela.nombreParcela },
+                        parcela.nombreParcela ,
+                        modifier = Modifier.weight(1.5f),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+
+                    Text(
+                        parcela.variedad,
                         modifier = Modifier.weight(1.5f),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,

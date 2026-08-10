@@ -3,6 +3,8 @@ const Parcela = require("../models/Parcela");
 
 const BROKER = "mqtts://" + process.env.MOSQUITTO_BROKER_URL;
 
+const HistorialSensor = require("../models/HistorialSensor");
+
 const client = mqtt.connect(BROKER, {
     username: process.env.MQTT_USR,
     password: process.env.MQTT_PASS,
@@ -10,9 +12,76 @@ const client = mqtt.connect(BROKER, {
     clean: true
 });
 
+// Para controlar el guardado cada 15 minutos
+const ultimosGuardados = new Map();
+
 client.on("connect", () => {
     console.log("✅ Conectado al broker MQTT");
+    client.subscribe("vinedo/parcela/+/stats");
+    client.subscribe("vinedo/nodo/vincular");
     publicarListaParcelas()
+});
+
+client.on("message", async (topic, message) => {
+    const payload = message.toString();
+
+    // 1. Manejo de Estadísticas de Sensores
+    if (topic.startsWith("vinedo/parcela/") && topic.endsWith("/stats")) {
+        try {
+            const parts = topic.split("/");
+            const parcelaId = parts[2];
+            const data = JSON.parse(payload);
+            const sensores = data.sensores || {};
+
+            const humAire = sensores.humedad_aire || 0;
+            const tempAire = sensores.temperatura_aire || 0;
+            const humSuelo = sensores.humedad_suelo || 0;
+
+            // Actualizar valores actuales en la parcela
+            await Parcela.findByIdAndUpdate(parcelaId, {
+                humedad: humAire,
+                temperatura: tempAire,
+                humedadSuelo: humSuelo
+            });
+
+            // Guardar en historial solo cada 15 minutos
+            const ahora = Date.now();
+            const ultimo = ultimosGuardados.get(parcelaId) || 0;
+            const QUINCE_MINUTOS = 15 * 60 * 1000;
+
+            if (ahora - ultimo >= QUINCE_MINUTOS) {
+                await HistorialSensor.create({
+                    parcela: parcelaId,
+                    humedadAire: humAire,
+                    temperaturaAire: tempAire,
+                    humedadSuelo: humSuelo
+                });
+                ultimosGuardados.set(parcelaId, ahora);
+                console.log(`📊 Historial guardado para parcela ${parcelaId}`);
+            }
+        } catch (err) {
+            console.error("Error procesando stats MQTT:", err.message);
+        }
+    }
+
+    // 2. Manejo de Vinculación de Nodos
+    if (topic === "vinedo/nodo/vincular") {
+        try {
+            const { parcelaId, nodoId, accion } = JSON.parse(payload);
+            // accion: "vincular" o "desvincular"
+
+            if (accion === "vincular") {
+                await Parcela.findByIdAndUpdate(parcelaId, { nodoVinculado: nodoId });
+                console.log(`🔗 Nodo ${nodoId} vinculado a parcela ${parcelaId}`);
+            } else if (accion === "desvincular") {
+                await Parcela.findByIdAndUpdate(parcelaId, { nodoVinculado: null });
+                console.log(`🔓 Nodo desvinculado de parcela ${parcelaId}`);
+            }
+            publicarListaParcelas();
+        } catch (err) {
+            console.error("Error en vinculación MQTT:", err.message);
+        }
+    }
 });
 
 client.on("reconnect", () => {
