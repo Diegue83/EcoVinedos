@@ -122,8 +122,12 @@ class MqttManager(
             try {
                 val json = JSONObject(payload)
                 val activo = json.optString("comando") == "ON" || json.optString("estado") == "ACTIVO"
-                val tiempo = json.optInt("duracion", 0)
-                onRiegoStatusReceived(parcelId, activo, tiempo)
+                val duracionInput = json.optInt("duracion", 0)
+                
+                // Conversión de minutos a segundos para el cronómetro
+                val tiempoSegundos = if (duracionInput > 0 && duracionInput < 120) duracionInput * 60 else duracionInput
+                
+                onRiegoStatusReceived(parcelId, activo, tiempoSegundos)
             } catch (e: Exception) { Log.e("MQTT_Wear", "Error riego: $e") }
         }
     }

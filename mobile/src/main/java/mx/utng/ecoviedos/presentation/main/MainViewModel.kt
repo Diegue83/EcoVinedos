@@ -13,6 +13,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import mx.utng.ecoviedos.data.WearableDataSender
+import mx.utng.ecoviedos.data.RiegoAlarmReceiver
 import mx.utng.ecoviedos.data.local.SessionManager
 import mx.utng.ecoviedos.data.mqtt.MqttConfig
 import mx.utng.ecoviedos.data.mqtt.MqttManager
@@ -98,8 +99,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
                     val result = parcelaRepository.obtenerParcelas(token)
                     result.onSuccess { list ->
                         Log.d("MainViewModel", "HTTP GET exitoso: ${list.size} parcelas")
-                        _parcelas.value = list
-                        wearableDataSender.sendParcelas(list)
+                        
+                        // Parchear con tiempos locales de persistencia
+                        val patchedList = list.map { parcela ->
+                            val savedEnd = prefs.getLong("riego_end_${parcela.id}", 0L)
+                            if (parcela.riegoActivo && savedEnd > 0) {
+                                val diff = (savedEnd - System.currentTimeMillis()) / 1000
+                                parcela.copy(tiempoRestanteRiego = diff.toInt())
+                            } else {
+                                parcela
+                            }
+                        }
+                        
+                        _parcelas.value = patchedList
+                        wearableDataSender.sendParcelas(patchedList)
                     }
                     result.onFailure {
                         Log.e("MainViewModel", "HTTP GET error: ${it.message}")
@@ -195,12 +208,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
         if (index != -1) {
             val oldParcela = currentList[index]
             
+            // Lógica de persistencia de tiempo
+            var realTiempo = tiempo
+            val savedEnd = prefs.getLong("riego_end_$id", 0L)
+            if (riego && savedEnd > 0) {
+                val diff = (savedEnd - System.currentTimeMillis()) / 1000
+                realTiempo = diff.toInt()
+            }
+
             // Lógica de notificaciones de riego
             if (oldParcela.riegoActivo && !riego) {
-                // Riego terminó (Automático)
                 showRiegoNotification(id, oldParcela.nombreParcela, "El riego automático ha finalizado correctamente.")
-            } else if (riego && tiempo <= 0 && oldParcela.tiempoRestanteRiego > 0) {
-                // Tiempo agotado en válvula manual (o auto que falló al apagar)
+                prefs.edit().remove("riego_end_$id").apply()
+            } else if (riego && realTiempo <= 0 && oldParcela.tiempoRestanteRiego > 0) {
                 showRiegoNotification(id, oldParcela.nombreParcela, "¡Atención! El tiempo programado terminó. Detén el riego manual en la app.")
             }
 
@@ -209,7 +229,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
                 temperatura = temp,
                 humedadSuelo = humsuel,
                 riegoActivo = riego,
-                tiempoRestanteRiego = tiempo,
+                tiempoRestanteRiego = realTiempo,
                 lastUpdated = System.currentTimeMillis()
             )
             _parcelas.value = currentList.toList()
@@ -227,12 +247,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
             notificationManager.createNotificationChannel(channel)
         }
 
+        // Crear Intent para ir a la pantalla de riego
+        val intent = android.content.Intent(context, mx.utng.ecoviedos.MainActivity::class.java).apply {
+            flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK
+            putExtra("navigate_to", "riego")
+        }
+        val pendingIntent = android.app.PendingIntent.getActivity(
+            context, 0, intent, 
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+        )
+
         val notification = androidx.core.app.NotificationCompat.Builder(context, channelId)
             .setSmallIcon(android.R.drawable.stat_sys_warning)
             .setContentTitle("Riego: $parcelaName")
             .setContentText(message)
             .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
             .build()
 
         notificationManager.notify(parcelaId.hashCode(), notification)
@@ -242,9 +273,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
         val currentList = _parcelas.value.toMutableList()
         val index = currentList.indexOfFirst { it.id == id }
         if (index != -1) {
+            var realTiempo = tiempo
+            if (activo) {
+                val savedEnd = prefs.getLong("riego_end_$id", 0L)
+                if (savedEnd > 0) {
+                    realTiempo = ((savedEnd - System.currentTimeMillis()) / 1000).toInt()
+                } else {
+                    val newEnd = System.currentTimeMillis() + (tiempo * 1000L)
+                    prefs.edit().putLong("riego_end_$id", newEnd).apply()
+                }
+            } else {
+                prefs.edit().remove("riego_end_$id").apply()
+            }
+
             currentList[index] = currentList[index].copy(
                 riegoActivo = activo,
-                tiempoRestanteRiego = tiempo,
+                tiempoRestanteRiego = realTiempo,
                 lastUpdated = System.currentTimeMillis()
             )
             _parcelas.value = currentList.toList()
@@ -257,24 +301,33 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
         timerJob = viewModelScope.launch(Dispatchers.Default) {
             while (true) {
                 delay(1000)
-                val anyRiegoActive = _parcelas.value.any { it.riegoActivo }
-                if (anyRiegoActive) {
-                    val updatedList = _parcelas.value.map { parcela ->
+                val currentParcelas = _parcelas.value
+                if (currentParcelas.any { it.riegoActivo }) {
+                    val updatedList = currentParcelas.map { parcela ->
                         if (parcela.riegoActivo) {
-                            val nextTime = parcela.tiempoRestanteRiego - 1
-                            if (nextTime == 0 && parcela.tipoRiego == "AUTO") {
-                                viewModelScope.launch(Dispatchers.Main) {
-                                    showRiegoNotification(parcela.id, parcela.nombreParcela, "Riego automático finalizado.")
+                            // Usar el timestamp de fin guardado para mayor precisión y persistencia
+                            val savedEnd = prefs.getLong("riego_end_${parcela.id}", 0L)
+                            val nextTime = if (savedEnd > 0) {
+                                ((savedEnd - System.currentTimeMillis()) / 1000).toInt()
+                            } else {
+                                parcela.tiempoRestanteRiego - 1
+                            }
+
+                            if (nextTime <= 0 && parcela.tiempoRestanteRiego > 0) {
+                                if (parcela.tipoRiego == "AUTO") {
+                                    viewModelScope.launch(Dispatchers.Main) {
+                                        showRiegoNotification(parcela.id, parcela.nombreParcela, "Riego automático finalizado.")
+                                    }
+                                    parcela.copy(tiempoRestanteRiego = 0, riegoActivo = false)
+                                } else {
+                                    viewModelScope.launch(Dispatchers.Main) {
+                                        showRiegoNotification(parcela.id, parcela.nombreParcela, "¡Tiempo agotado! Detén el riego manual.")
+                                    }
+                                    parcela.copy(tiempoRestanteRiego = -1)
                                 }
-                                parcela.copy(tiempoRestanteRiego = 0, riegoActivo = false)
-                            } else if (nextTime == 0 && parcela.tipoRiego == "MANUAL") {
-                                viewModelScope.launch(Dispatchers.Main) {
-                                    showRiegoNotification(parcela.id, parcela.nombreParcela, "¡Tiempo agotado! Detén el riego manual.")
-                                }
-                                parcela.copy(tiempoRestanteRiego = -1)
                             } else if (nextTime < 0 && parcela.tipoRiego == "MANUAL") {
                                 parcela.copy(tiempoRestanteRiego = nextTime)
-                            } else if (nextTime > 0) {
+                            } else if (nextTime > 0 || nextTime == 0) {
                                 parcela.copy(tiempoRestanteRiego = nextTime)
                             } else {
                                 parcela
@@ -299,7 +352,49 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
      */
     fun toggleRiego(parcelId: String, activo: Boolean, duracionMinutos: Int, modo: String = "AUTO") {
         Log.d("MainViewModel", "Toggle Riego: Parcela=$parcelId, Activo=$activo, Duracion=$duracionMinutos, Modo=$modo")
+        
+        val context = getApplication<Application>()
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+        
+        if (activo) {
+            val durationMillis = duracionMinutos * 60 * 1000L
+            val endTime = System.currentTimeMillis() + durationMillis
+            prefs.edit().putLong("riego_end_$parcelId", endTime).apply()
+            
+            // Programar alarma para notificación en segundo plano
+            val intent = android.content.Intent(context, RiegoAlarmReceiver::class.java).apply {
+                putExtra("parcela_id", parcelId)
+                putExtra("parcela_nombre", _parcelas.value.find { it.id == parcelId }?.nombreParcela ?: "Parcela")
+                putExtra("modo", modo)
+            }
+            val pendingIntent = android.app.PendingIntent.getBroadcast(
+                context, parcelId.hashCode(), intent, 
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+            )
+            
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                alarmManager.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, endTime, pendingIntent)
+            } else {
+                alarmManager.setExact(android.app.AlarmManager.RTC_WAKEUP, endTime, pendingIntent)
+            }
+        } else {
+            prefs.edit().remove("riego_end_$parcelId").apply()
+            
+            val intent = android.content.Intent(context, RiegoAlarmReceiver::class.java)
+            val pendingIntent = android.app.PendingIntent.getBroadcast(
+                context, parcelId.hashCode(), intent, 
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+            )
+            alarmManager.cancel(pendingIntent)
+            cancelRiegoNotification(parcelId)
+        }
+        
         mqttManager?.toggleRiego(parcelId, activo, duracionMinutos, modo)
+    }
+
+    private fun cancelRiegoNotification(parcelId: String) {
+        val notificationManager = getApplication<Application>().getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+        notificationManager.cancel(parcelId.hashCode())
     }
 
     /**

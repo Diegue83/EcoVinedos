@@ -16,6 +16,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @Composable
 fun MainScreen(
     viewModel: MainViewModel = viewModel(),
+    initialTab: Int = 0,
     onNavigateToAdmin: () -> Unit = {},
     onNavigateToParcelDetails: (String) -> Unit = {},
     onNavigateToNotifications: () -> Unit = {},
@@ -24,7 +25,7 @@ fun MainScreen(
     val parcelas by viewModel.parcelas.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val userRol by viewModel.sessionRol.collectAsState(initial = "")
-    var selectedItem by rememberSaveable { mutableIntStateOf(0) }
+    var selectedItem by rememberSaveable { mutableIntStateOf(initialTab) }
 
     val items = listOf("Inicio", "Madurez", "Riego", "Historial")
     

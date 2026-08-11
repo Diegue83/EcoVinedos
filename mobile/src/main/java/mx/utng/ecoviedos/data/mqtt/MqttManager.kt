@@ -141,9 +141,13 @@ class MqttManager(
                 val comando = json.optString("comando", "")
                 val estado = json.optString("estado", "")
                 val activo = (comando == "ON" || estado == "ACTIVO")
-                val tiempo = json.optInt("duracion", 0)
+                val duracionInput = json.optInt("duracion", 0)
                 
-                onRiegoStatusReceived(parcelId, activo, tiempo)
+                // Si el valor es pequeño (< 120), es muy probable que sean minutos.
+                // Lo convertimos a segundos para el cronómetro de la app.
+                val tiempoSegundos = if (duracionInput > 0 && duracionInput < 120) duracionInput * 60 else duracionInput
+                
+                onRiegoStatusReceived(parcelId, activo, tiempoSegundos)
             } catch (e: Exception) {
                 Log.e("MQTT", "Error parsing riego: ${e.message}")
             }

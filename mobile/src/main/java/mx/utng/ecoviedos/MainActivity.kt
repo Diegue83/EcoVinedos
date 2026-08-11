@@ -35,6 +35,11 @@ import mx.utng.ecoviedos.presentation.admin.DeviceConfigViewModel
 import mx.utng.ecoviedos.presentation.theme.EcoViedosTheme
 
 class MainActivity : ComponentActivity() {
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent) // Actualizar el intent para que NavHost lo vea
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -78,8 +83,14 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             composable("main") {
+                                val navigateTo = intent.getStringExtra("navigate_to")
+                                val initialTab = if (navigateTo == "riego") 2 else 0
+                                // Limpiar el extra para que no se repita en recomposiciones
+                                intent.removeExtra("navigate_to")
+                                
                                 MainScreen(
                                     viewModel = mainViewModel,
+                                    initialTab = initialTab,
                                     onNavigateToAdmin = { navController.navigate("admin") },
                                     onNavigateToParcelDetails = { id -> navController.navigate("parcel_details/$id") },
                                     onNavigateToNotifications = { navController.navigate("notifications") },
