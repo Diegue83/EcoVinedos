@@ -9,28 +9,27 @@ data class Parcela(
     val areaM2: Int,
     val umbralHumedad: Float,
     val umbralTemp: Float,
+    val umbralHumedadSuelo: Float = 40f,
     val indiceMaduracion: Float,
     val fechaCosecha: Date,
     val activa: Boolean,
     var humedad: Float = 0f,    // Campo real de sensor
     var temperatura: Float = 0f, // Campo real de sensor
+    var humedadSuelo: Float = 0f, // Campo real de sensor
     var riegoActivo: Boolean = false,
-    var tiempoRestanteRiego: Int = 0
+    var tiempoRestanteRiego: Int = 0,
+    val tipoRiego: String = "MANUAL"
 ) {
-    companion object {
-        private const val HUMEDAD_CRITICA = 30f
-    }
-
-    // Verificar si la humedad es crítica
+    // Verificar si la humedad es crítica (basado en humedad del suelo)
     fun esHumedadCritica(): Boolean {
-        return humedad < HUMEDAD_CRITICA && !riegoActivo
+        return humedadSuelo < umbralHumedadSuelo && !riegoActivo
     }
 
     // Obtener estado de la parcela
     fun obtenerEstado(): String {
         return when {
             !activa -> "Inactiva"
-            esHumedadCritica() -> "Humedad crítica"
+            esHumedadCritica() -> "Humedad suelo crítica"
             else -> "Estado normal"
         }
     }

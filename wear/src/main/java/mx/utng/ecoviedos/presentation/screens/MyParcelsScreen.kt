@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -23,6 +24,13 @@ fun MyParcelsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val selectedId by viewModel.selectedParcelId.collectAsState()
+    
+    val sortedParcelas = remember(uiState.parcelas) {
+        uiState.parcelas.sortedWith(
+            compareByDescending<mx.utng.ecoviedos.domain.model.Parcela> { it.esHumedadCritica() }
+            .thenBy { it.humedadSuelo }
+        )
+    }
 
     Scaffold(
         timeText = { TimeText() }
@@ -40,7 +48,7 @@ fun MyParcelsScreen(
                 )
             }
 
-            items(uiState.parcelas) { parcela ->
+            items(sortedParcelas) { parcela ->
                 val isSelected = parcela.id == selectedId
                 TitleCard(
                     onClick = { onParcelClick(parcela.id) },
@@ -68,7 +76,7 @@ fun MyParcelsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "${parcela.humedad.toInt()}% Hum.",
+                            text = "${parcela.humedadSuelo.toInt()}% Hum.S",
                             style = MaterialTheme.typography.bodySmall,
                             color = if (parcela.esHumedadCritica()) Color.Red else Color.LightGray
                         )

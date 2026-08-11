@@ -26,11 +26,14 @@ fun IrrigationScreen(
     parcelas: List<Parcela>,
     viewModel: MainViewModel
 ) {
-    var isAuto by remember { mutableStateOf(true) }
+    var selectedModo by remember { mutableStateOf("MANUAL") } // Default Manual
     var selectedDuracion by remember { mutableIntStateOf(10) }
 
-    // Ordenar por prioridad (humedad más baja primero)
-    val sortedParcelas = parcelas.sortedBy { it.humedad }
+    // Filtrar por el tipo de riego de la parcela y ordenar por prioridad
+    val filteredParcelas = remember(parcelas, selectedModo) {
+        parcelas.filter { it.tipoRiego == selectedModo }
+               .sortedBy { it.humedadSuelo }
+    }
 
     Column(
         modifier = Modifier
@@ -44,44 +47,46 @@ fun IrrigationScreen(
         ) {
             Text("Riego", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Color(0xFFE2E3DE))
             
-            // Switch de modo M3
             SingleChoiceSegmentedButtonRow {
                 SegmentedButton(
-                    selected = isAuto,
-                    onClick = { isAuto = true },
+                    selected = selectedModo == "MANUAL",
+                    onClick = { selectedModo = "MANUAL" },
                     shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
                 ) {
-                    Text("Auto")
+                    Text("Manual")
                 }
                 SegmentedButton(
-                    selected = !isAuto,
-                    onClick = { isAuto = false },
+                    selected = selectedModo == "AUTO",
+                    onClick = { selectedModo = "AUTO" },
                     shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
                 ) {
-                    Text("Manual")
+                    Text("Auto")
                 }
             }
         }
 
-        if (!isAuto) {
-            Spacer(modifier = Modifier.height(16.dp))
-            Text("Duración manual (minutos): $selectedDuracion", color = Color.White, fontSize = 14.sp)
-            Slider(
-                value = selectedDuracion.toFloat(),
-                onValueChange = { selectedDuracion = it.toInt() },
-                valueRange = 1f..60f,
-                steps = 59,
-                colors = SliderDefaults.colors(
-                    thumbColor = Color(0xFFB4F391),
-                    activeTrackColor = Color(0xFFB4F391)
-                )
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Text("Duración programada (minutos): $selectedDuracion", color = Color.White, fontSize = 14.sp)
+        Slider(
+            value = selectedDuracion.toFloat(),
+            onValueChange = { selectedDuracion = it.toInt() },
+            valueRange = 1f..60f,
+            steps = 59,
+            colors = SliderDefaults.colors(
+                thumbColor = Color(0xFFB4F391),
+                activeTrackColor = Color(0xFFB4F391)
             )
-        }
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Tarjeta de consumo hídrico (simulada con datos dinámicos)
-        val totalWaterNeeded = parcelas.sumOf { (100 - it.humedad.toInt()) * 20 } // Estimación ficticia
+        // Tarjeta de consumo hídrico basada en déficit real
+        val totalDeficit = filteredParcelas.sumOf { 
+            maxOf(0f, it.umbralHumedadSuelo - it.humedadSuelo).toInt()
+        }
+        val waterNeededLiters = totalDeficit * 15 
+
         ElevatedCard(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.elevatedCardColors(containerColor = Color(0xFF1D2024))
@@ -91,27 +96,27 @@ fun IrrigationScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.WaterDrop, contentDescription = null, tint = Color(0xFF7CB9FF))
                         Spacer(Modifier.width(8.dp))
-                        Text("Déficit hídrico total", fontSize = 14.sp)
+                        Text("Déficit hídrico ($selectedModo)", fontSize = 14.sp)
                     }
-                    Text("${totalWaterNeeded} L", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF7CB9FF))
+                    Text("${waterNeededLiters} L", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF7CB9FF))
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 LinearProgressIndicator(
-                    progress = { (totalWaterNeeded / 10000f).coerceIn(0f, 1f) },
+                    progress = { (totalDeficit / 100f).coerceIn(0f, 1f) },
                     modifier = Modifier.fillMaxWidth().height(10.dp),
                     color = Color(0xFF7CB9FF),
                     trackColor = Color.White.copy(alpha = 0.1f),
                     strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                Text("Estimación basada en humedad actual", fontSize = 12.sp, color = Color.Gray)
+                Text("Humedad de suelo actual vs Umbral mín.", fontSize = 12.sp, color = Color.Gray)
             }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            "ORDEN DE PRIORIDAD", 
+            "ORDEN DE PRIORIDAD (${selectedModo})", 
             style = MaterialTheme.typography.labelLarge, 
             color = Color(0xFFB4F391),
             fontWeight = FontWeight.Bold
@@ -119,31 +124,47 @@ fun IrrigationScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(bottom = 16.dp)
-        ) {
-            items(sortedParcelas) { parcela ->
-                val isUrgent = parcela.humedad < parcela.umbralHumedad
-                val statusText = if (parcela.riegoActivo) {
-                    "Riego: ${parcela.tiempoRestanteRiego / 60}m ${parcela.tiempoRestanteRiego % 60}s restantes"
-                } else {
-                    "Humedad ${parcela.humedad.toInt()}% - Umbral ${parcela.umbralHumedad.toInt()}%"
-                }
-
-                IrrigationM3Item(
-                    name = parcela.nombreParcela,
-                    status = statusText,
-                    badge = if (parcela.riegoActivo) "Activo" else if (isUrgent) "Urgente" else "Normal",
-                    color = if (parcela.riegoActivo) Color(0xFF7CB9FF) else if (isUrgent) Color(0xFFFFB4AB) else Color(0xFFB4F391),
-                    onColor = if (parcela.riegoActivo) Color(0xFF003258) else if (isUrgent) Color(0xFF690005) else Color(0xFF00390A),
-                    isManualMode = !isAuto,
-                    riegoActivo = parcela.riegoActivo,
-                    onToggle = {
-                        viewModel.toggleRiego(parcela.id, !parcela.riegoActivo, selectedDuracion)
+        if (filteredParcelas.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("No hay parcelas con válvula $selectedModo", color = Color.Gray)
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(bottom = 16.dp)
+            ) {
+                items(filteredParcelas) { parcela ->
+                    val isUrgent = parcela.humedadSuelo < parcela.umbralHumedadSuelo
+                    val statusText = if (parcela.riegoActivo) {
+                        if (parcela.tiempoRestanteRiego >= 0) {
+                            "Riego: ${parcela.tiempoRestanteRiego / 60}m ${parcela.tiempoRestanteRiego % 60}s restantes"
+                        } else {
+                            val overTime = kotlin.math.abs(parcela.tiempoRestanteRiego)
+                            "¡Riego Excedido!: ${overTime / 60}m ${overTime % 60}s"
+                        }
+                    } else {
+                        "Suelo ${parcela.humedadSuelo.toInt()}% - Mín ${parcela.umbralHumedadSuelo.toInt()}%"
                     }
-                )
+
+                    IrrigationM3Item(
+                        name = parcela.nombreParcela,
+                        status = statusText,
+                        badge = if (parcela.riegoActivo) "Activo" else if (isUrgent) "Crítico" else "Óptimo",
+                        color = if (parcela.riegoActivo) Color(0xFF7CB9FF) else if (isUrgent) Color(0xFFFFB4AB) else Color(0xFFB4F391),
+                        onColor = if (parcela.riegoActivo) Color(0xFF003258) else if (isUrgent) Color(0xFF690005) else Color(0xFF00390A),
+                        isManualMode = true, 
+                        riegoActivo = parcela.riegoActivo,
+                        onToggle = {
+                            viewModel.toggleRiego(
+                                parcelId = parcela.id,
+                                activo = !parcela.riegoActivo,
+                                duracionMinutos = selectedDuracion,
+                                modo = parcela.tipoRiego
+                            )
+                        }
+                    )
+                }
             }
         }
     }

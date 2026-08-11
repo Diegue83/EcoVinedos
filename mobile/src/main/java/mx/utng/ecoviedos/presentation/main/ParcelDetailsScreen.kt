@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -46,6 +47,30 @@ fun ParcelDetailsScreen(
     val uiState by muestraViewModel.uiState.collectAsState()
     
     val ultimaMuestra = (uiState as? MuestraUiState.Success)?.historial?.firstOrNull()
+
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    if (showDatePicker && parcela != null) {
+        val calendar = Calendar.getInstance()
+        parcela.fechaCosecha?.let { calendar.time = it }
+        
+        android.app.DatePickerDialog(
+            LocalContext.current,
+            { _, year, month, dayOfMonth ->
+                val newDate = Calendar.getInstance().apply {
+                    set(year, month, dayOfMonth)
+                }.time
+                mainViewModel.actualizarFechaCosecha(parcela, newDate)
+                showDatePicker = false
+            },
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
+        ).apply {
+            setOnCancelListener { showDatePicker = false }
+            show()
+        }
+    }
 
     LaunchedEffect(parcelId) {
         muestraViewModel.cargarHistorial(parcelId)
@@ -82,7 +107,11 @@ fun ParcelDetailsScreen(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                HarvestEstimateCard(parcela.fechaCosecha, parcela.indiceMaduracion)
+                HarvestEstimateCard(
+                    fecha = parcela.fechaCosecha,
+                    indice = parcela.indiceMaduracion,
+                    onScheduleClick = { showDatePicker = true }
+                )
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -132,34 +161,81 @@ fun ParcelDetailsScreen(
 }
 
 @Composable
-fun HarvestEstimateCard(fecha: Date?, indice: Float) {
+fun HarvestEstimateCard(fecha: Date?, indice: Float, onScheduleClick: () -> Unit) {
     val locale = LocalLocale.current.platformLocale
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD))
+        colors = CardDefaults.cardColors(
+            containerColor = if (fecha != null) Color(0xFFE3F2FD) else Color(0xFF2A2D26)
+        )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Cosecha estimada", color = Color(0xFF0D47A1), style = MaterialTheme.typography.labelMedium)
-            val fechaStr = if (fecha != null) SimpleDateFormat("dd MMM yyyy", locale).format(fecha) else "Pendiente"
-            Text(fechaStr, color = Color(0xFF0D47A1), fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            Text(
+                text = if (fecha != null) "Cosecha programada" else "Cosecha no programada",
+                color = if (fecha != null) Color(0xFF0D47A1) else Color.Gray,
+                style = MaterialTheme.typography.labelMedium
+            )
             
             if (fecha != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val fechaStr = SimpleDateFormat("dd MMM yyyy", locale).format(fecha)
+                    Text(fechaStr, color = Color(0xFF0D47A1), fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                    
+                    TextButton(onClick = onScheduleClick) {
+                        Text("Reagendar", color = Color(0xFF1976D2))
+                    }
+                }
+                
                 val diff = fecha.time - System.currentTimeMillis()
                 val days = (diff / (1000 * 60 * 60 * 24)).toInt()
-                Text("$days días · confianza 88%", color = Color(0xFF1976D2), style = MaterialTheme.typography.bodySmall)
+                
+                val (proximityText, proximityColor) = when {
+                    days < 0 -> "Cosecha pasada" to Color.Red
+                    days == 0 -> "¡Hoy es la cosecha!" to Color(0xFF2E7D32)
+                    days <= 7 -> "Próxima en $days días" to Color(0xFFF57C00)
+                    else -> "$days días restantes" to Color(0xFF1976D2)
+                }
+                
+                Text(proximityText, color = proximityColor, style = MaterialTheme.typography.bodySmall)
+            } else {
+                Spacer(Modifier.height(8.dp))
+                Button(
+                    onClick = onScheduleClick,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB4F391), contentColor = Color.Black),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Programar fecha de cosecha")
+                }
             }
             
             Spacer(Modifier.height(12.dp))
+            
+            // Si hay fecha, la barra indica progreso hacia la fecha
+            // Si no hay fecha, podría seguir indicando índice de maduración o estar vacía
+            val progress = if (fecha != null) {
+                val start = System.currentTimeMillis() - (30L * 24 * 60 * 60 * 1000) // Asumimos ciclo de 30 días para visualización
+                val total = fecha.time - start
+                val elapsed = System.currentTimeMillis() - start
+                (elapsed.toFloat() / total.toFloat()).coerceIn(0f, 1f)
+            } else {
+                indice / 100f
+            }
+
             LinearProgressIndicator(
-                progress = { indice / 100f },
+                progress = { progress },
                 modifier = Modifier.fillMaxWidth().height(8.dp),
-                color = Color(0xFF1976D2),
-                trackColor = Color.White.copy(alpha = 0.5f)
+                color = if (fecha != null) Color(0xFF1976D2) else Color(0xFFB4F391).copy(alpha = 0.5f),
+                trackColor = Color.White.copy(alpha = 0.2f)
             )
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Inicio", fontSize = 10.sp, color = Color.Gray)
-                Text("Brix ${ indice.toInt() }°", fontSize = 10.sp, color = Color.Gray)
-                Text("Cosecha", fontSize = 10.sp, color = Color.Gray)
+                Text(if (fecha != null) "Inicio" else "0%", fontSize = 10.sp, color = Color.Gray)
+                if (fecha == null) Text("Brix ${ indice.toInt() }°", fontSize = 10.sp, color = Color.Gray)
+                Text(if (fecha != null) "Cosecha" else "100%", fontSize = 10.sp, color = Color.Gray)
             }
         }
     }

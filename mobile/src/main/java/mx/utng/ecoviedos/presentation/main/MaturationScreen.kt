@@ -90,7 +90,7 @@ fun MaturationContent(
                 ) {
                     Text(
                         parcela.nombreParcela ,
-                        modifier = Modifier.weight(1.5f),
+                        modifier = Modifier.weight(1f),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -98,7 +98,7 @@ fun MaturationContent(
 
                     Text(
                         parcela.variedad,
-                        modifier = Modifier.weight(1.5f),
+                        modifier = Modifier.weight(1f),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White

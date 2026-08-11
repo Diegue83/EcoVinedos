@@ -56,4 +56,21 @@ class NotificacionRepository {
             Result.failure(e)
         }
     }
+
+    /**
+     * Crea una nueva notificación en el sistema.
+     */
+    suspend fun crearNotificacion(tipo: String, titulo: String, mensaje: String, parcelaId: String? = null): Result<mx.utng.ecoviedos.data.remote.NotificacionResponse> {
+        return try {
+            val request = mx.utng.ecoviedos.data.remote.NotificacionRequest(tipo, titulo, mensaje, parcelaId)
+            val response = RetrofitClient.notificacionService.crearNotificacion(request)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception("Error al crear notificación"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

@@ -20,6 +20,8 @@ interface BitacoraRepository {
     /**
      * Obtiene todas las bitácoras registradas para una parcela.
      */
+    suspend fun obtenerBitacorasPorParcela(idParcela: String): List<Bitacora>
+
     fun obtenerAudiosPorParcela(idParcela: String): List<File>
 
     /**

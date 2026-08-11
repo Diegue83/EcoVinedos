@@ -25,6 +25,7 @@ fun RegisterSampleScreen(
     var ph by remember { mutableStateOf("") }
     var acidez by remember { mutableStateOf("") }
     var phSuelo by remember { mutableStateOf("") }
+    var indiceMaduracion by remember { mutableStateOf("") }
     var observaciones by remember { mutableStateOf("") }
 
     // Validaciones
@@ -32,11 +33,13 @@ fun RegisterSampleScreen(
     val phNum = ph.toDoubleOrNull() ?: -1.0
     val acidezNum = acidez.toDoubleOrNull() ?: -1.0
     val phSueloNum = phSuelo.toDoubleOrNull() ?: -1.0
+    val maturityNum = indiceMaduracion.toDoubleOrNull() ?: -1.0
 
     val isFormValid = brixNum in 0.0..100.0 && 
                      phNum in 0.0..14.0 && 
                      acidezNum in 0.0..50.0 && 
-                     phSueloNum in 0.0..14.0
+                     phSueloNum in 0.0..14.0 &&
+                     (indiceMaduracion.isBlank() || maturityNum in 0.0..100.0)
 
     val registroExitoso by muestraViewModel.registroExitoso.collectAsState()
     val uiState by muestraViewModel.uiState.collectAsState()
@@ -115,6 +118,16 @@ fun RegisterSampleScreen(
             )
 
             OutlinedTextField(
+                value = indiceMaduracion,
+                onValueChange = { indiceMaduracion = it },
+                label = { Text("Índice de Maduración (0-100%)") },
+                modifier = Modifier.fillMaxWidth(),
+                isError = indiceMaduracion.isNotBlank() && maturityNum !in 0.0..100.0,
+                supportingText = { if (indiceMaduracion.isNotBlank() && maturityNum !in 0.0..100.0) Text("Debe estar entre 0 y 100") },
+                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White)
+            )
+
+            OutlinedTextField(
                 value = observaciones,
                 onValueChange = { observaciones = it },
                 label = { Text("Observaciones Adicionales") },
@@ -129,7 +142,15 @@ fun RegisterSampleScreen(
             Button(
                 onClick = {
                     if (isFormValid) {
-                        muestraViewModel.registrarMuestra(parcelId, brixNum, phNum, acidezNum, phSueloNum, observaciones)
+                        muestraViewModel.registrarMuestra(
+                            parcelId,
+                            brixNum,
+                            phNum,
+                            acidezNum,
+                            phSueloNum,
+                            if (indiceMaduracion.isBlank()) null else maturityNum,
+                            observaciones
+                        )
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),

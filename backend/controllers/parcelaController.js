@@ -14,7 +14,7 @@ const { publicarListaParcelas } = require('../mqtt/connecction');
  */
 const crearParcela = async (req, res, next) => {
   try {
-    const { nombreParcela, variedad, areaM2, umbralHumedad, umbralTemp, indiceMaduracion, fechaCosecha, activa } =
+    const { nombreParcela, variedad, areaM2, umbralHumedad, umbralTemp, umbralHumedadSuelo, humedadOptimaSuelo, consumoAguaM2, indiceMaduracion, fechaCosecha, activa } =
       req.body;
 
     const parcela = await Parcela.create({
@@ -23,6 +23,9 @@ const crearParcela = async (req, res, next) => {
       areaM2,
       umbralHumedad,
       umbralTemp,
+      umbralHumedadSuelo,
+      humedadOptimaSuelo,
+      consumoAguaM2,
       indiceMaduracion,
       fechaCosecha,
       activa,
@@ -92,6 +95,9 @@ const actualizarParcela = async (req, res, next) => {
       'areaM2',
       'umbralHumedad',
       'umbralTemp',
+      'umbralHumedadSuelo',
+      'humedadOptimaSuelo',
+      'consumoAguaM2',
       'indiceMaduracion',
       'fechaCosecha',
       'activa',
@@ -102,6 +108,10 @@ const actualizarParcela = async (req, res, next) => {
       'ph',
       'acidez',
       'phSuelo',
+      'riegoActivo',
+      'tiempoRestanteRiego',
+      'tipoRiego',
+      'consumoAguaM2',
       'estado',
     ];
 

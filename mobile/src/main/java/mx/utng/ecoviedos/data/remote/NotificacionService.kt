@@ -12,4 +12,14 @@ interface NotificacionService {
 
     @DELETE("api/notificaciones/limpiar")
     suspend fun limpiarLeidas(): Response<Unit>
+
+    @POST("api/notificaciones")
+    suspend fun crearNotificacion(@Body request: NotificacionRequest): Response<NotificacionResponse>
 }
+
+data class NotificacionRequest(
+    val tipo: String,
+    val titulo: String,
+    val mensaje: String,
+    val parcela: String? = null
+)

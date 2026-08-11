@@ -1,6 +1,5 @@
 package mx.utng.ecoviedos.presentation.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
@@ -14,8 +13,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material.Scaffold
 import androidx.wear.compose.material.TimeText
-import androidx.wear.compose.material3.MaterialTheme
-import androidx.wear.compose.material3.Text
+import androidx.wear.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.PlayArrow
 
 @Composable
 fun ParcelDetailScreen(
@@ -49,61 +50,55 @@ fun ParcelDetailScreen(
 
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
-                    text = "${parcela?.humedad?.toInt() ?: 0}",
+                    text = "${parcela?.humedadSuelo?.toInt() ?: 0}",
                     style = MaterialTheme.typography.displayMedium,
-                    fontSize = 54.sp,
+                    fontSize = 44.sp,
                     color = Color.White
                 )
                 Text(
                     text = "%",
                     style = MaterialTheme.typography.titleLarge,
                     color = Color.Gray,
-                    modifier = Modifier.padding(bottom = 12.dp)
+                    modifier = Modifier.padding(bottom = 8.dp)
                 )
             }
 
             Text(
-                text = "HUMEDAD ACTUAL",
+                text = "HUMEDAD SUELO",
                 style = MaterialTheme.typography.labelSmall,
-                fontSize = 9.sp,
+                fontSize = 8.sp,
                 color = Color.Gray
             )
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 DetailMiniCard(label = "Temp", value = "${parcela?.temperatura?.toInt() ?: 0}°C")
+                DetailMiniCard(label = "Def.", value = "${maxOf(0f, (parcela?.umbralHumedadSuelo ?: 40f) - (parcela?.humedadSuelo ?: 0f)).toInt()}%")
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Box(
-                modifier = Modifier
-                    .height(if (parcela?.riegoActivo == true) 28.dp else 18.dp)
-                    .fillMaxWidth(0.8f)
-                    .background(statusColor, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = when {
-                            parcela?.riegoActivo == true -> "RIEGO ACTIVO"
-                            parcela?.esHumedadCritica() == true -> "ALERTA"
-                            else -> "SISTEMA OK"
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White,
-                        fontSize = 8.sp,
-                        fontWeight = FontWeight.Bold
+            if (parcela != null) {
+                Button(
+                    onClick = { 
+                        if (parcela.riegoActivo) {
+                            viewModel.detenerRiego(parcela.id)
+                        } else {
+                            viewModel.activarRiego(parcela.id)
+                        }
+                    },
+                    modifier = Modifier.size(36.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (parcela.riegoActivo) Color.Red else Color(0xFFB4F391)
                     )
-                    if (parcela?.riegoActivo == true) {
-                        Text(
-                            text = "${(parcela.tiempoRestanteRiego / 60)}m ${(parcela.tiempoRestanteRiego % 60)}s",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color.White,
-                            fontSize = 7.sp
-                        )
-                    }
+                ) {
+                    Icon(
+                        imageVector = if (parcela.riegoActivo) Icons.Default.Stop else Icons.Default.PlayArrow,
+                        contentDescription = if (parcela.riegoActivo) "Detener" else "Iniciar",
+                        modifier = Modifier.size(20.dp),
+                        tint = Color.Black
+                    )
                 }
             }
         }

@@ -48,4 +48,8 @@ class BitacoraRepositoryImpl : BitacoraRepository {
             bitacoras.removeAll { it.id == id }
         }
     }
+
+    override fun obtenerAudiosPorParcela(idParcela: String): List<java.io.File> {
+        return emptyList()
+    }
 }

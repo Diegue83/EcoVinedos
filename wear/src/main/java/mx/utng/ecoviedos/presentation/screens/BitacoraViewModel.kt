@@ -42,12 +42,16 @@ class BitacoraViewModel(
     private var timerJob: Job? = null
     private var audioFile: File? = null
     private var mqttManager: MqttManager? = null
+    private var irrigationTimerJob: Job? = null
 
     init {
         // Inicializar MQTT para recibir datos directamente del broker
         mqttManager = MqttManager(
-            onSensorsUpdated = { id, hum, temp, riego, tiempo ->
-                updateParcelaLocalmente(id, hum, temp, riego, tiempo)
+            onSensorsUpdated = { id, hum, temp, humsuel, riego, tiempo ->
+                updateParcelaLocalmente(id, hum, temp, humsuel, riego, tiempo)
+            },
+            onRiegoStatusReceived = { id, activo, tiempo ->
+                updateRiegoLocalmente(id, activo, tiempo)
             }
         )
         
@@ -61,19 +65,61 @@ class BitacoraViewModel(
                     _selectedParcelId.value = parcelas.first().id
                 }
                 _uiState.value = _uiState.value.copy(parcelas = parcelas)
+                startIrrigationTimer()
             }
         }
-
     }
 
-    private fun updateParcelaLocalmente(id: String, hum: Float, temp: Float, riego: Boolean, tiempo: Int) {
+    private fun startIrrigationTimer() {
+        irrigationTimerJob?.cancel()
+        irrigationTimerJob = viewModelScope.launch(Dispatchers.Default) {
+            while (true) {
+                delay(1000)
+                val currentParcelas = _uiState.value.parcelas
+                if (currentParcelas.any { it.riegoActivo }) {
+                    val updatedList = currentParcelas.map { parcela ->
+                        if (parcela.riegoActivo) {
+                            val nextTime = parcela.tiempoRestanteRiego - 1
+                            // En el reloj solo mostramos, no disparamos notificaciones push pesadas (el móvil lo hace)
+                            if (nextTime <= 0 && parcela.tipoRiego == "AUTO") {
+                                parcela.copy(tiempoRestanteRiego = 0, riegoActivo = false)
+                            } else {
+                                parcela.copy(tiempoRestanteRiego = nextTime)
+                            }
+                        } else {
+                            parcela
+                        }
+                    }
+                    _uiState.value = _uiState.value.copy(parcelas = updatedList)
+                }
+            }
+        }
+    }
+
+    private fun updateParcelaLocalmente(id: String, hum: Float, temp: Float, humsuel: Float, riego: Boolean, tiempo: Int) {
         val currentList = _uiState.value.parcelas.toMutableList()
         val index = currentList.indexOfFirst { it.id == id }
         if (index != -1) {
             val updatedParcela = currentList[index].copy(
                 humedad = hum, 
                 temperatura = temp,
+                humedadSuelo = humsuel,
                 riegoActivo = riego,
+                tiempoRestanteRiego = tiempo
+            )
+            currentList[index] = updatedParcela
+            viewModelScope.launch(Dispatchers.Main) {
+                ParcelaRepository.updateParcelas(currentList.toList())
+            }
+        }
+    }
+
+    private fun updateRiegoLocalmente(id: String, activo: Boolean, tiempo: Int) {
+        val currentList = _uiState.value.parcelas.toMutableList()
+        val index = currentList.indexOfFirst { it.id == id }
+        if (index != -1) {
+            val updatedParcela = currentList[index].copy(
+                riegoActivo = activo,
                 tiempoRestanteRiego = tiempo
             )
             currentList[index] = updatedParcela
@@ -89,7 +135,11 @@ class BitacoraViewModel(
     }
 
     fun activarRiego(idParcela: String) {
-        mqttManager?.activarRiego(idParcela)
+        mqttManager?.activarRiego(idParcela, "ON", 10)
+    }
+
+    fun detenerRiego(idParcela: String) {
+        mqttManager?.activarRiego(idParcela, "OFF", 0)
     }
 
 

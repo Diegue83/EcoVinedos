@@ -9,7 +9,7 @@ const resumenDiarioSchema = new mongoose.Schema({
     humedadAirePromedio: { type: Number, required: true },
     temperaturaAirePromedio: { type: Number, required: true },
     humedadSueloPromedio: { type: Number, required: true },
-    fecha: { type: Date, required: true, index: true }
+    fecha: { type: Date, required: true }
 }, {
     versionKey: false,
     timestamps: false

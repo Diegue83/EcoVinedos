@@ -1,14 +1,19 @@
 package mx.utng.ecoviedos.presentation.main
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import mx.utng.ecoviedos.data.local.SessionManager
 import mx.utng.ecoviedos.data.remote.HistorialSensorResponse
 import mx.utng.ecoviedos.data.remote.ResumenDiarioResponse
+import mx.utng.ecoviedos.data.remote.RiegoResponse
 import mx.utng.ecoviedos.data.repository.HistorialRepository
+import mx.utng.ecoviedos.data.repository.RiegoRemoteRepository
 
 /**
  * Estados de la pantalla de consulta histórica.
@@ -18,7 +23,8 @@ sealed class HistorialUiState {
     data object Loading : HistorialUiState()
     data class Success(
         val historial: List<HistorialSensorResponse>,
-        val resumen: List<ResumenDiarioResponse>
+        val resumen: List<ResumenDiarioResponse>,
+        val riegos: List<RiegoResponse>
     ) : HistorialUiState()
     data class Error(val mensaje: String) : HistorialUiState()
 }
@@ -26,8 +32,10 @@ sealed class HistorialUiState {
 /**
  * ViewModel encargado de la consulta de datos históricos de telemetría.
  */
-class HistorialViewModel : ViewModel() {
+class HistorialViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = HistorialRepository()
+    private val riegoRepository = RiegoRemoteRepository()
+    private val sessionManager = SessionManager(application)
 
     private val _uiState = MutableStateFlow<HistorialUiState>(HistorialUiState.Idle)
     val uiState: StateFlow<HistorialUiState> = _uiState.asStateFlow()
@@ -41,13 +49,16 @@ class HistorialViewModel : ViewModel() {
         viewModelScope.launch {
             _uiState.value = HistorialUiState.Loading
             
+            val token = sessionManager.token.first() ?: ""
             val histResult = repository.obtenerHistorial(parcelaId)
             val resResult = repository.obtenerResumen(parcelaId)
+            val riegoResult = riegoRepository.obtenerRiegos(token, parcelaId, null)
 
             if (histResult.isSuccess && resResult.isSuccess) {
                 _uiState.value = HistorialUiState.Success(
                     historial = histResult.getOrDefault(emptyList()),
-                    resumen = resResult.getOrDefault(emptyList())
+                    resumen = resResult.getOrDefault(emptyList()),
+                    riegos = riegoResult.getOrDefault(emptyList())
                 )
             } else {
                 _uiState.value = HistorialUiState.Error("Error al cargar datos históricos")

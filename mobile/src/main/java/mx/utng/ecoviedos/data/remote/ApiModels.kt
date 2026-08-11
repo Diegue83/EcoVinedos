@@ -22,6 +22,8 @@ data class ParcelaResponse(
     val areaM2: Double? = 0.0,
     val umbralHumedad: Double? = 0.0,
     val umbralTemp: Double? = 0.0,
+    val umbralHumedadSuelo: Double? = 0.0,
+    val humedadOptimaSuelo: Double? = 0.0,
     val indiceMaduracion: Double? = 0.0,
     val fechaCosecha: String? = null,
     val activa: Boolean? = true,
@@ -32,6 +34,10 @@ data class ParcelaResponse(
     val ph: Double? = null,
     val acidez: Double? = null,
     val phSuelo: Double? = null,
+    val riegoActivo: Boolean? = false,
+    val tiempoRestanteRiego: Int? = 0,
+    val consumoAguaM2: Double? = 3.0,
+    val tipoRiego: String? = "MANUAL",
     val nodoVinculado: String? = null,
     val createdAt: String? = null,
     val updatedAt: String? = null
@@ -43,11 +49,15 @@ data class ParcelaRequest(
     val areaM2: Double,
     val umbralHumedad: Double,
     val umbralTemp: Double,
-    val indiceMaduracion: Double? = 0.0,
+    val umbralHumedadSuelo: Double,
+    val humedadOptimaSuelo: Double,
     val activa: Boolean,
     val brix: Int? = null,
     val acidez: Float? = null,
-    val phSuelo: Float? = null
+    val phSuelo: Float? = null,
+    val consumoAguaM2: Double? = 3.0,
+    val tipoRiego: String? = "MANUAL",
+    val fechaCosecha: String? = null
 )
 
 data class UsuarioResponse(
@@ -106,6 +116,7 @@ data class MuestraResponse(
     val ph: Double,
     val acidez: Double,
     val phSuelo: Double,
+    val indiceMaduracion: Double? = null,
     val observaciones: String?,
     val fecha: String?,
     val createdAt: String?
@@ -117,6 +128,7 @@ data class MuestraRequest(
     val ph: Double,
     val acidez: Double,
     val phSuelo: Double,
+    val indiceMaduracion: Double? = null,
     val observaciones: String?,
     val fecha: String? = null
 )

@@ -9,6 +9,7 @@ import org.json.JSONObject
 class MqttManager(
     context: Context,
     private val onMessageReceived: (parcelId: String, humedad: Float, temp: Float, humedadSuelo: Float, riegoActivo: Boolean, tiempoRestante: Int) -> Unit,
+    private val onRiegoStatusReceived: (parcelId: String, activo: Boolean, tiempo: Int) -> Unit,
     private val onParcelListReceived: (jsonPayload: String) -> Unit,
     private val onConnectionStatusChanged: (isConnected: Boolean, message: String?) -> Unit
 ) {
@@ -78,49 +79,12 @@ class MqttManager(
                             }
                             topic?.startsWith("vinedo/parcela/") == true &&
                                     topic.endsWith("/stats") -> {
-
-                                val parts = topic.split("/")
-                                if (parts.size >= 3) {
-                                    val parcelId = parts[2]
-                                    val json = JSONObject(payload)
-                                    // Datos del sensor
-                                    val sensores = json.optJSONObject("sensores")
-                                    val humedad = sensores?.optDouble("humedad_aire",0.0)?.toFloat() ?: 0f
-                                    val temperatura = sensores?.optDouble(
-                                        "temperatura_aire",
-                                        0.0
-                                    )?.toFloat() ?: 0f
-                                    val humedadSuelo = sensores?.optDouble("humedad_suelo",0.0)?.toFloat() ?: 0f
-
-                                    // Datos de riego enviados por ESP32/backend
-                                    val riegoActivo = json.optBoolean(
-                                        "riegoActivo",
-                                        false
-                                    )
-                                    val tiempoRestante = json.optInt(
-                                        "tiempoRestante",
-                                        0
-                                    )
-                                    Log.d(
-                                        "MQTT",
-                                        """
-                                        Parcela: $parcelId
-                                        Humedad suelo: $humedad
-                                        Temperatura: $temperatura
-                                        Riego: $riegoActivo
-                                        Tiempo: $tiempoRestante
-                                        """.trimIndent()
-                                    )
-
-                                    onMessageReceived(
-                                        parcelId,
-                                        humedad,
-                                        temperatura,
-                                        humedadSuelo,
-                                        riegoActivo,
-                                        tiempoRestante
-                                    )
-                                }
+                                // ... existing logic ...
+                                handleStatsMessage(topic, payload)
+                            }
+                            topic?.startsWith("vinedo/parcela/") == true &&
+                                    topic.endsWith("/riego") -> {
+                                handleRiegoMessage(topic, payload)
                             }
                         }
 
@@ -148,18 +112,57 @@ class MqttManager(
         }
     }
 
+    private fun handleStatsMessage(topic: String, payload: String) {
+        val parts = topic.split("/")
+        if (parts.size >= 3) {
+            val parcelId = parts[2]
+            try {
+                val json = JSONObject(payload)
+                val sensores = json.optJSONObject("sensores")
+                val hum = sensores?.optDouble("humedad_aire", 0.0)?.toFloat() ?: 0f
+                val temp = sensores?.optDouble("temperatura_aire", 0.0)?.toFloat() ?: 0f
+                val humSuelo = sensores?.optDouble("humedad_suelo", 0.0)?.toFloat() ?: 0f
+                val riego = json.optBoolean("riegoActivo", false)
+                val tiempo = json.optInt("tiempoRestante", 0)
+                
+                onMessageReceived(parcelId, hum, temp, humSuelo, riego, tiempo)
+            } catch (e: Exception) {
+                Log.e("MQTT", "Error parsing stats: ${e.message}")
+            }
+        }
+    }
+
+    private fun handleRiegoMessage(topic: String, payload: String) {
+        val parts = topic.split("/")
+        if (parts.size >= 3) {
+            val parcelId = parts[2]
+            try {
+                val json = JSONObject(payload)
+                val comando = json.optString("comando", "")
+                val estado = json.optString("estado", "")
+                val activo = (comando == "ON" || estado == "ACTIVO")
+                val tiempo = json.optInt("duracion", 0)
+                
+                onRiegoStatusReceived(parcelId, activo, tiempo)
+            } catch (e: Exception) {
+                Log.e("MQTT", "Error parsing riego: ${e.message}")
+            }
+        }
+    }
+
     private fun subscribeToTopics() {
         try {
             mqttClient?.let {
                 if (it.isConnected) {
                     it.subscribe(MqttConfig.TOPIC_PARCELAS_LISTA, 1)
                     it.subscribe(MqttConfig.TOPIC_PARCELA_STATS, 1)
+                    it.subscribe("vinedo/parcela/+/riego", 1)
                 }
             }
         } catch (e: Exception) { }
     }
 
-    fun toggleRiego(parcelId: String, activo: Boolean, duracionMinutos: Int = 1) {
+    fun toggleRiego(parcelId: String, activo: Boolean, duracionMinutos: Int = 1, modo: String = "AUTO") {
         try {
             mqttClient?.let {
                 if (it.isConnected) {
@@ -167,11 +170,17 @@ class MqttManager(
                     val payload = JSONObject().apply {
                         put("comando", if (activo) "ON" else "OFF")
                         put("duracion", duracionMinutos)
+                        put("modo", modo) // "AUTO" or "MANUAL"
                     }.toString()
+                    Log.d("MQTT", "Publicando a $topic: $payload")
                     it.publish(topic, MqttMessage(payload.toByteArray()).apply { qos = 1 })
+                } else {
+                    Log.w("MQTT", "No se pudo enviar comando: Cliente desconectado")
                 }
-            }
-        } catch (e: Exception) { }
+            } ?: Log.w("MQTT", "No se pudo enviar comando: Cliente es null")
+        } catch (e: Exception) {
+            Log.e("MQTT", "Error al publicar comando de riego", e)
+        }
     }
 
     fun disconnect() {

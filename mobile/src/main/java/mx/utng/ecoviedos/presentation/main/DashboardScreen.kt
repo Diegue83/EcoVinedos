@@ -40,7 +40,7 @@ fun DashboardContent(
     } else 0.74f
     
     val activeCount = parcelas.count { it.activa }
-    val alertCount = parcelas.count { it.nodoVinculado != null && it.humedad < it.umbralHumedad }
+    val alertCount = parcelas.count { it.nodoVinculado != null && it.humedadSuelo < it.umbralHumedadSuelo }
     val mqttStatus by viewModel.mqttStatus.collectAsState()
     val isConnected by viewModel.isMqttConnected.collectAsState()
 
@@ -164,7 +164,12 @@ fun DashboardContent(
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(linkedParcelas) { parcela ->
-                    MaturityRow(parcela.nombreParcela, parcela.humedadSuelo / 100f)
+                    val isInactive = System.currentTimeMillis() - parcela.lastUpdated > 5 * 60 * 1000 // 5 minutos
+                    MaturityRow(
+                        variety = parcela.nombreParcela,
+                        progress = parcela.humedadSuelo / 100f,
+                        isInactive = isInactive
+                    )
                 }
             }
         }
@@ -194,17 +199,22 @@ fun M3StatCard(title: String, value: String, icon: ImageVector, modifier: Modifi
 }
 
 @Composable
-fun MaturityRow(variety: String, progress: Float) {
+fun MaturityRow(variety: String, progress: Float, isInactive: Boolean = false) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
-        Text(variety, modifier = Modifier.width(90.dp), fontSize = 14.sp, color = Color.White, maxLines = 1)
+        Column(modifier = Modifier.width(90.dp)) {
+            Text(variety, fontSize = 14.sp, color = if (isInactive) Color.Gray else Color.White, maxLines = 1)
+            if (isInactive) {
+                Text("Desconectado", fontSize = 8.sp, color = Color.Red)
+            }
+        }
         LinearProgressIndicator(
             progress = { progress.coerceIn(0f, 1f) },
             modifier = Modifier.weight(1f).height(10.dp),
-            color = if (progress < 0.3f) Color.Red else if (progress > 0.8f) Color(0xFFB4F391) else Color(0xFFE2E3DE),
+            color = if (isInactive) Color.DarkGray else if (progress < 0.3f) Color.Red else if (progress > 0.8f) Color(0xFFB4F391) else Color(0xFFE2E3DE),
             trackColor = Color.Gray.copy(alpha = 0.2f),
             strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
         )
         Spacer(modifier = Modifier.width(12.dp))
-        Text("${(progress * 100).toInt()}%", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = if (progress < 0.3f) Color.Red else Color(0xFFB4F391))
+        Text("${(progress * 100).toInt()}%", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = if (isInactive) Color.Gray else if (progress < 0.3f) Color.Red else Color(0xFFB4F391))
     }
 }

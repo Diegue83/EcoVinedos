@@ -29,7 +29,7 @@ sealed class BleUiState {
     data object Sending : BleUiState()
     data class VerifyingWiFi(val message: String) : BleUiState()
     data object Success : BleUiState()
-    data class Error(val mensaje: String) : BleUiState()
+    data class Error(val message: String) : BleUiState()
 }
 
 /**

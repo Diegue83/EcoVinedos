@@ -9,7 +9,7 @@ const historialSensorSchema = new mongoose.Schema({
     humedadAire: { type: Number, required: true },
     temperaturaAire: { type: Number, required: true },
     humedadSuelo: { type: Number, required: true },
-    fecha: { type: Date, default: Date.now, index: true }
+    fecha: { type: Date, default: Date.now }
 }, {
     versionKey: false,
     timestamps: false

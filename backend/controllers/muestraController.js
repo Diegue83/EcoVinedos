@@ -16,7 +16,7 @@ const { publicarListaParcelas } = require('../mqtt/connecction');
  */
 const registrarMuestra = async (req, res, next) => {
     try {
-        const { parcelaId, brix, ph, acidez, phSuelo, observaciones, fecha } = req.body;
+        const { parcelaId, brix, ph, acidez, phSuelo, indiceMaduracion, observaciones, fecha } = req.body;
 
         const parcela = await Parcela.findById(parcelaId);
         if (!parcela) {
@@ -29,6 +29,7 @@ const registrarMuestra = async (req, res, next) => {
             ph,
             acidez,
             phSuelo,
+            indiceMaduracion,
             observaciones,
             fecha: fecha || Date.now()
         });
@@ -38,6 +39,9 @@ const registrarMuestra = async (req, res, next) => {
         parcela.ph = ph;
         parcela.acidez = acidez;
         parcela.phSuelo = phSuelo;
+        if (indiceMaduracion !== undefined) {
+            parcela.indiceMaduracion = indiceMaduracion;
+        }
         await parcela.save();
 
         // Notificar cambios vía MQTT para actualización en tiempo real

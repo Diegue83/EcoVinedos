@@ -76,6 +76,7 @@ class MuestraViewModel(application: Application) : AndroidViewModel(application)
         ph: Double,
         acidez: Double,
         phSuelo: Double,
+        indiceMaduracion: Double?,
         observaciones: String
     ) {
         viewModelScope.launch {
@@ -83,7 +84,7 @@ class MuestraViewModel(application: Application) : AndroidViewModel(application)
             val token = sessionManager.token.first()
             if (token.isNullOrBlank()) return@launch
 
-            val request = MuestraRequest(parcelaId, brix, ph, acidez, phSuelo, observaciones)
+            val request = MuestraRequest(parcelaId, brix, ph, acidez, phSuelo, indiceMaduracion, observaciones)
             repository.registrarMuestra(token, request)
                 .onSuccess {
                     _registroExitoso.value = true

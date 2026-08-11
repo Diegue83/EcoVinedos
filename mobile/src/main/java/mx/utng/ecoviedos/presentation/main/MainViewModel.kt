@@ -9,6 +9,7 @@ import com.google.android.gms.wearable.MessageClient
 import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.Wearable
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import mx.utng.ecoviedos.data.WearableDataSender
@@ -17,6 +18,9 @@ import mx.utng.ecoviedos.data.mqtt.MqttConfig
 import mx.utng.ecoviedos.data.mqtt.MqttManager
 import mx.utng.ecoviedos.data.repository.ParcelaRepository
 import mx.utng.ecoviedos.domain.model.Parcela
+import mx.utng.ecoviedos.data.remote.ParcelaRequest
+import java.text.SimpleDateFormat
+import java.util.*
 import kotlinx.coroutines.flow.first
 
 /**
@@ -50,9 +54,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
 
     private val prefs = application.getSharedPreferences("EcoViñedosPrefs", Context.MODE_PRIVATE)
 
+    private var timerJob: kotlinx.coroutines.Job? = null
+
     init {
         Wearable.getMessageClient(application).addListener(this)
         initializeMqtt()
+        startLocalTimer()
         
         viewModelScope.launch {
             sessionToken.collect { token ->
@@ -109,6 +116,41 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
     }
 
     /**
+     * Actualiza la fecha de cosecha de una parcela.
+     */
+    fun actualizarFechaCosecha(parcela: Parcela, nuevaFecha: Date?) {
+        viewModelScope.launch {
+            val token = authToken ?: return@launch
+            val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+                timeZone = TimeZone.getTimeZone("UTC")
+            }
+            
+            val request = ParcelaRequest(
+                nombreParcela = parcela.nombreParcela,
+                variedad = parcela.variedad,
+                areaM2 = parcela.areaM2.toDouble(),
+                umbralHumedad = parcela.umbralHumedad.toDouble(),
+                umbralTemp = parcela.umbralTemp.toDouble(),
+                umbralHumedadSuelo = parcela.umbralHumedadSuelo.toDouble(),
+                humedadOptimaSuelo = parcela.humedadOptimaSuelo.toDouble(),
+                activa = parcela.activa,
+                brix = parcela.brix?.toInt(),
+                acidez = parcela.acidez,
+                phSuelo = parcela.phSuelo,
+                fechaCosecha = nuevaFecha?.let { isoFormat.format(it) }
+            )
+
+            parcelaRepository.actualizarParcela(token, parcela.id, request)
+                .onSuccess {
+                    cargarParcelas()
+                }
+                .onFailure {
+                    Log.e("MainViewModel", "Error al actualizar fecha de cosecha", it)
+                }
+        }
+    }
+
+    /**
      * Inicializa el cliente MQTT y configura los callbacks para recibir telemetría.
      */
     private fun initializeMqtt() {
@@ -119,6 +161,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
             onMessageReceived = { id, hum, temp,humsuel , riego, tiempo ->
                 viewModelScope.launch(Dispatchers.Main) {
                     updateParcelaFromSensor(id, hum, temp,humsuel, riego, tiempo)
+                }
+            },
+            onRiegoStatusReceived = { id, activo, tiempo ->
+                viewModelScope.launch(Dispatchers.Main) {
+                    updateRiegoStatus(id, activo, tiempo)
                 }
             },
             onParcelListReceived = { _ ->
@@ -146,15 +193,99 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
         val currentList = _parcelas.value.toMutableList()
         val index = currentList.indexOfFirst { it.id == id }
         if (index != -1) {
-            currentList[index] = currentList[index].copy(
+            val oldParcela = currentList[index]
+            
+            // Lógica de notificaciones de riego
+            if (oldParcela.riegoActivo && !riego) {
+                // Riego terminó (Automático)
+                showRiegoNotification(id, oldParcela.nombreParcela, "El riego automático ha finalizado correctamente.")
+            } else if (riego && tiempo <= 0 && oldParcela.tiempoRestanteRiego > 0) {
+                // Tiempo agotado en válvula manual (o auto que falló al apagar)
+                showRiegoNotification(id, oldParcela.nombreParcela, "¡Atención! El tiempo programado terminó. Detén el riego manual en la app.")
+            }
+
+            currentList[index] = oldParcela.copy(
                 humedad = hum,
                 temperatura = temp,
                 humedadSuelo = humsuel,
                 riegoActivo = riego,
-                tiempoRestanteRiego = tiempo
+                tiempoRestanteRiego = tiempo,
+                lastUpdated = System.currentTimeMillis()
             )
             _parcelas.value = currentList.toList()
             wearableDataSender.sendParcelas(currentList.toList())
+        }
+    }
+
+    private fun showRiegoNotification(parcelaId: String, parcelaName: String, message: String) {
+        val context = getApplication<Application>()
+        val channelId = "riego_notifications"
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+        
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val channel = android.app.NotificationChannel(channelId, "Notificaciones de Riego", android.app.NotificationManager.IMPORTANCE_HIGH)
+            notificationManager.createNotificationChannel(channel)
+        }
+
+        val notification = androidx.core.app.NotificationCompat.Builder(context, channelId)
+            .setSmallIcon(android.R.drawable.stat_sys_warning)
+            .setContentTitle("Riego: $parcelaName")
+            .setContentText(message)
+            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .build()
+
+        notificationManager.notify(parcelaId.hashCode(), notification)
+    }
+
+    private fun updateRiegoStatus(id: String, activo: Boolean, tiempo: Int) {
+        val currentList = _parcelas.value.toMutableList()
+        val index = currentList.indexOfFirst { it.id == id }
+        if (index != -1) {
+            currentList[index] = currentList[index].copy(
+                riegoActivo = activo,
+                tiempoRestanteRiego = tiempo,
+                lastUpdated = System.currentTimeMillis()
+            )
+            _parcelas.value = currentList.toList()
+            wearableDataSender.sendParcelas(currentList.toList())
+        }
+    }
+
+    private fun startLocalTimer() {
+        timerJob?.cancel()
+        timerJob = viewModelScope.launch(Dispatchers.Default) {
+            while (true) {
+                delay(1000)
+                val anyRiegoActive = _parcelas.value.any { it.riegoActivo }
+                if (anyRiegoActive) {
+                    val updatedList = _parcelas.value.map { parcela ->
+                        if (parcela.riegoActivo) {
+                            val nextTime = parcela.tiempoRestanteRiego - 1
+                            if (nextTime == 0 && parcela.tipoRiego == "AUTO") {
+                                viewModelScope.launch(Dispatchers.Main) {
+                                    showRiegoNotification(parcela.id, parcela.nombreParcela, "Riego automático finalizado.")
+                                }
+                                parcela.copy(tiempoRestanteRiego = 0, riegoActivo = false)
+                            } else if (nextTime == 0 && parcela.tipoRiego == "MANUAL") {
+                                viewModelScope.launch(Dispatchers.Main) {
+                                    showRiegoNotification(parcela.id, parcela.nombreParcela, "¡Tiempo agotado! Detén el riego manual.")
+                                }
+                                parcela.copy(tiempoRestanteRiego = -1)
+                            } else if (nextTime < 0 && parcela.tipoRiego == "MANUAL") {
+                                parcela.copy(tiempoRestanteRiego = nextTime)
+                            } else if (nextTime > 0) {
+                                parcela.copy(tiempoRestanteRiego = nextTime)
+                            } else {
+                                parcela
+                            }
+                        } else {
+                            parcela
+                        }
+                    }
+                    _parcelas.value = updatedList
+                }
+            }
         }
     }
 
@@ -164,9 +295,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
      * @param parcelId Identificador de la parcela.
      * @param activo true para encender, false para apagar.
      * @param duracionMinutos Tiempo de riego en minutos.
+     * @param modo "AUTO" o "MANUAL".
      */
-    fun toggleRiego(parcelId: String, activo: Boolean, duracionMinutos: Int) {
-        mqttManager?.toggleRiego(parcelId, activo, duracionMinutos)
+    fun toggleRiego(parcelId: String, activo: Boolean, duracionMinutos: Int, modo: String = "AUTO") {
+        Log.d("MainViewModel", "Toggle Riego: Parcela=$parcelId, Activo=$activo, Duracion=$duracionMinutos, Modo=$modo")
+        mqttManager?.toggleRiego(parcelId, activo, duracionMinutos, modo)
     }
 
     /**

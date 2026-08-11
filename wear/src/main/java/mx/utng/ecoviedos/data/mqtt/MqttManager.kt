@@ -2,7 +2,6 @@ package mx.utng.ecoviedos.data.mqtt
 
 import android.util.Log
 import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import mx.utng.ecoviedos.data.ParcelaMap
 import mx.utng.ecoviedos.data.ParcelaRepository
 import mx.utng.ecoviedos.domain.model.Parcela
@@ -12,7 +11,8 @@ import org.json.JSONObject
 import java.util.Date
 
 class MqttManager(
-    private val onSensorsUpdated: (parcelId: String, humedad: Float, temperatura: Float, riegoActivo: Boolean, tiempoRestante: Int) -> Unit
+    private val onSensorsUpdated: (parcelId: String, humedad: Float, temperatura: Float, humedadSuelo: Float, riegoActivo: Boolean, tiempoRestante: Int) -> Unit,
+    private val onRiegoStatusReceived: (parcelId: String, activo: Boolean, tiempo: Int) -> Unit
 ) {
     private var mqttClient: MqttClient? = null
     private val gson = Gson()
@@ -39,6 +39,7 @@ class MqttManager(
                     Log.d("MQTT_Wear", "Conectado a $serverURI")
                     mqttClient?.subscribe(MqttConfig.TOPIC_PARCELAS_LISTA, 1)
                     mqttClient?.subscribe(MqttConfig.TOPIC_PARCELA_STATS, 1)
+                    mqttClient?.subscribe("vinedo/parcela/+/riego", 1)
                 }
 
                 override fun connectionLost(cause: Throwable?) {
@@ -50,36 +51,13 @@ class MqttManager(
                     try {
                         when {
                             topic == MqttConfig.TOPIC_PARCELAS_LISTA -> {
-                                val itemType = object : TypeToken<List<ParcelaMap>>() {}.type
-                                val parcelasMobile: List<ParcelaMap> = gson.fromJson(payload, itemType)
-                                val parcelasWear = parcelasMobile.map { m ->
-                                    Parcela(
-                                        id = m.id,
-                                        nombreParcela = m.nombreParcela ?: "Parcela ${m.id}",
-                                        variedad = m.variedad ?: "",
-                                        areaM2 = m.areaM2,
-                                        umbralHumedad = m.umbralHumedad,
-                                        umbralTemp = m.umbralTemp,
-                                        indiceMaduracion = m.indiceMaduracion,
-                                        fechaCosecha = m.fechaCosecha ?: Date(),
-                                        activa = m.activa,
-                                        humedad = m.humedad,
-                                        temperatura = m.temperatura
-                                    )
-                                }
-                                ParcelaRepository.updateParcelas(parcelasWear)
+                                handleParcelList(payload)
                             }
                             topic?.startsWith("vinedo/parcela/") == true && topic.endsWith("/stats") -> {
-                                val parts = topic.split("/")
-                                if (parts.size >= 3) {
-                                    val parcelId = parts[2]
-                                    val json = JSONObject(payload)
-                                    val hum = json.optDouble("humedad", 0.0).toFloat()
-                                    val temp = json.optDouble("temperatura", 0.0).toFloat()
-                                    val riego = json.optBoolean("riegoActivo", false)
-                                    val tiempo = json.optInt("tiempoRestante", 0)
-                                    onSensorsUpdated(parcelId, hum, temp, riego, tiempo)
-                                }
+                                handleStats(topic, payload)
+                            }
+                            topic?.startsWith("vinedo/parcela/") == true && topic.endsWith("/riego") -> {
+                                handleRiego(topic, payload)
                             }
                         }
                     } catch (e: Exception) {
@@ -96,19 +74,73 @@ class MqttManager(
         }
     }
 
-    fun activarRiego(idParcela: String, duracionMinutos: Int = 1) {
+    private fun handleParcelList(payload: String) {
+        try {
+            val itemType = object : com.google.gson.reflect.TypeToken<List<ParcelaMap>>() {}.type
+            val parcelasMobile: List<ParcelaMap> = gson.fromJson(payload, itemType)
+            val parcelasWear = parcelasMobile.map { m ->
+                Parcela(
+                    id = m.id,
+                    nombreParcela = m.nombreParcela ?: "Parcela ${m.id}",
+                    variedad = m.variedad ?: "",
+                    areaM2 = m.areaM2,
+                    umbralHumedad = m.umbralHumedad,
+                    umbralTemp = m.umbralTemp,
+                    umbralHumedadSuelo = m.umbralHumedadSuelo ?: 40f,
+                    indiceMaduracion = m.indiceMaduracion,
+                    fechaCosecha = m.fechaCosecha ?: Date(),
+                    activa = m.activa,
+                    humedad = m.humedad,
+                    temperatura = m.temperatura,
+                    humedadSuelo = m.humedadSuelo ?: 0f
+                )
+            }
+            ParcelaRepository.updateParcelas(parcelasWear)
+        } catch (e: Exception) { Log.e("MQTT_Wear", "Error list: $e") }
+    }
+
+    private fun handleStats(topic: String, payload: String) {
+        val parts = topic.split("/")
+        if (parts.size >= 3) {
+            val parcelId = parts[2]
+            try {
+                val json = JSONObject(payload)
+                val hum = json.optDouble("humedad", 0.0).toFloat()
+                val temp = json.optDouble("temperatura", 0.0).toFloat()
+                val humSuelo = json.optDouble("humedadSuelo", 0.0).toFloat()
+                val riego = json.optBoolean("riegoActivo", false)
+                val tiempo = json.optInt("tiempoRestante", 0)
+                onSensorsUpdated(parcelId, hum, temp, humSuelo, riego, tiempo)
+            } catch (e: Exception) { Log.e("MQTT_Wear", "Error stats: $e") }
+        }
+    }
+
+    private fun handleRiego(topic: String, payload: String) {
+        val parts = topic.split("/")
+        if (parts.size >= 3) {
+            val parcelId = parts[2]
+            try {
+                val json = JSONObject(payload)
+                val activo = json.optString("comando") == "ON" || json.optString("estado") == "ACTIVO"
+                val tiempo = json.optInt("duracion", 0)
+                onRiegoStatusReceived(parcelId, activo, tiempo)
+            } catch (e: Exception) { Log.e("MQTT_Wear", "Error riego: $e") }
+        }
+    }
+
+    fun activarRiego(idParcela: String, comando: String = "ON", duracionMinutos: Int = 1) {
         try {
             val topic = String.format(MqttConfig.TOPIC_RIEGO_CONTROL, idParcela)
             val payload = JSONObject().apply {
-                put("comando", "ON")
+                put("comando", comando)
                 put("duracion", duracionMinutos)
             }.toString()
 
             val mqttMessage = MqttMessage(payload.toByteArray()).apply { qos = 1 }
             mqttClient?.publish(topic, mqttMessage)
-            Log.d("MQTT_Wear", "Riego activado parcela: $idParcela por $duracionMinutos min")
+            Log.d("MQTT_Wear", "Riego $comando parcela: $idParcela")
         } catch (e: Exception) {
-            Log.e("MQTT_Wear", "Error activando riego: ${e.message}")
+            Log.e("MQTT_Wear", "Error control riego: ${e.message}")
         }
     }
 

@@ -30,6 +30,7 @@ import mx.utng.ecoviedos.presentation.main.MainViewModel
 @Composable
 fun DeviceConfigScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToAddParcel: () -> Unit,
     mainViewModel: MainViewModel,
     configViewModel: DeviceConfigViewModel
 ) {
@@ -154,6 +155,7 @@ fun DeviceConfigScreen(
                     parcelas = parcelas,
                     selectedParcela = selectedParcela,
                     onParcelaSelected = { selectedParcela = it },
+                    onRegisterNew = onNavigateToAddParcel,
                     onFinish = {
                         selectedParcela?.let {
                             configViewModel.sendConfig(ssid, password, it.id, it.nombreParcela)
@@ -373,6 +375,7 @@ fun ColumnScope.LinkParcelaStep(
     parcelas: List<Parcela>,
     selectedParcela: Parcela?,
     onParcelaSelected: (Parcela) -> Unit,
+    onRegisterNew: () -> Unit,
     onFinish: () -> Unit
 ) {
     val availableParcelas = remember(parcelas) {
@@ -382,6 +385,16 @@ fun ColumnScope.LinkParcelaStep(
     Text("3. Vincular a Parcela", style = MaterialTheme.typography.titleMedium, color = Color(0xFFB4F391))
     Spacer(modifier = Modifier.height(16.dp))
     
+    OutlinedButton(
+        onClick = onRegisterNew,
+        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFB4F391))
+    ) {
+        Icon(Icons.Default.Add, contentDescription = null)
+        Spacer(Modifier.width(8.dp))
+        Text("Registrar nueva parcela")
+    }
+
     if (availableParcelas.isEmpty()) {
         Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
             Text("No hay parcelas disponibles para vincular", color = Color.Gray, textAlign = TextAlign.Center)

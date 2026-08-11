@@ -14,6 +14,7 @@ import mx.utng.ecoviedos.data.remote.UsuarioRequest
 import mx.utng.ecoviedos.data.remote.UsuarioResponse
 import mx.utng.ecoviedos.data.repository.ParcelaRepository
 import mx.utng.ecoviedos.data.repository.UsuarioRepository
+import mx.utng.ecoviedos.data.repository.NotificacionRepository
 import mx.utng.ecoviedos.presentation.main.MainViewModel
 
 sealed class AddParcelUiState {
@@ -35,6 +36,7 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
     private val sessionManager = SessionManager(application)
     private val parcelaRepository = ParcelaRepository()
     private val usuarioRepository = UsuarioRepository()
+    private val notificacionRepository = NotificacionRepository()
 
     private var mainViewModel: MainViewModel? = null
 
@@ -48,7 +50,17 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
         mainViewModel = viewModel
     }
 
-    fun addParcel(nombre: String, variedad: String, area: Int, umbralHumedad: Float, umbralTemp: Float, indiceMaduracion: Float) {
+    fun addParcel(
+        nombre: String,
+        variedad: String,
+        area: Int,
+        umbralHumedad: Float,
+        umbralTemp: Float,
+        umbralHumedadSuelo: Float,
+        humedadOptimaSuelo: Float,
+        consumoAguaM2: Float,
+        tipoRiego: String
+    ) {
         viewModelScope.launch {
             _uiState.value = AddParcelUiState.Loading
 
@@ -65,14 +77,31 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
                 activa = true,
                 umbralHumedad = umbralHumedad.toDouble(),
                 umbralTemp = umbralTemp.toDouble(),
-                indiceMaduracion = indiceMaduracion.toDouble()
+                umbralHumedadSuelo = umbralHumedadSuelo.toDouble(),
+                humedadOptimaSuelo = humedadOptimaSuelo.toDouble(),
+                consumoAguaM2 = consumoAguaM2.toDouble(),
+                tipoRiego = tipoRiego
             )
 
             val resultado = parcelaRepository.crearParcela(token, request)
             resultado
-                .onSuccess {
+                .onSuccess { parcela ->
                     mainViewModel?.cargarParcelas()
                     _uiState.value = AddParcelUiState.Success
+                    
+                    // Notificar sobre la nueva parcela
+                    val mensajeNotif = if (parcela.nodoVinculado == null) {
+                        "Nueva parcela '${parcela.nombreParcela}' registrada. Aún no tiene un nodo IoT vinculado."
+                    } else {
+                        "Nueva parcela '${parcela.nombreParcela}' registrada y vinculada."
+                    }
+                    
+                    notificacionRepository.crearNotificacion(
+                        tipo = "sistema",
+                        titulo = "Parcela Registrada",
+                        mensaje = mensajeNotif,
+                        parcelaId = parcela.id
+                    )
                 }
                 .onFailure { e ->
                     _uiState.value = AddParcelUiState.Error(e.message ?: "Error al guardar")
@@ -80,7 +109,19 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun updateParcel(id: String, nombre: String, variedad: String, area: Int, umbralHumedad: Float, umbralTemp: Float, activa: Boolean, indiceMaduracion: Float) {
+    fun updateParcel(
+        id: String,
+        nombre: String,
+        variedad: String,
+        area: Int,
+        umbralHumedad: Float,
+        umbralTemp: Float,
+        umbralHumedadSuelo: Float,
+        humedadOptimaSuelo: Float,
+        consumoAguaM2: Float,
+        activa: Boolean,
+        tipoRiego: String
+    ) {
         viewModelScope.launch {
             _uiState.value = AddParcelUiState.Loading
 
@@ -97,7 +138,10 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
                 activa = activa,
                 umbralHumedad = umbralHumedad.toDouble(),
                 umbralTemp = umbralTemp.toDouble(),
-                indiceMaduracion = indiceMaduracion.toDouble()
+                umbralHumedadSuelo = umbralHumedadSuelo.toDouble(),
+                humedadOptimaSuelo = humedadOptimaSuelo.toDouble(),
+                consumoAguaM2 = consumoAguaM2.toDouble(),
+                tipoRiego = tipoRiego
             )
 
             val resultado = parcelaRepository.actualizarParcela(token, id, request)

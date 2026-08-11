@@ -10,6 +10,7 @@ const muestraSchema = new mongoose.Schema({
     ph: { type: Number, required: true },
     acidez: { type: Number, required: true },
     phSuelo: { type: Number, required: true },
+    indiceMaduracion: { type: Number, default: 0 },
     observaciones: { type: String, default: "" },
     fecha: { type: Date, default: Date.now }
 }, {

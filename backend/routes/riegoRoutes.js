@@ -10,12 +10,12 @@ const {
 const { protegerRuta, permitirRoles } = require('../middleware/authMiddleware');
 
 // Todos pueden ver historial de riego
-router.get('/riego', protegerRuta, obtenerRiegos);
-router.get('/riego/:id', protegerRuta, obtenerRiegoPorId);
+router.get('/riegos', protegerRuta, obtenerRiegos);
+router.get('/riegos/:id', protegerRuta, obtenerRiegoPorId);
 
 // Solo superusuarios y administradores pueden controlar o programar riego
-router.post('/riego', protegerRuta, permitirRoles('superusuario', 'administrador'), crearRiego);
-router.put('/riego/:id', protegerRuta, permitirRoles('superusuario', 'administrador'), actualizarRiego);
-router.delete('/riego/:id', protegerRuta, permitirRoles('superusuario', 'administrador'), eliminarRiego);
+router.post('/riegos', protegerRuta, permitirRoles('superusuario', 'administrador'), crearRiego);
+router.put('/riegos/:id', protegerRuta, permitirRoles('superusuario', 'administrador'), actualizarRiego);
+router.delete('/riegos/:id', protegerRuta, permitirRoles('superusuario', 'administrador'), eliminarRiego);
 
 module.exports = router;

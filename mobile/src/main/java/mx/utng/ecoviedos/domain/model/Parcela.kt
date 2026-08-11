@@ -9,6 +9,8 @@ data class Parcela(
     val areaM2: Int,
     val umbralHumedad: Float,
     val umbralTemp: Float,
+    val umbralHumedadSuelo: Float,
+    val humedadOptimaSuelo: Float,
     val indiceMaduracion: Float,
     val fechaCosecha: Date?,
     val activa: Boolean,
@@ -21,7 +23,10 @@ data class Parcela(
     val ph: Float? = null,
     val acidez: Float? = null,
     val phSuelo: Float? = null,
-    val nodoVinculado: String? = null
+    val consumoAguaM2: Float = 3.0f,
+    val tipoRiego: String = "MANUAL", // "AUTO" o "MANUAL"
+    val nodoVinculado: String? = null,
+    var lastUpdated: Long = System.currentTimeMillis()
 )
 
 

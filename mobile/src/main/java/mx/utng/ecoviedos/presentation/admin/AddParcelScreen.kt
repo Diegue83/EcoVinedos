@@ -35,21 +35,28 @@ fun AddParcelScreen(
     var area by remember { mutableStateOf(parcelToEdit?.areaM2?.toString() ?: "") }
     var umbralHumedad by remember { mutableStateOf(parcelToEdit?.umbralHumedad?.toInt()?.toString() ?: "30") }
     var umbralTemp by remember { mutableStateOf(parcelToEdit?.umbralTemp?.toInt()?.toString() ?: "25") }
-    var indiceMadurez by remember { mutableStateOf(parcelToEdit?.indiceMaduracion?.toString() ?: "0.0") }
+    var umbralHumedadSuelo by remember { mutableStateOf(parcelToEdit?.umbralHumedadSuelo?.toInt()?.toString() ?: "40") }
+    var humedadOptimaSuelo by remember { mutableStateOf(parcelToEdit?.humedadOptimaSuelo?.toInt()?.toString() ?: "70") }
+    var consumoAguaM2 by remember { mutableStateOf(parcelToEdit?.consumoAguaM2?.toString() ?: "3.0") }
+    var tipoRiego by remember { mutableStateOf(parcelToEdit?.tipoRiego ?: "MANUAL") }
     var activa by remember { mutableStateOf(parcelToEdit?.activa ?: true) }
 
     // Validaciones
     val areaNum = area.toIntOrNull() ?: 0
     val humNum = umbralHumedad.toFloatOrNull() ?: -1f
     val tempNum = umbralTemp.toFloatOrNull() ?: -100f
-    val maturityNum = indiceMadurez.toFloatOrNull() ?: -1f
+    val humSueloMinNum = umbralHumedadSuelo.toFloatOrNull() ?: -1f
+    val humSueloOptNum = humedadOptimaSuelo.toFloatOrNull() ?: -1f
+    val consumoNum = consumoAguaM2.toFloatOrNull() ?: 0f
 
     val isFormValid = nombre.isNotBlank() && 
                      variedad.isNotBlank() && 
                      areaNum > 0 && 
                      humNum in 0f..100f && 
                      tempNum in -20f..60f &&
-                     maturityNum in 0f..100f
+                     humSueloMinNum in 0f..100f &&
+                     humSueloOptNum in humSueloMinNum..100f &&
+                     consumoNum > 0f
 
     val uiState by adminViewModel.uiState.collectAsState()
     val estaGuardando = uiState is AddParcelUiState.Loading
@@ -89,7 +96,10 @@ fun AddParcelScreen(
                                 areaNum,
                                 humNum,
                                 tempNum,
-                                maturityNum
+                                humSueloMinNum,
+                                humSueloOptNum,
+                                consumoNum,
+                                tipoRiego
                             )
                         } else {
                             adminViewModel.updateParcel(
@@ -99,8 +109,11 @@ fun AddParcelScreen(
                                 areaNum,
                                 humNum,
                                 tempNum,
+                                humSueloMinNum,
+                                humSueloOptNum,
+                                consumoNum,
                                 activa,
-                                maturityNum
+                                tipoRiego
                             )
                         }
                     }
@@ -184,22 +197,22 @@ fun AddParcelScreen(
                 )
             )
 
-            OutlinedTextField(
-                value = indiceMadurez,
-                onValueChange = { indiceMadurez = it },
-                label = { Text("Índice de Madurez (0-100)") },
-                modifier = Modifier.fillMaxWidth(),
-                isError = maturityNum !in 0f..100f,
-                supportingText = { if (maturityNum !in 0f..100f) Text("Debe estar entre 0 y 100") },
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFFB4F391),
-                    unfocusedBorderColor = Color.Gray,
-                    focusedLabelColor = Color(0xFFB4F391),
-                    unfocusedLabelColor = Color.Gray,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White
+            Text("Tipo de Válvula / Riego", color = Color(0xFFB4F391), style = MaterialTheme.typography.labelLarge)
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                RadioButton(
+                    selected = tipoRiego == "MANUAL",
+                    onClick = { tipoRiego = "MANUAL" },
+                    colors = RadioButtonDefaults.colors(selectedColor = Color(0xFFB4F391))
                 )
-            )
+                Text("Manual", color = Color.White)
+                Spacer(Modifier.width(16.dp))
+                RadioButton(
+                    selected = tipoRiego == "AUTO",
+                    onClick = { tipoRiego = "AUTO" },
+                    colors = RadioButtonDefaults.colors(selectedColor = Color(0xFFB4F391))
+                )
+                Text("Auto", color = Color.White)
+            }
 
             if (parcelId != null) {
                 Row(
@@ -258,6 +271,57 @@ fun AddParcelScreen(
                     )
                 )
             }
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                OutlinedTextField(
+                    value = umbralHumedadSuelo,
+                    onValueChange = { umbralHumedadSuelo = it },
+                    label = { Text("H. Suelo Mín (%)") },
+                    modifier = Modifier.weight(1f),
+                    isError = humSueloMinNum !in 0f..100f,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFFB4F391),
+                        unfocusedBorderColor = Color.Gray,
+                        focusedLabelColor = Color(0xFFB4F391),
+                        unfocusedLabelColor = Color.Gray,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    )
+                )
+
+                OutlinedTextField(
+                    value = humedadOptimaSuelo,
+                    onValueChange = { humedadOptimaSuelo = it },
+                    label = { Text("H. Suelo Ópt (%)") },
+                    modifier = Modifier.weight(1f),
+                    isError = humSueloOptNum < humSueloMinNum,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFFB4F391),
+                        unfocusedBorderColor = Color.Gray,
+                        focusedLabelColor = Color(0xFFB4F391),
+                        unfocusedLabelColor = Color.Gray,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    )
+                )
+            }
+
+            OutlinedTextField(
+                value = consumoAguaM2,
+                onValueChange = { consumoAguaM2 = it },
+                label = { Text("Consumo Agua (L/h por m²)") },
+                modifier = Modifier.fillMaxWidth(),
+                isError = consumoNum <= 0f,
+                supportingText = { Text("Valor recomendado: 3.0 L/h") },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color(0xFFB4F391),
+                    unfocusedBorderColor = Color.Gray,
+                    focusedLabelColor = Color(0xFFB4F391),
+                    unfocusedLabelColor = Color.Gray,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                )
+            )
 
             // Mensaje de error si la creación falla en el backend
             if (uiState is AddParcelUiState.Error) {

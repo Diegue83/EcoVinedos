@@ -24,6 +24,7 @@ const ultimosGuardados = new Map();
 client.on("connect", () => {
     console.log("✅ Conectado al broker MQTT");
     client.subscribe("vinedo/parcela/+/stats");
+    client.subscribe("vinedo/parcela/+/riego");
     client.subscribe("vinedo/nodo/vincular");
     publicarListaParcelas();
 });
@@ -36,6 +37,35 @@ client.on("connect", () => {
 client.on("message", async (topic, message) => {
     const payload = message.toString();
 
+    // 0. Manejo de Riego (Control y Estado)
+    if (topic.startsWith("vinedo/parcela/") && topic.endsWith("/riego")) {
+        try {
+            const parts = topic.split("/");
+            const parcelaId = parts[2];
+            const data = JSON.parse(payload);
+
+            const comando = data.comando;
+            const duracion = data.duracion || 0;
+            const estado = data.estado;
+
+            const update = {};
+            if (comando === "ON" || estado === "ACTIVO") {
+                update.riegoActivo = true;
+                update.tiempoRestanteRiego = duracion * 60; // Guardar en segundos si el input fue minutos
+            } else if (comando === "OFF" || estado === "INACTIVO") {
+                update.riegoActivo = false;
+                update.tiempoRestanteRiego = 0;
+            }
+
+            if (Object.keys(update).length > 0) {
+                await Parcela.findByIdAndUpdate(parcelaId, update);
+                console.log(`💧 Riego actualizado para parcela ${parcelaId}: ${update.riegoActivo ? 'ON' : 'OFF'}`);
+            }
+        } catch (err) {
+            console.error("Error procesando riego MQTT:", err.message);
+        }
+    }
+
     // 1. Manejo de Estadísticas de Sensores
     if (topic.startsWith("vinedo/parcela/") && topic.endsWith("/stats")) {
         try {
@@ -47,12 +77,16 @@ client.on("message", async (topic, message) => {
             const humAire = sensores.humedad_aire || 0;
             const tempAire = sensores.temperatura_aire || 0;
             const humSuelo = sensores.humedad_suelo || 0;
+            const riegoActivo = data.riegoActivo || false;
+            const tiempoRestante = data.tiempoRestante || 0;
 
             // Actualizar valores actuales en la parcela
             await Parcela.findByIdAndUpdate(parcelaId, {
                 humedad: humAire,
                 temperatura: tempAire,
                 humedadSuelo: humSuelo,
+                riegoActivo: riegoActivo,
+                tiempoRestanteRiego: tiempoRestante,
                 ultimaConexion: new Date()
             });
 
@@ -131,6 +165,10 @@ const mapParcela = (parcela) => ({
     ph: parcela.ph,
     acidez: parcela.acidez,
     phSuelo: parcela.phSuelo,
+    riegoActivo: parcela.riegoActivo,
+    tiempoRestanteRiego: parcela.tiempoRestanteRiego,
+    tipoRiego: parcela.tipoRiego,
+    consumoAguaM2: parcela.consumoAguaM2,
     nodoVinculado: parcela.nodoVinculado
 });
 

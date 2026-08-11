@@ -34,6 +34,29 @@ const parcelaSchema = new mongoose.Schema(
         default: 30
     },
 
+    umbralHumedadSuelo: {
+        type: Number,
+        required: true,
+        min: 0,
+        max: 100,
+        default: 40
+    },
+
+    humedadOptimaSuelo: {
+        type: Number,
+        required: true,
+        min: 0,
+        max: 100,
+        default: 70
+    },
+
+    consumoAguaM2: {
+        type: Number,
+        required: true,
+        min: 0,
+        default: 3.0
+    },
+
     indiceMaduracion: {
         type: Number,
         required: true,
@@ -86,6 +109,22 @@ const parcelaSchema = new mongoose.Schema(
     phSuelo: {
         type: Number,
         default: 0
+    },
+
+    riegoActivo: {
+        type: Boolean,
+        default: false
+    },
+
+    tiempoRestanteRiego: {
+        type: Number,
+        default: 0
+    },
+
+    tipoRiego: {
+        type: String,
+        enum: ['AUTO', 'MANUAL'],
+        default: 'MANUAL'
     },
 
     nodoVinculado: {
