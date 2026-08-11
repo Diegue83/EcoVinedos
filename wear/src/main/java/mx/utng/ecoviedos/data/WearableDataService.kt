@@ -46,7 +46,7 @@ class WearableDataService : WearableListenerService() {
                         temperatura = m.temperatura,
                         humedadSuelo = m.humedadSuelo ?: 0f,
                         riegoActivo = m.riegoActivo ?: false,
-                        tiempoRestanteRiego = m.tiempoRestanteRiego ?: 0,
+                        tiempoRestanteRiego = (m.tiempoRestanteRiego ?: 0) * 60, // Sincronizar en segundos
                         tipoRiego = m.tipoRiego ?: "MANUAL"
                     )
                 }

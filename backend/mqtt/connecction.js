@@ -51,7 +51,7 @@ client.on("message", async (topic, message) => {
             const update = {};
             if (comando === "ON" || estado === "ACTIVO") {
                 update.riegoActivo = true;
-                update.tiempoRestanteRiego = duracion * 60; // Guardar en segundos si el input fue minutos
+                update.tiempoRestanteRiego = duracion; // Guardar en minutos
             } else if (comando === "OFF" || estado === "INACTIVO") {
                 update.riegoActivo = false;
                 update.tiempoRestanteRiego = 0;

@@ -105,7 +105,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
                             val savedEnd = prefs.getLong("riego_end_${parcela.id}", 0L)
                             if (parcela.riegoActivo && savedEnd > 0) {
                                 val diff = (savedEnd - System.currentTimeMillis()) / 1000
-                                parcela.copy(tiempoRestanteRiego = diff.toInt())
+                                // Si la diferencia es positiva, usamos el tiempo local. 
+                                // Si es negativa y es manual, también (para mostrar excedido).
+                                if (diff > 0 || parcela.tipoRiego == "MANUAL") {
+                                    parcela.copy(tiempoRestanteRiego = diff.toInt())
+                                } else {
+                                    parcela
+                                }
                             } else {
                                 parcela
                             }
@@ -372,10 +378,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
                 android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
             )
             
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                alarmManager.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, endTime, pendingIntent)
-            } else {
-                alarmManager.setExact(android.app.AlarmManager.RTC_WAKEUP, endTime, pendingIntent)
+            try {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                    if (alarmManager.canScheduleExactAlarms()) {
+                        alarmManager.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, endTime, pendingIntent)
+                    } else {
+                        alarmManager.setAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, endTime, pendingIntent)
+                    }
+                } else {
+                    alarmManager.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, endTime, pendingIntent)
+                }
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Error scheduling exact alarm", e)
+                alarmManager.set(android.app.AlarmManager.RTC_WAKEUP, endTime, pendingIntent)
             }
         } else {
             prefs.edit().remove("riego_end_$parcelId").apply()

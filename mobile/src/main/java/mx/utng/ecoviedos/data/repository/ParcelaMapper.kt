@@ -33,7 +33,7 @@ fun ParcelaResponse.toDomain(): Parcela {
         temperatura = (temperatura ?: 0.0).toFloat(),
         humedadSuelo = (humedadSuelo ?: 0.0).toFloat(),
         riegoActivo = riegoActivo ?: false,
-        tiempoRestanteRiego = tiempoRestanteRiego ?: 0,
+        tiempoRestanteRiego = (tiempoRestanteRiego ?: 0) * 60, // Servidor guarda minutos, app usa segundos
         brix = brix?.toFloat(),
         ph = ph?.toFloat(),
         acidez = acidez?.toFloat(),
