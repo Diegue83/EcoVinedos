@@ -2,11 +2,9 @@ const nodemailer = require('nodemailer');
 
 const enviarEmailRecuperacion = async (destinatario, codigo) => {
   try {
-    // Configuración del transportador optimizada para Render (Puerto 587)
+    // Configuración usando 'service: gmail' (Más compatible con Render)
     const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 587,
-      secure: false, // true para puerto 465, false para otros (como 587)
+      service: 'gmail',
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
