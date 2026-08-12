@@ -6,12 +6,18 @@ const {
   obtenerUsuarios,
   obtenerUsuarioPorId,
   actualizarUsuario,
-  eliminarUsuario
+  eliminarUsuario,
+  solicitarRecuperacion,
+  verificarCodigo,
+  restablecerContraseña
 } = require('../controllers/usuarioController');
 const { protegerRuta, permitirRoles } = require('../middleware/authMiddleware');
 
-// Ruta pública
+// Rutas públicas
 router.post('/login', login);
+router.post('/auth/forgot-password', solicitarRecuperacion);
+router.post('/auth/verify-code', verificarCodigo);
+router.post('/auth/reset-password', restablecerContraseña);
 
 // Solo superusuarios pueden gestionar usuarios
 router.get('/usuarios', protegerRuta, permitirRoles('superusuario'), obtenerUsuarios);

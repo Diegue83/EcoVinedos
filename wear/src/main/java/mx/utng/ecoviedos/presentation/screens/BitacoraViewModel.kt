@@ -52,6 +52,9 @@ class BitacoraViewModel(
             },
             onRiegoStatusReceived = { id, activo, tiempo ->
                 updateRiegoLocalmente(id, activo, tiempo)
+            },
+            onStatusChanged = { status ->
+                _uiState.value = _uiState.value.copy(connectionMessage = status)
             }
         )
         

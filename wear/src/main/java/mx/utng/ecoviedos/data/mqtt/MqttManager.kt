@@ -12,38 +12,73 @@ import java.util.Date
 
 class MqttManager(
     private val onSensorsUpdated: (parcelId: String, humedad: Float, temperatura: Float, humedadSuelo: Float, riegoActivo: Boolean, tiempoRestante: Int) -> Unit,
-    private val onRiegoStatusReceived: (parcelId: String, activo: Boolean, tiempo: Int) -> Unit
+    private val onRiegoStatusReceived: (parcelId: String, activo: Boolean, tiempo: Int) -> Unit,
+    private val onStatusChanged: (String) -> Unit
 ) {
     private var mqttClient: MqttClient? = null
     private val gson = Gson()
     private val clientId = "WearClient_${System.currentTimeMillis()}"
 
     fun connect() {
+        if (mqttClient?.isConnected == true) {
+            Log.d("MQTT_Wear", "Ya está conectado, omitiendo...")
+            return
+        }
+
         try {
-            mqttClient = MqttClient(MqttConfig.BROKER_URL, clientId, MemoryPersistence())
+            Log.d("MQTT_Wear", "Iniciando conexión a ${MqttConfig.BROKER_URL}...")
+            onStatusChanged("Conectando al broker...")
+            
+            if (mqttClient == null) {
+                mqttClient = MqttClient(MqttConfig.BROKER_URL, clientId, MemoryPersistence())
+            }
+
             val options = MqttConnectOptions().apply {
                 userName = MqttConfig.USERNAME
                 password = MqttConfig.PASSWORD.toCharArray()
                 isAutomaticReconnect = true
                 isCleanSession = true
-                connectionTimeout = 30
-                keepAliveInterval = 60
+                connectionTimeout = 15 // Reducido para Wear OS
+                keepAliveInterval = 30 // Reducido para evitar desconexiones por NAT
                 
                 if (MqttConfig.BROKER_URL.startsWith("ssl://")) {
-                    sslProperties = java.util.Properties()
+                    try {
+                        val sslContext = javax.net.ssl.SSLContext.getInstance("TLSv1.2")
+                        sslContext.init(null, null, null)
+                        socketFactory = sslContext.socketFactory
+                    } catch (e: Exception) {
+                        Log.e("MQTT_Wear", "Error configurando SSL context: ${e.message}")
+                    }
                 }
             }
 
             mqttClient?.setCallback(object : MqttCallbackExtended {
                 override fun connectComplete(reconnect: Boolean, serverURI: String?) {
-                    Log.d("MQTT_Wear", "Conectado a $serverURI")
-                    mqttClient?.subscribe(MqttConfig.TOPIC_PARCELAS_LISTA, 1)
-                    mqttClient?.subscribe(MqttConfig.TOPIC_PARCELA_STATS, 1)
-                    mqttClient?.subscribe("vinedo/parcela/+/riego", 1)
+                    Log.d("MQTT_Wear", "✅ CONECTADO EXITOSAMENTE a $serverURI (reconnect: $reconnect)")
+                    onStatusChanged("Conectado")
+                    try {
+                        mqttClient?.subscribe(MqttConfig.TOPIC_PARCELAS_LISTA, 1)
+                        mqttClient?.subscribe(MqttConfig.TOPIC_PARCELA_STATS, 1)
+                        mqttClient?.subscribe("vinedo/parcela/+/riego", 1)
+                        Log.d("MQTT_Wear", "Suscrito a tópicos")
+                    } catch (e: Exception) {
+                        Log.e("MQTT_Wear", "Error al suscribirse: ${e.message}")
+                    }
                 }
 
                 override fun connectionLost(cause: Throwable?) {
-                    Log.e("MQTT_Wear", "Conexión perdida: ${cause?.message}")
+                    val msg = cause?.message ?: "Desconocido"
+                    Log.e("MQTT_Wear", "❌ Conexión perdida: $msg", cause)
+                    onStatusChanged("Reconectando...")
+                    
+                    // Si el error es el aborto por software, a veces un cierre manual ayuda
+                    if (msg.contains("Software caused connection abort")) {
+                         Log.w("MQTT_Wear", "Detectado aborto por software, intentando limpiar...")
+                         // Intentar reconectar manualmente después de un breve delay
+                         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                             connect()
+                         }, 5000)
+                    }
                 }
 
                 override fun messageArrived(topic: String?, message: MqttMessage?) {
@@ -150,8 +185,13 @@ class MqttManager(
 
     fun disconnect() {
         try {
-            mqttClient?.disconnect()
-            mqttClient?.close()
-        } catch (e: Exception) {}
+            mqttClient?.let {
+                if (it.isConnected) it.disconnect()
+                it.close()
+            }
+            mqttClient = null
+        } catch (e: Exception) {
+            Log.e("MQTT_Wear", "Error al desconectar: ${e.message}")
+        }
     }
 }

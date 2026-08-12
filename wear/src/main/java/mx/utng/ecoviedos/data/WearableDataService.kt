@@ -14,6 +14,7 @@ import com.google.android.gms.wearable.WearableListenerService
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import mx.utng.ecoviedos.domain.model.Parcela
+import mx.utng.ecoviedos.presentation.AlertaActivity
 import mx.utng.ecoviedos.presentation.MainActivity
 import java.util.Date
 
@@ -65,15 +66,12 @@ class WearableDataService : WearableListenerService() {
     private fun checkCriticalSoilMoisture(parcelas: List<Parcela>) {
         val criticalParcels = parcelas.filter { it.esHumedadCritica() }
         if (criticalParcels.isNotEmpty()) {
-            val names = criticalParcels.joinToString { it.nombreParcela }
-            showNotification(
-                "¡Humedad Crítica!", 
-                "Humedad baja en suelo: $names. Toca para ver detalles."
-            )
+            val mostCritical = criticalParcels.minBy { it.humedadSuelo }
+            showUrgentAlert(mostCritical)
         }
     }
 
-    private fun showNotification(title: String, message: String) {
+    private fun showUrgentAlert(parcela: Parcela) {
         val channelId = "critical_alerts"
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         
@@ -82,40 +80,37 @@ class WearableDataService : WearableListenerService() {
             notificationManager.createNotificationChannel(channel)
         }
 
-        val intent = Intent(this, MainActivity::class.java).apply {
+        // Intent para abrir AlertaActivity directamente (Full Screen Intent)
+        val fullScreenIntent = Intent(this, AlertaActivity::class.java).apply {
+            putExtra("parcela_id", parcela.id)
+            putExtra("parcela", parcela.nombreParcela)
+            putExtra("variedad", parcela.variedad)
+            putExtra("humedad", "${parcela.humedadSuelo.toInt()}%")
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        
+        val fullScreenPendingIntent = PendingIntent.getActivity(
+            this, 0, fullScreenIntent, 
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // Intent normal para cuando tocan la notificación manualmente
+        val mainIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
-        val pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
+        val mainPendingIntent = PendingIntent.getActivity(this, 1, mainIntent, PendingIntent.FLAG_IMMUTABLE)
 
         val notification = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(android.R.drawable.stat_notify_error)
-            .setContentTitle(title)
-            .setContentText(message)
+            .setSmallIcon(android.R.drawable.stat_sys_warning)
+            .setContentTitle("¡Humedad Crítica!")
+            .setContentText("Parcela ${parcela.nombreParcela} requiere riego.")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setAutoCancel(true)
-            .setContentIntent(pendingIntent)
+            .setFullScreenIntent(fullScreenPendingIntent, true) // Esto hace que salte la actividad
+            .setContentIntent(mainPendingIntent)
             .build()
 
-        notificationManager.notify(1, notification)
+        notificationManager.notify(parcela.id.hashCode(), notification)
     }
 }
-
-data class ParcelaMap(
-    val id: String,
-    val nombreParcela: String?,
-    val variedad: String?,
-    val areaM2: Int,
-    val umbralHumedad: Float,
-    val umbralTemp: Float,
-    val umbralHumedadSuelo: Float? = null,
-    val indiceMaduracion: Float,
-    val fechaCosecha: Date?,
-    val activa: Boolean,
-    val humedad: Float,
-    val temperatura: Float,
-    val humedadSuelo: Float? = null,
-    val riegoActivo: Boolean? = null,
-    val tiempoRestanteRiego: Int? = null,
-    val tipoRiego: String? = null
-)

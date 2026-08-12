@@ -41,4 +41,13 @@ interface UsuarioService {
         @Header("Authorization") token: String,
         @Path("id") id: String
     ): Response<Unit>
+
+    @POST("api/auth/forgot-password")
+    suspend fun solicitarRecuperacion(@Body request: Map<String, String>): Response<Map<String, String>>
+
+    @POST("api/auth/verify-code")
+    suspend fun verificarCodigo(@Body request: Map<String, String>): Response<Map<String, String>>
+
+    @POST("api/auth/reset-password")
+    suspend fun reestablecerContraseña(@Body request: Map<String, String>): Response<Map<String, String>>
 }

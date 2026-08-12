@@ -63,6 +63,14 @@ class MainActivity : ComponentActivity() {
             AppTheme {
                 val navController = rememberSwipeDismissableNavController()
                 
+                // Manejar navegación desde AlertaActivity
+                LaunchedEffect(intent) {
+                    intent.getStringExtra("navigate_to_parcel")?.let { id ->
+                        navController.navigate("parcel_detail/$id")
+                        intent.removeExtra("navigate_to_parcel")
+                    }
+                }
+                
                 SwipeDismissableNavHost(
                     navController = navController, 
                     startDestination = "main_pager"
@@ -120,7 +128,22 @@ fun MainPagerScreen(viewModel: BitacoraViewModel, onNavigateToSuccess: () -> Uni
         Box(modifier = Modifier.fillMaxSize()) {
             if (uiState.parcelas.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Conectando a Mosquitto...", textAlign = TextAlign.Center)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator()
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = uiState.connectionMessage, 
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            text = "Asegúrate que el móvil esté cerca y conectado",
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.Gray,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                    }
                 }
             } else {
                 HorizontalPager(

@@ -29,17 +29,27 @@ import java.util.*
 @Composable
 fun HistoryScreen(
     parcelas: List<Parcela>,
-    viewModel: HistorialViewModel = viewModel()
+    viewModel: HistorialViewModel
 ) {
-    var selectedParcela by remember { mutableStateOf(parcelas.firstOrNull()) }
+    val selectedId by viewModel.selectedParcelId.collectAsState()
+    val selectedParcela = remember(selectedId, parcelas) {
+        parcelas.find { it.id == selectedId } ?: parcelas.firstOrNull()
+    }
+    
     var expanded by remember { mutableStateOf(false) }
     var tabIndex by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Reciente (15m)", "Diario (1 año)")
+    val tabs = listOf("Reciente", "Diario")
 
     val uiState by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(selectedParcela) {
-        selectedParcela?.let { viewModel.cargarDatos(it.id) }
+    LaunchedEffect(Unit) {
+        selectedId?.let { viewModel.cargarDatos(it) }
+    }
+
+    LaunchedEffect(parcelas) {
+        if (selectedId == null && parcelas.isNotEmpty()) {
+            viewModel.seleccionarParcela(parcelas.first().id)
+        }
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
@@ -70,7 +80,7 @@ fun HistoryScreen(
                     DropdownMenuItem(
                         text = { Text(parcela.nombreParcela, color = Color.White) },
                         onClick = {
-                            selectedParcela = parcela
+                            viewModel.seleccionarParcela(parcela.id)
                             expanded = false
                         }
                     )
@@ -126,7 +136,7 @@ fun RecentHistoryList(historial: List<HistorialSensorResponse>, riegos: List<mx.
             historial.groupBy { item ->
                 try {
                     val date = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", locale).parse(item.fecha) ?: Date()
-                    SimpleDateFormat("dd MMM yyyy, HH 'hrs'", locale).format(date)
+                    SimpleDateFormat("dd MMM yyyy, hh a", locale).format(date)
                 } catch (e: Exception) { "Desconocido" }
             }
         }
@@ -150,8 +160,9 @@ fun RecentHistoryList(historial: List<HistorialSensorResponse>, riegos: List<mx.
                     val isIrrigating = riegos.any { r ->
                         try {
                             val rStart = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", locale).parse(r.fecha ?: "") ?: Date()
-                            val rEnd = Date(rStart.time + r.duracion * 60 * 1000)
-                            itemDate.after(rStart) && itemDate.before(rEnd)
+                            val rEnd = Date(rStart.time + r.duracion * 60L * 1000L)
+                            // Un margen de 15 minutos para atrapar la lectura del sensor
+                            itemDate.time >= rStart.time && itemDate.time <= rEnd.time
                         } catch (e: Exception) { false }
                     }
 
@@ -251,7 +262,7 @@ fun HistoryItemCard(
                 StatValue("H.A.", "${hAire.toInt()}%", Color(0xFF4FC3F7))
                 StatValue("H.S.", "${hSuelo.toInt()}%", Color(0xFF81C784))
                 if (isSummary || aguaLiters > 0) {
-                    StatValue("Agua", "${aguaLiters.toInt()}L", Color(0xFF7CB9FF))
+                    StatValue("Agua", if (isSummary) "${aguaLiters.toInt()}L" else "${String.format(locale, "%.1f", aguaLiters)}L/h", Color(0xFF7CB9FF))
                 }
             }
         }

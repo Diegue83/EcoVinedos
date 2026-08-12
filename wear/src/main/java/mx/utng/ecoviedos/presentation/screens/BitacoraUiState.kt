@@ -11,5 +11,6 @@ data class BitacoraUiState(
     val isRecording: Boolean = false,
     val isPlaying: Boolean = false,
     val lastAudioPath: String? = null,
-    val isIrrigationActive: Boolean = false
+    val isIrrigationActive: Boolean = false,
+    val connectionMessage: String = "Conectando..."
 )

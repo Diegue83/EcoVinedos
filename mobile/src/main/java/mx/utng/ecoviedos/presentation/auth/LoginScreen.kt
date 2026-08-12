@@ -32,8 +32,8 @@ fun LoginScreen(
 
     // Reacciona cuando el login termina exitosamente
     LaunchedEffect(uiState) {
-        if (uiState is AuthUiState.Success) {
-            onLoginSuccess((uiState as AuthUiState.Success).rol)
+        if (uiState is AuthUiState.LoginSuccess) {
+            onLoginSuccess((uiState as AuthUiState.LoginSuccess).rol)
             authViewModel.resetState()
         }
     }

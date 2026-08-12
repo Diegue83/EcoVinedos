@@ -18,8 +18,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import mx.utng.ecoviedos.presentation.auth.LoginScreen
+import mx.utng.ecoviedos.presentation.auth.ForgotPasswordScreen
+import mx.utng.ecoviedos.presentation.auth.VerifyCodeScreen
+import mx.utng.ecoviedos.presentation.auth.ResetPasswordScreen
 import mx.utng.ecoviedos.presentation.main.MainScreen
 import mx.utng.ecoviedos.presentation.main.MainViewModel
+import mx.utng.ecoviedos.presentation.main.HistorialViewModel
 import mx.utng.ecoviedos.presentation.main.ParcelDetailsScreen
 import mx.utng.ecoviedos.presentation.main.RegisterSampleScreen
 import mx.utng.ecoviedos.presentation.main.NotificationScreen
@@ -61,6 +65,7 @@ class MainActivity : ComponentActivity() {
                     val mainViewModel: MainViewModel = viewModel()
                     val adminViewModel: AdminViewModel = viewModel()
                     val configViewModel: DeviceConfigViewModel = viewModel()
+                    val historialViewModel: HistorialViewModel = viewModel()
                     
                     // Conectar ViewModels para el testeo local
                     adminViewModel.setMainViewModel(mainViewModel)
@@ -79,7 +84,38 @@ class MainActivity : ComponentActivity() {
                                             popUpTo("login") { inclusive = true }
                                         }
                                     },
-                                    onForgotPassword = { /* Navigate to recovery */ }
+                                    onForgotPassword = { navController.navigate("forgot_password") }
+                                )
+                            }
+                            composable("forgot_password") {
+                                ForgotPasswordScreen(
+                                    onNavigateBack = { navController.popBackStack() },
+                                    onCodeSent = { email -> 
+                                        navController.navigate("verify_code/$email")
+                                    }
+                                )
+                            }
+                            composable("verify_code/{email}") { backStackEntry ->
+                                val email = backStackEntry.arguments?.getString("email") ?: ""
+                                VerifyCodeScreen(
+                                    email = email,
+                                    onNavigateBack = { navController.popBackStack() },
+                                    onCodeVerified = { code ->
+                                        navController.navigate("reset_password/$email/$code")
+                                    }
+                                )
+                            }
+                            composable("reset_password/{email}/{code}") { backStackEntry ->
+                                val email = backStackEntry.arguments?.getString("email") ?: ""
+                                val code = backStackEntry.arguments?.getString("code") ?: ""
+                                ResetPasswordScreen(
+                                    email = email,
+                                    code = code,
+                                    onPasswordReset = {
+                                        navController.navigate("login") {
+                                            popUpTo("forgot_password") { inclusive = true }
+                                        }
+                                    }
                                 )
                             }
                             composable("main") {
@@ -90,6 +126,7 @@ class MainActivity : ComponentActivity() {
                                 
                                 MainScreen(
                                     viewModel = mainViewModel,
+                                    historialViewModel = historialViewModel,
                                     initialTab = initialTab,
                                     onNavigateToAdmin = { navController.navigate("admin") },
                                     onNavigateToParcelDetails = { id -> navController.navigate("parcel_details/$id") },

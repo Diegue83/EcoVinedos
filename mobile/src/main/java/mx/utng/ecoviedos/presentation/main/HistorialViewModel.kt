@@ -40,6 +40,14 @@ class HistorialViewModel(application: Application) : AndroidViewModel(applicatio
     private val _uiState = MutableStateFlow<HistorialUiState>(HistorialUiState.Idle)
     val uiState: StateFlow<HistorialUiState> = _uiState.asStateFlow()
 
+    private val _selectedParcelId = MutableStateFlow<String?>(null)
+    val selectedParcelId: StateFlow<String?> = _selectedParcelId.asStateFlow()
+
+    fun seleccionarParcela(id: String) {
+        _selectedParcelId.value = id
+        cargarDatos(id)
+    }
+
     /**
      * Carga tanto el historial reciente como los resúmenes diarios de una parcela.
      * 

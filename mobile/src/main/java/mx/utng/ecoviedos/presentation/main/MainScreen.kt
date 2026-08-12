@@ -16,6 +16,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @Composable
 fun MainScreen(
     viewModel: MainViewModel = viewModel(),
+    historialViewModel: HistorialViewModel = viewModel(),
     initialTab: Int = 0,
     onNavigateToAdmin: () -> Unit = {},
     onNavigateToParcelDetails: (String) -> Unit = {},
@@ -77,7 +78,7 @@ fun MainScreen(
                 0 -> DashboardContent(viewModel, parcelas, onNavigateToAdmin, onLogout, userRol ?: "", onNavigateToNotifications)
                 1 -> MaturationContent(parcelas, onNavigateToParcelDetails, onRefresh = { viewModel.cargarParcelas() }, userRol = userRol ?: "")
                 2 -> IrrigationScreen(parcelas, viewModel)
-                3 -> HistoryScreen(parcelas)
+                3 -> HistoryScreen(parcelas, historialViewModel)
                 else -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("Configuración (En desarrollo)")
                 }

@@ -126,11 +126,87 @@ const eliminarUsuario = async (req, res, next) => {
   }
 };
 
+// @desc    Solicitar código de recuperación
+// @route   POST /api/auth/forgot-password
+const solicitarRecuperacion = async (req, res, next) => {
+  try {
+    const { correo } = req.body;
+    const usuario = await Usuario.findOne({ correo });
+
+    if (!usuario) {
+      return res.status(404).json({ mensaje: 'No existe un usuario con ese correo' });
+    }
+
+    // Generar código de 6 dígitos
+    const codigo = Math.floor(100000 + Math.random() * 900000).toString();
+    usuario.resetPasswordCode = codigo;
+    usuario.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // 10 minutos
+    await usuario.save();
+
+    // Aquí se enviaría el correo. Simulamos logueando en consola.
+    console.log(`[EMAIL SIMULATION] Para: ${correo}, Código: ${codigo}`);
+
+    res.json({ mensaje: 'Código enviado al correo' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Verificar código de recuperación
+// @route   POST /api/auth/verify-code
+const verificarCodigo = async (req, res, next) => {
+  try {
+    const { correo, codigo } = req.body;
+    const usuario = await Usuario.findOne({
+      correo,
+      resetPasswordCode: codigo,
+      resetPasswordExpires: { $gt: Date.now() }
+    });
+
+    if (!usuario) {
+      return res.status(400).json({ mensaje: 'Código inválido o expirado' });
+    }
+
+    res.json({ mensaje: 'Código verificado correctamente' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Restablecer contraseña
+// @route   POST /api/auth/reset-password
+const restablecerContraseña = async (req, res, next) => {
+  try {
+    const { correo, codigo, nuevaContraseña } = req.body;
+    const usuario = await Usuario.findOne({
+      correo,
+      resetPasswordCode: codigo,
+      resetPasswordExpires: { $gt: Date.now() }
+    });
+
+    if (!usuario) {
+      return res.status(400).json({ mensaje: 'Código inválido o expirado' });
+    }
+
+    usuario.contraseña = nuevaContraseña;
+    usuario.resetPasswordCode = undefined;
+    usuario.resetPasswordExpires = undefined;
+    await usuario.save();
+
+    res.json({ mensaje: 'Contraseña actualizada correctamente' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   login,
   crearUsuario,
   obtenerUsuarios,
   obtenerUsuarioPorId,
   actualizarUsuario,
-  eliminarUsuario
+  eliminarUsuario,
+  solicitarRecuperacion,
+  verificarCodigo,
+  restablecerContraseña
 };

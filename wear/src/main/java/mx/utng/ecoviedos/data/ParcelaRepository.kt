@@ -13,3 +13,22 @@ object ParcelaRepository {
         _parcelas.value = newList
     }
 }
+
+data class ParcelaMap(
+    val id: String,
+    val nombreParcela: String?,
+    val variedad: String?,
+    val areaM2: Int,
+    val umbralHumedad: Float,
+    val umbralTemp: Float,
+    val umbralHumedadSuelo: Float? = null,
+    val indiceMaduracion: Float,
+    val fechaCosecha: Date?,
+    val activa: Boolean,
+    val humedad: Float,
+    val temperatura: Float,
+    val humedadSuelo: Float? = null,
+    val riegoActivo: Boolean? = null,
+    val tiempoRestanteRiego: Int? = null,
+    val tipoRiego: String? = null
+)
