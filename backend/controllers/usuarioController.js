@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const Usuario = require('../models/Usuario');
+const { enviarEmailRecuperacion } = require('../utils/emailService');
 
 const generarToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -143,10 +144,14 @@ const solicitarRecuperacion = async (req, res, next) => {
     usuario.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // 10 minutos
     await usuario.save();
 
-    // Aquí se enviaría el correo. Simulamos logueando en consola.
-    console.log(`[EMAIL SIMULATION] Para: ${correo}, Código: ${codigo}`);
+    // Enviar el correo usando Nodemailer
+    const enviado = await enviarEmailRecuperacion(correo, codigo);
 
-    res.json({ mensaje: 'Código enviado al correo' });
+    if (enviado) {
+      res.json({ mensaje: 'Código enviado al correo' });
+    } else {
+      res.status(500).json({ mensaje: 'Error al enviar el correo. Inténtalo más tarde.' });
+    }
   } catch (error) {
     next(error);
   }
