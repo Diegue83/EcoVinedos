@@ -25,6 +25,7 @@ client.on("connect", () => {
     console.log("✅ Conectado al broker MQTT");
     client.subscribe("vinedo/parcela/+/stats");
     client.subscribe("vinedo/parcela/+/riego");
+    client.subscribe("vinedo/parcela/+/control");
     client.subscribe("vinedo/nodo/vincular");
     publicarListaParcelas();
 });
@@ -38,7 +39,7 @@ client.on("message", async (topic, message) => {
     const payload = message.toString();
 
     // 0. Manejo de Riego (Control y Estado)
-    if (topic.startsWith("vinedo/parcela/") && topic.endsWith("/riego")) {
+    if (topic.startsWith("vinedo/parcela/") && (topic.endsWith("/riego") || topic.endsWith("/control"))) {
         try {
             const parts = topic.split("/");
             const parcelaId = parts[2];
@@ -80,30 +81,46 @@ client.on("message", async (topic, message) => {
             const riegoActivo = data.riegoActivo || false;
             const tiempoRestante = data.tiempoRestante || 0;
 
-            // Actualizar valores actuales en la parcela
-            await Parcela.findByIdAndUpdate(parcelaId, {
+            // Preparar campos de actualización
+            const updateFields = {
                 humedad: humAire,
                 temperatura: tempAire,
                 humedadSuelo: humSuelo,
-                riegoActivo: riegoActivo,
-                tiempoRestanteRiego: tiempoRestante,
                 ultimaConexion: new Date()
-            });
+            };
+
+            // Solo actualizar riego si viene como TRUE (protección contra falsos negativos de stats)
+            // Si viene FALSE, mantenemos lo que esté en la base de datos (se apaga via /control o /riego)
+            if (riegoActivo === true) {
+                updateFields.riegoActivo = true;
+                updateFields.tiempoRestanteRiego = tiempoRestante;
+            }
+
+            // Actualizar valores actuales en la parcela
+            const parcelaActualizada = await Parcela.findByIdAndUpdate(parcelaId, updateFields, { new: true });
 
             // Guardar en historial solo cada 15 minutos
             const ahora = Date.now();
             const ultimo = ultimosGuardados.get(parcelaId) || 0;
             const QUINCE_MINUTOS = 15 * 60 * 1000;
 
-            if (ahora - ultimo >= QUINCE_MINUTOS) {
+            if (ahora - ultimo >= QUINCE_MINUTOS && parcelaActualizada) {
+                // Calcular consumo de agua en este intervalo de 15 min (si el riego estaba activo)
+                let consumoIntervalo = 0;
+                if (parcelaActualizada.riegoActivo) {
+                    const horas = 15 / 60; // 0.25 horas
+                    consumoIntervalo = horas * parcelaActualizada.consumoAguaM2 * parcelaActualizada.areaM2;
+                }
+
                 await HistorialSensor.create({
                     parcela: parcelaId,
                     humedadAire: humAire,
                     temperaturaAire: tempAire,
-                    humedadSuelo: humSuelo
+                    humedadSuelo: humSuelo,
+                    consumoAgua: consumoIntervalo
                 });
                 ultimosGuardados.set(parcelaId, ahora);
-                console.log(`📊 Historial guardado para parcela ${parcelaId}`);
+                console.log(`📊 Historial guardado para parcela ${parcelaId}. Consumo: ${consumoIntervalo.toFixed(2)}L`);
             }
         } catch (err) {
             console.error("Error procesando stats MQTT:", err.message);

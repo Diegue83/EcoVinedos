@@ -33,7 +33,8 @@ async function generarResumenesDiarios() {
                 const promedio = {
                     humedadAire: lecturas.reduce((acc, l) => acc + l.humedadAire, 0) / lecturas.length,
                     temperaturaAire: lecturas.reduce((acc, l) => acc + l.temperaturaAire, 0) / lecturas.length,
-                    humedadSuelo: lecturas.reduce((acc, l) => acc + l.humedadSuelo, 0) / lecturas.length
+                    humedadSuelo: lecturas.reduce((acc, l) => acc + l.humedadSuelo, 0) / lecturas.length,
+                    consumoAgua: lecturas.reduce((acc, l) => acc + (l.consumoAgua || 0), 0)
                 };
 
                 await ResumenDiario.findOneAndUpdate(
@@ -41,7 +42,8 @@ async function generarResumenesDiarios() {
                     {
                         humedadAirePromedio: promedio.humedadAire,
                         temperaturaAirePromedio: promedio.temperaturaAire,
-                        humedadSueloPromedio: promedio.humedadSuelo
+                        humedadSueloPromedio: promedio.humedadSuelo,
+                        consumoAguaTotal: promedio.consumoAgua
                     },
                     { upsert: true }
                 );
