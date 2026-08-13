@@ -5,7 +5,7 @@ const {
   vincularSensor,
   actualizarBotellas
 } = require('../controllers/cavaController');
-const { protect } = require('../middleware/auth');
+const { protect } = require('../middleware/authMiddleware');
 
 router.route('/cavas').get(obtenerCavas);
 router.route('/cavas/:id/sensor').put(protect, vincularSensor);

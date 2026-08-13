@@ -37,7 +37,7 @@
       </SelectionState>
       <SelectionState runConfigName="tv">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2026-08-13T18:21:38.355834500Z">
+        <DropdownSelection timestamp="2026-08-13T20:27:33.831092500Z">
           <Target type="DEFAULT_BOOT">
             <handle>
               <DeviceId pluginId="PhysicalDevice" identifier="serial=10AD8707CK001RT" />
