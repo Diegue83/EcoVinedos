@@ -58,14 +58,17 @@ Desarrollar una aplicación multiplataforma para enoturismo y gestión del mante
 - Android Studio como entorno de desarrollo.
 
 ### Frontend Web/TV
+- Kotlin para la aplicación.
+- Android Studio como entorno de desarrollo
 - JavaScript para interfaces en Smart TV.
 
 ### Comunicación
 - MQTT (Message Queuing Telemetry Transport) para mensajería ligera.
+- HTTP (Hypertext Transfer Protocol) para comunicación cliente-servidor.
 
 ### Backend
 - Node.js para lógica de servidor.
-- [Especificar base de datos utilizada: MongoDB/PostgreSQL]
+- MongoDB como base de datos.
 
 ---
 
