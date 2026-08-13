@@ -6,6 +6,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.*
@@ -47,7 +48,7 @@ fun MainTvScreen(
     when (val state = uiState) {
         is TvUiState.Loading -> {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                CircularProgressIndicator(color = Color(0xFFB4F391))
             }
         }
         is TvUiState.NotLinked -> {
@@ -59,16 +60,15 @@ fun MainTvScreen(
                     TvScreen.DASHBOARD -> TvDashboardScreen(
                         cavas = state.cavas,
                         onNavigateToCavaDetail = { currentScreen = TvScreen.CAVA_DETAIL },
-                        onNavigateToActivities = { currentScreen = TvScreen.ACTIVITIES }
+                        onNavigateToActivities = { currentScreen = TvScreen.ACTIVITIES },
+                        onLogout = { viewModel.desvincularTv() }
                     )
                     TvScreen.CAVA_DETAIL -> CavaDetailScreen(
                         cavas = state.cavas,
                         onNavigateBack = { currentScreen = TvScreen.DASHBOARD }
                     )
                     TvScreen.ACTIVITIES -> ActivitiesScreen()
-                    TvScreen.PAIRING -> {
-                        currentScreen = TvScreen.DASHBOARD
-                    }
+                    else -> {}
                 }
             }
         }

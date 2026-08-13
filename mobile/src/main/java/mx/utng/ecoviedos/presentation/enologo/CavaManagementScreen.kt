@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Kitchen
 import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material3.*
@@ -14,19 +15,40 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
+import mx.utng.ecoviedos.data.remote.CavaResponse
+import mx.utng.ecoviedos.data.remote.RetrofitClient
+import mx.utng.ecoviedos.presentation.main.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CavaManagementScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToLinkSensor: (String, String) -> Unit // cavaId, cavaNombre
+    onNavigateToLinkSensor: (String, String) -> Unit,
+    mainViewModel: MainViewModel = viewModel()
 ) {
-    // Mock data for cavas (En producción vendrán de CavaService)
-    val cavas = listOf(
-        Pair("1", "Sección Roble"),
-        Pair("2", "Sección Acero"),
-        Pair("3", "Bodega Privada")
-    )
+    var cavas by remember { mutableStateOf<List<CavaResponse>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    val coroutineScope = rememberCoroutineScope()
+    val token by mainViewModel.sessionToken.collectAsState(initial = "")
+
+    val cargarCavas = {
+        coroutineScope.launch {
+            isLoading = true
+            try {
+                val response = RetrofitClient.cavaService.obtenerCavas()
+                if (response.isSuccessful) {
+                    cavas = response.body() ?: emptyList()
+                }
+            } catch (e: Exception) {}
+            isLoading = false
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        cargarCavas()
+    }
 
     Scaffold(
         topBar = {
@@ -40,19 +62,26 @@ fun CavaManagementScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1A1C18), titleContentColor = Color.White, navigationIconContentColor = Color.White)
             )
         },
+        floatingActionButton = {
+            FloatingActionButton(onClick = { /* Diálogo para nueva sección */ }, containerColor = Color(0xFFB4F391)) {
+                Icon(Icons.Default.Add, contentDescription = "Nueva Sección")
+            }
+        },
         containerColor = Color(0xFF1A1C18)
     ) { padding ->
         Column(modifier = Modifier.padding(padding).padding(16.dp)) {
-            Text("Vincular Sensores y Contar Botellas", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
-            Spacer(Modifier.height(16.dp))
-            
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(cavas) { cava ->
-                    CavaManageCard(
-                        id = cava.first,
-                        name = cava.second,
-                        onLinkSensor = { onNavigateToLinkSensor(cava.first, cava.second) }
-                    )
+            if (isLoading) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    items(cavas) { cava ->
+                        CavaManageCard(
+                            cava = cava,
+                            token = token ?: "",
+                            onLinkSensor = { onNavigateToLinkSensor(cava._id, cava.nombre) },
+                            onUpdate = { cargarCavas() }
+                        )
+                    }
                 }
             }
         }
@@ -60,8 +89,9 @@ fun CavaManagementScreen(
 }
 
 @Composable
-fun CavaManageCard(id: String, name: String, onLinkSensor: () -> Unit) {
-    var bottles by remember { mutableStateOf("100") }
+fun CavaManageCard(cava: CavaResponse, token: String, onLinkSensor: () -> Unit, onUpdate: () -> Unit) {
+    var bottles by remember { mutableStateOf(cava.botellasActuales.toString()) }
+    val coroutineScope = rememberCoroutineScope()
     
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -71,7 +101,7 @@ fun CavaManageCard(id: String, name: String, onLinkSensor: () -> Unit) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Kitchen, contentDescription = null, tint = Color(0xFFB4F391))
                 Spacer(Modifier.width(12.dp))
-                Text(text = name, style = MaterialTheme.typography.titleMedium, color = Color.White)
+                Text(text = cava.nombre, style = MaterialTheme.typography.titleMedium, color = Color.White)
             }
             
             Spacer(Modifier.height(16.dp))
@@ -85,8 +115,22 @@ fun CavaManageCard(id: String, name: String, onLinkSensor: () -> Unit) {
                     colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = Color(0xFFB4F391))
                 )
                 Spacer(Modifier.width(8.dp))
-                Button(onClick = { /* Update bottle count via API */ }) {
-                    Text("Guardar")
+                Button(
+                    onClick = { 
+                        coroutineScope.launch {
+                            try {
+                                RetrofitClient.cavaService.actualizarBotellas(
+                                    "Bearer $token",
+                                    cava._id,
+                                    mapOf("botellasActuales" to (bottles.toIntOrNull() ?: 0))
+                                )
+                                onUpdate()
+                            } catch (e: Exception) {}
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF384B2F))
+                ) {
+                    Text("Actualizar")
                 }
             }
             
@@ -98,7 +142,7 @@ fun CavaManageCard(id: String, name: String, onLinkSensor: () -> Unit) {
             ) {
                 Icon(Icons.Default.Sensors, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text("Vincular Sensor BLE")
+                Text(if (cava.sensorId == null) "Vincular Sensor BLE" else "Sensor: ${cava.sensorId}")
             }
         }
     }

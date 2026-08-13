@@ -5,6 +5,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Logout
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,7 +25,8 @@ import mx.utng.ecoviedos.data.remote.CavaResponse
 fun TvDashboardScreen(
     cavas: List<CavaResponse>,
     onNavigateToCavaDetail: () -> Unit,
-    onNavigateToActivities: () -> Unit
+    onNavigateToActivities: () -> Unit,
+    onLogout: () -> Unit
 ) {
     val currentTime = remember { mutableStateOf(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())) }
 
@@ -50,13 +53,28 @@ fun TvDashboardScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Eco-Viñedos Dolores — Temporada 2026",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
+            Column {
+                Text(
+                    text = "Eco-Viñedos Dolores — Temporada 2026",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Text(text = "Dashboard Principal", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            }
+            
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // Logout Button for TV
+                Button(
+                    onClick = onLogout,
+                    colors = ButtonDefaults.colors(containerColor = Color.Red.copy(alpha = 0.1f), contentColor = Color.Red),
+                    modifier = Modifier.padding(end = 16.dp)
+                ) {
+                    Icon(Icons.Default.Logout, contentDescription = "Desvincular")
+                    Spacer(Modifier.width(8.dp))
+                    Text("Desvincular")
+                }
+
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(50))

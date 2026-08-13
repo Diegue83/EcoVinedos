@@ -22,8 +22,8 @@ fun EnologoMainScreen(
     onNavigateToLinkSensor: (String, String) -> Unit = { _, _ -> }
 ) {
     var selectedItem by rememberSaveable { mutableIntStateOf(0) }
-    val items = listOf("Actividades", "Cavas", "Estado Cava")
-    val icons = listOf(Icons.Default.Event, Icons.Default.Kitchen, Icons.Default.Analytics)
+    val items = listOf("Dashboard", "Actividades", "Cavas", "Estado")
+    val icons = listOf(Icons.Default.Dashboard, Icons.Default.Event, Icons.Default.Kitchen, Icons.Default.Analytics)
 
     Scaffold(
         bottomBar = {
@@ -50,17 +50,18 @@ fun EnologoMainScreen(
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
             when (selectedItem) {
-                0 -> TourismManagementScreen(
+                0 -> EnologoDashboardScreen(onLogout = onLogout)
+                1 -> TourismManagementScreen(
                     onNavigateBack = {}, 
                     onNavigateToAdd = onNavigateToAddActivity,
                     onNavigateToEdit = onNavigateToEditActivity,
                     showBackButton = false
                 )
-                1 -> CavaManagementScreen(
+                2 -> CavaManagementScreen(
                     onNavigateBack = {},
                     onNavigateToLinkSensor = onNavigateToLinkSensor
                 )
-                2 -> CavaStateScreen(onNavigateBack = {})
+                3 -> CavaStateScreen(onNavigateBack = {})
             }
         }
     }

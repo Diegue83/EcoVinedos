@@ -42,7 +42,7 @@ app.use('/api', muestraRoutes);
 app.use('/api', historialRoutes);
 app.use('/api', notificacionRoutes);
 app.use('/api/eventos', eventoRoutes);
-app.use('/api', cavaRoutes);
+app.use('/api/cavas', cavaRoutes);
 app.use('/api/tv', tvRoutes);
 app.use('/api/upload', uploadRoutes);
 

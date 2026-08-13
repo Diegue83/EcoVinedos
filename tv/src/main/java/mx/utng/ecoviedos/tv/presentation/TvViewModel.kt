@@ -89,6 +89,11 @@ class TvViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun desvincularTv() {
+        _uiState.value = TvUiState.Loading
+        startPairingProcess()
+    }
+
     fun retry() {
         _uiState.value = TvUiState.Loading
         startPairingProcess()
