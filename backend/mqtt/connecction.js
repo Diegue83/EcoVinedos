@@ -48,14 +48,17 @@ client.on("message", async (topic, message) => {
             const comando = data.comando;
             const duracion = data.duracion || 0;
             const estado = data.estado;
+            const modo = data.modo; // "AUTO" o "MANUAL"
 
             const update = {};
             if (comando === "ON" || estado === "ACTIVO") {
                 update.riegoActivo = true;
                 update.tiempoRestanteRiego = duracion; // Guardar en minutos
+                if (modo) update.tipoRiego = modo;
             } else if (comando === "OFF" || estado === "INACTIVO") {
                 update.riegoActivo = false;
                 update.tiempoRestanteRiego = 0;
+                if (modo) update.tipoRiego = modo;
             }
 
             if (Object.keys(update).length > 0) {

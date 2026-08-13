@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "mx.utng.ecoviedos"
-    compileSdk = 35
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "mx.utng.ecoviedos"
@@ -35,16 +35,19 @@ android {
             }
         }
     }
+    
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+    
     buildFeatures {
         compose = true
     }
 }
 
 dependencies {
+    implementation(project(":shared"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.ui)

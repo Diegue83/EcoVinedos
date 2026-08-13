@@ -25,3 +25,5 @@ dependencyResolutionManagement {
 rootProject.name = "EcoViñedos"
 include(":mobile")
 include(":wear")
+include(":tv")
+include(":shared")

@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Router
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -27,6 +28,7 @@ import androidx.compose.ui.unit.sp
 fun AdminPanelScreen(
     onNavigateBack: () -> Unit,
     onNavigateToParcelManagement: () -> Unit,
+    onNavigateToTourismManagement: () -> Unit,
     onNavigateToSamples: () -> Unit,
     onNavigateToUsers: () -> Unit,
     onNavigateToSettings: () -> Unit,
@@ -36,6 +38,7 @@ fun AdminPanelScreen(
 ) {
     val allOptions = listOf(
         AdminOption("Gestión Parcelas", Icons.Default.Map, onNavigateToParcelManagement, "Registra o edita parcelas"),
+        AdminOption("Turismo y Eventos", Icons.Default.Explore, onNavigateToTourismManagement, "Gestionar eventos del viñedo"),
         AdminOption("Configurar Nodo", Icons.Default.Router, onNavigateToDeviceConfig, "Vincular hardware IoT"),
         AdminOption("Usuarios", Icons.Default.People, onNavigateToUsers, "Gestionar personal"),
         AdminOption("Configuración", Icons.Default.Settings, onNavigateToSettings, "Ajustes del sistema")

@@ -60,6 +60,7 @@ class MqttManager(
                         mqttClient?.subscribe(MqttConfig.TOPIC_PARCELAS_LISTA, 1)
                         mqttClient?.subscribe(MqttConfig.TOPIC_PARCELA_STATS, 1)
                         mqttClient?.subscribe("vinedo/parcela/+/riego", 1)
+                        mqttClient?.subscribe("vinedo/parcela/+/control", 1)
                         Log.d("MQTT_Wear", "Suscrito a tópicos")
                     } catch (e: Exception) {
                         Log.e("MQTT_Wear", "Error al suscribirse: ${e.message}")
@@ -91,7 +92,7 @@ class MqttManager(
                             topic?.startsWith("vinedo/parcela/") == true && topic.endsWith("/stats") -> {
                                 handleStats(topic, payload)
                             }
-                            topic?.startsWith("vinedo/parcela/") == true && topic.endsWith("/riego") -> {
+                            topic?.startsWith("vinedo/parcela/") == true && (topic.endsWith("/riego") || topic.endsWith("/control")) -> {
                                 handleRiego(topic, payload)
                             }
                         }
@@ -167,17 +168,18 @@ class MqttManager(
         }
     }
 
-    fun activarRiego(idParcela: String, comando: String = "ON", duracionMinutos: Int = 1) {
+    fun activarRiego(idParcela: String, comando: String = "ON", duracionMinutos: Int = 1, modo: String = "MANUAL") {
         try {
             val topic = String.format(MqttConfig.TOPIC_RIEGO_CONTROL, idParcela)
             val payload = JSONObject().apply {
                 put("comando", comando)
                 put("duracion", duracionMinutos)
+                put("modo", modo)
             }.toString()
 
             val mqttMessage = MqttMessage(payload.toByteArray()).apply { qos = 1 }
             mqttClient?.publish(topic, mqttMessage)
-            Log.d("MQTT_Wear", "Riego $comando parcela: $idParcela")
+            Log.d("MQTT_Wear", "Riego $comando parcela: $idParcela (Modo: $modo)")
         } catch (e: Exception) {
             Log.e("MQTT_Wear", "Error control riego: ${e.message}")
         }

@@ -7,5 +7,5 @@ object MqttConfig {
 
     const val TOPIC_PARCELAS_LISTA = "vinedo/parcelas/lista"
     const val TOPIC_PARCELA_STATS = "vinedo/parcela/+/stats"
-    const val TOPIC_RIEGO_CONTROL = "vinedo/parcela/%s/riego"
+    const val TOPIC_RIEGO_CONTROL = "vinedo/parcela/%s/control"
 }

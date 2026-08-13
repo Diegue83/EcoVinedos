@@ -36,6 +36,8 @@ import mx.utng.ecoviedos.presentation.admin.UserManagementScreen
 import mx.utng.ecoviedos.presentation.admin.SettingsScreen
 import mx.utng.ecoviedos.presentation.admin.DeviceConfigScreen
 import mx.utng.ecoviedos.presentation.admin.DeviceConfigViewModel
+import mx.utng.ecoviedos.presentation.admin.TourismManagementScreen
+import mx.utng.ecoviedos.presentation.admin.AddEventScreen
 import mx.utng.ecoviedos.presentation.theme.EcoViedosTheme
 
 class MainActivity : ComponentActivity() {
@@ -144,6 +146,7 @@ class MainActivity : ComponentActivity() {
                                 AdminPanelScreen(
                                     onNavigateBack = { navController.popBackStack() },
                                     onNavigateToParcelManagement = { navController.navigate("parcel_management") },
+                                    onNavigateToTourismManagement = { navController.navigate("tourism_management") },
                                     onNavigateToSamples = { }, // Ya no se usa desde aquí
                                     onNavigateToUsers = { navController.navigate("users") },
                                     onNavigateToSettings = { navController.navigate("settings") },
@@ -155,6 +158,28 @@ class MainActivity : ComponentActivity() {
                                         }
                                     },
                                     userRol = userRol ?: ""
+                                )
+                            }
+                            composable("tourism_management") {
+                                TourismManagementScreen(
+                                    onNavigateBack = { navController.popBackStack() },
+                                    onNavigateToAdd = { navController.navigate("add_event") },
+                                    onNavigateToEdit = { id -> navController.navigate("add_event?id=$id") }
+                                )
+                            }
+                            composable(
+                                route = "add_event?id={id}",
+                                arguments = listOf(
+                                    androidx.navigation.navArgument("id") {
+                                        nullable = true
+                                        defaultValue = null
+                                    }
+                                )
+                            ) { backStackEntry ->
+                                val id = backStackEntry.arguments?.getString("id")
+                                AddEventScreen(
+                                    onNavigateBack = { navController.popBackStack() },
+                                    eventId = id
                                 )
                             }
                             composable("parcel_details/{id}") { backStackEntry ->

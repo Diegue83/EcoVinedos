@@ -83,7 +83,7 @@ class MqttManager(
                                 handleStatsMessage(topic, payload)
                             }
                             topic?.startsWith("vinedo/parcela/") == true &&
-                                    topic.endsWith("/riego") -> {
+                                    (topic.endsWith("/riego") || topic.endsWith("/control")) -> {
                                 handleRiegoMessage(topic, payload)
                             }
                         }
@@ -161,6 +161,7 @@ class MqttManager(
                     it.subscribe(MqttConfig.TOPIC_PARCELAS_LISTA, 1)
                     it.subscribe(MqttConfig.TOPIC_PARCELA_STATS, 1)
                     it.subscribe("vinedo/parcela/+/riego", 1)
+                    it.subscribe("vinedo/parcela/+/control", 1)
                 }
             }
         } catch (e: Exception) { }

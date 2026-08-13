@@ -25,6 +25,10 @@ import mx.utng.ecoviedos.data.remote.ResumenDiarioResponse
 import mx.utng.ecoviedos.domain.model.Parcela
 import java.text.SimpleDateFormat
 import java.util.*
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun HistoryScreen(
@@ -135,7 +139,7 @@ fun RecentHistoryList(historial: List<HistorialSensorResponse>, riegos: List<mx.
         val groupedHistorial = remember(historial) {
             historial.groupBy { item ->
                 try {
-                    val date = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", locale).parse(item.fecha) ?: Date()
+                    val date = parseUtcDate(item.fecha)
                     SimpleDateFormat("dd MMM yyyy, hh a", locale).format(date)
                 } catch (e: Exception) { "Desconocido" }
             }
@@ -152,30 +156,12 @@ fun RecentHistoryList(historial: List<HistorialSensorResponse>, riegos: List<mx.
                     )
                 }
                 items(items) { item ->
-                    // Verificar si hubo riego activo durante esta lectura
-                    val itemDate = try {
-                        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", locale).parse(item.fecha) ?: Date()
-                    } catch (e: Exception) { Date() }
-
-                    val isIrrigating = riegos.any { r ->
-                        try {
-                            val rStart = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", locale).parse(r.fecha ?: "") ?: Date()
-                            val rEnd = Date(rStart.time + r.duracion * 60L * 1000L)
-                            // Un margen de 15 minutos para atrapar la lectura del sensor
-                            itemDate.time >= rStart.time && itemDate.time <= rEnd.time
-                        } catch (e: Exception) { false }
-                    }
-
-                    val currentConsumption = if (isIrrigating) {
-                        (parcela?.consumoAguaM2 ?: 3.0f).toDouble() * (parcela?.areaM2 ?: 1).toDouble()
-                    } else 0.0
-
                     HistoryItemCard(
                         fecha = item.fecha,
                         hAire = item.humedadAire,
                         temp = item.temperaturaAire,
                         hSuelo = item.humedadSuelo,
-                        aguaLiters = currentConsumption, // En este caso son L/h momentáneos
+                        aguaLiters = item.consumoAgua, // Usar el valor guardado en BD
                         parcela = parcela
                     )
                 }
@@ -189,34 +175,14 @@ fun DailySummaryList(resumen: List<ResumenDiarioResponse>, riegos: List<mx.utng.
     if (resumen.isEmpty()) {
         EmptyState("No hay resúmenes diarios")
     } else {
-        val locale = LocalLocale.current.platformLocale
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(resumen) { item ->
-                // Calcular consumo total para este día
-                val dayStr = try {
-                    val date = SimpleDateFormat("yyyy-MM-dd", locale).parse(item.fecha) ?: Date()
-                    SimpleDateFormat("yyyy-MM-dd", locale).format(date)
-                } catch (e: Exception) { "" }
-
-                val totalDayLiters = riegos.filter { riego ->
-                    try {
-                        val rDate = SimpleDateFormat("yyyy-MM-dd", locale).parse(riego.fecha ?: "") ?: Date()
-                        SimpleDateFormat("yyyy-MM-dd", locale).format(rDate) == dayStr
-                    } catch (e: Exception) { false }
-                }.sumOf { r ->
-                    // Cálculo basado en la fórmula solicitada: (Duración / 60) * consumoAguaM2 * areaM2
-                    val duracionHoras = r.duracion.toDouble() / 60.0
-                    val consumoM2 = (parcela?.consumoAguaM2 ?: 3.0).toDouble()
-                    val area = (parcela?.areaM2 ?: 1).toDouble()
-                    (duracionHoras * consumoM2 * area).toInt()
-                }
-
                 HistoryItemCard(
                     fecha = item.fecha,
                     hAire = item.humedadAirePromedio,
                     temp = item.temperaturaAirePromedio,
                     hSuelo = item.humedadSueloPromedio,
-                    aguaLiters = totalDayLiters.toDouble(),
+                    aguaLiters = item.consumoAguaTotal,
                     isSummary = true,
                     parcela = parcela
                 )
@@ -236,10 +202,7 @@ fun HistoryItemCard(
     parcela: Parcela? = null
 ) {
     val locale = LocalLocale.current.platformLocale
-    val date = try {
-        val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", locale)
-        isoFormat.parse(fecha) ?: Date()
-    } catch (e: Exception) { Date() }
+    val date = parseUtcDate(fecha)
     
     val displayFormat = if (isSummary) SimpleDateFormat("dd MMM yyyy", locale) 
                         else SimpleDateFormat("h:mm a", locale)
@@ -261,9 +224,7 @@ fun HistoryItemCard(
                 StatValue("T°", "${temp.toInt()}°", Color(0xFFFF8A65))
                 StatValue("H.A.", "${hAire.toInt()}%", Color(0xFF4FC3F7))
                 StatValue("H.S.", "${hSuelo.toInt()}%", Color(0xFF81C784))
-                if (isSummary || aguaLiters > 0) {
-                    StatValue("Agua", if (isSummary) "${aguaLiters.toInt()}L" else "${String.format(locale, "%.1f", aguaLiters)}L/h", Color(0xFF7CB9FF))
-                }
+                StatValue("Agua", if (isSummary) "${aguaLiters.toInt()}L" else "${String.format(locale, "%.1f", aguaLiters)}L", Color(0xFF7CB9FF))
             }
         }
     }
@@ -286,4 +247,26 @@ fun EmptyState(msg: String) {
             Text(msg, color = Color.Gray)
         }
     }
+}
+
+private fun parseUtcDate(fecha: String): Date {
+    if (fecha.isBlank()) return Date()
+    
+    val formats = listOf(
+        "yyyy-MM-dd'T'HH:mm:ss.SSS",
+        "yyyy-MM-dd'T'HH:mm:ss",
+        "yyyy-MM-dd"
+    )
+    
+    for (format in formats) {
+        try {
+            val sdf = SimpleDateFormat(format, Locale.US)
+            sdf.timeZone = TimeZone.getTimeZone("UTC")
+            val date = sdf.parse(fecha)
+            if (date != null) return date
+        } catch (e: Exception) {
+            // Continuar con el siguiente formato
+        }
+    }
+    return Date()
 }

@@ -208,33 +208,44 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
     /**
      * Actualiza localmente los valores de una parcela recibidos por sensores vía MQTT.
      */
-    private fun updateParcelaFromSensor(id: String, hum: Float, temp: Float,humsuel: Float, riego: Boolean, tiempo: Int) {
+    private fun updateParcelaFromSensor(id: String, hum: Float, temp: Float, humsuel: Float, riego: Boolean, tiempo: Int) {
         val currentList = _parcelas.value.toMutableList()
         val index = currentList.indexOfFirst { it.id == id }
         if (index != -1) {
             val oldParcela = currentList[index]
             
+            // Si la placa siempre envía false en stats, ignoramos ese campo para no apagar el riego localmente.
+            // Solo actualizamos el estado de riego si el mensaje viene del tópico específico de riego/control.
+            // O, si decidimos confiar en el 'true', pero ignorar el 'false' si ya estaba activo.
+            
+            val nuevaRiegoActivo = if (oldParcela.riegoActivo && !riego) {
+                // Mantener activo si la app ya lo tenía así (evita el falso apagado de stats)
+                true 
+            } else {
+                riego
+            }
+
             // Lógica de persistencia de tiempo
-            var realTiempo = tiempo
+            var realTiempo = if (nuevaRiegoActivo && !riego) oldParcela.tiempoRestanteRiego else tiempo
+            
             val savedEnd = prefs.getLong("riego_end_$id", 0L)
-            if (riego && savedEnd > 0) {
+            if (nuevaRiegoActivo && savedEnd > 0) {
                 val diff = (savedEnd - System.currentTimeMillis()) / 1000
                 realTiempo = diff.toInt()
             }
 
-            // Lógica de notificaciones de riego
-            if (oldParcela.riegoActivo && !riego) {
+            // Solo mostramos notificación de finalización si realmente cambió de true a false
+            // y no fue por un mensaje de stats ignorado.
+            if (oldParcela.riegoActivo && !nuevaRiegoActivo) {
                 showRiegoNotification(id, oldParcela.nombreParcela, "El riego automático ha finalizado correctamente.")
                 prefs.edit().remove("riego_end_$id").apply()
-            } else if (riego && realTiempo <= 0 && oldParcela.tiempoRestanteRiego > 0) {
-                showRiegoNotification(id, oldParcela.nombreParcela, "¡Atención! El tiempo programado terminó. Detén el riego manual en la app.")
             }
 
             currentList[index] = oldParcela.copy(
                 humedad = hum,
                 temperatura = temp,
                 humedadSuelo = humsuel,
-                riegoActivo = riego,
+                riegoActivo = nuevaRiegoActivo,
                 tiempoRestanteRiego = realTiempo,
                 lastUpdated = System.currentTimeMillis()
             )

@@ -103,12 +103,23 @@ class BitacoraViewModel(
         val currentList = _uiState.value.parcelas.toMutableList()
         val index = currentList.indexOfFirst { it.id == id }
         if (index != -1) {
-            val updatedParcela = currentList[index].copy(
+            val oldParcela = currentList[index]
+            
+            // Protección contra falsos apagados de stats:
+            // Solo actualizamos a false si realmente el sensor detecta apagado fuera de un comando local
+            // O mejor aún, confiamos en 'true' pero ignoramos 'false' si ya lo tenemos activo.
+            val nuevaRiegoActivo = if (oldParcela.riegoActivo && !riego) {
+                true 
+            } else {
+                riego
+            }
+
+            val updatedParcela = oldParcela.copy(
                 humedad = hum, 
                 temperatura = temp,
                 humedadSuelo = humsuel,
-                riegoActivo = riego,
-                tiempoRestanteRiego = tiempo
+                riegoActivo = nuevaRiegoActivo,
+                tiempoRestanteRiego = if (nuevaRiegoActivo && !riego) oldParcela.tiempoRestanteRiego else tiempo
             )
             currentList[index] = updatedParcela
             viewModelScope.launch(Dispatchers.Main) {

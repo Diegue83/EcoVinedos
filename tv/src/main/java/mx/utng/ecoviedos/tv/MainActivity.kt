@@ -9,7 +9,7 @@ import androidx.tv.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
 import mx.utng.ecoviedos.tv.ui.theme.EcoViñedosTheme
-import mx.utng.ecoviedos.tv.presentation.events.EventsScreen
+import mx.utng.ecoviedos.tv.presentation.MainTvScreen
 
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalTvMaterial3Api::class)
@@ -21,7 +21,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     shape = RectangleShape
                 ) {
-                    EventsScreen()
+                    MainTvScreen()
                 }
             }
         }
