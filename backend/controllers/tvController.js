@@ -14,12 +14,12 @@ const getPairingCode = async (req, res, next) => {
 
     let session = await TVSession.findOne({ deviceId });
 
-    // If session exists but is linked, just return it
-    if (session && session.isLinked) {
+    // Si la sesión existe y aún es válida (no ha expirado), devolver la actual
+    if (session && session.expiresAt > Date.now()) {
       return res.json(session);
     }
 
-    // Create or renew code
+    // Solo si no existe o ya expiró, crear/renovar el código
     const pairingCode = generateCode();
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
 

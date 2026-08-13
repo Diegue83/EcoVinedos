@@ -36,18 +36,23 @@ class TvViewModel(application: Application) : AndroidViewModel(application) {
             while (true) {
                 try {
                     val response = RetrofitClient.tvService.checkStatus(deviceId)
-                    if (response.isSuccessful && response.body()?.isLinked == true) {
-                        _uiState.value = TvUiState.Linked
-                        // Once linked, we can stop the loop or transition to data fetching
-                        break
+                    if (response.isSuccessful) {
+                        val session = response.body()
+                        if (session?.isLinked == true) {
+                            _uiState.value = TvUiState.Linked
+                            break // Salir del bucle al estar vinculado
+                        } else if (session != null) {
+                            // Si existe la sesión pero no está vinculada, mostramos el código actual
+                            _uiState.value = TvUiState.NotLinked(session.pairingCode)
+                        }
                     } else {
-                        // If not linked or session expired, get a new code
+                        // Si no hay sesión (404), pedir una nueva
                         getNewPairingCode()
                     }
                 } catch (e: Exception) {
-                    _uiState.value = TvUiState.Error("Error de conexión")
+                    // No cambiar el estado a Error aquí para no interrumpir el flujo visual si es solo un fallo de red temporal
                 }
-                delay(10000) // Polling every 10 seconds
+                delay(5000) // Revisar cada 5 segundos es suficiente
             }
         }
     }

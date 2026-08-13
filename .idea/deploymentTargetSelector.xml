@@ -4,7 +4,7 @@
     <selectionStates>
       <SelectionState runConfigName="wear">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2026-08-12T17:07:45.021235300Z">
+        <DropdownSelection timestamp="2026-08-13T18:22:04.901556100Z">
           <Target type="DEFAULT_BOOT">
             <handle>
               <DeviceId pluginId="PhysicalDevice" identifier="serial=10AD8707CK001RT" />
@@ -15,18 +15,7 @@
       </SelectionState>
       <SelectionState runConfigName="mobile">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2026-08-10T21:17:54.456160600Z">
-          <Target type="DEFAULT_BOOT">
-            <handle>
-              <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\52418\.android\avd\Wear_OS_Small_Round_API_36.avd" />
-            </handle>
-          </Target>
-        </DropdownSelection>
-        <DialogSelection />
-      </SelectionState>
-      <SelectionState runConfigName="wear">
-        <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2026-08-12T17:07:45.021235300Z">
+        <DropdownSelection timestamp="2026-08-13T18:55:22.886072100Z">
           <Target type="DEFAULT_BOOT">
             <handle>
               <DeviceId pluginId="PhysicalDevice" identifier="serial=10AD8707CK001RT" />
@@ -35,9 +24,9 @@
         </DropdownSelection>
         <DialogSelection />
       </SelectionState>
-      <SelectionState runConfigName="mobile.backend">
+      <SelectionState runConfigName="wear">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2026-07-09T18:12:25.688786100Z">
+        <DropdownSelection timestamp="2026-08-13T18:22:04.901556100Z">
           <Target type="DEFAULT_BOOT">
             <handle>
               <DeviceId pluginId="PhysicalDevice" identifier="serial=10AD8707CK001RT" />
@@ -48,10 +37,10 @@
       </SelectionState>
       <SelectionState runConfigName="tv">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2026-08-13T16:28:59.532456800Z">
+        <DropdownSelection timestamp="2026-08-13T18:21:38.355834500Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\52418\.android\avd\Television_720p.avd" />
+              <DeviceId pluginId="PhysicalDevice" identifier="serial=10AD8707CK001RT" />
             </handle>
           </Target>
         </DropdownSelection>
