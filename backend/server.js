@@ -12,6 +12,7 @@ const historialRoutes = require('./routes/historialRoutes');
 const notificacionRoutes = require('./routes/notificacionRoutes');
 const eventoRoutes = require('./routes/eventoRoutes');
 const tvRoutes = require('./routes/tvRoutes');
+const cavaRoutes = require('./routes/cavaRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const { iniciarTareasProgramadas } = require('./utils/cronJobs');
 const { iniciarVerificacionAlertas } = require('./utils/notificationService');
@@ -41,6 +42,7 @@ app.use('/api', muestraRoutes);
 app.use('/api', historialRoutes);
 app.use('/api', notificacionRoutes);
 app.use('/api/eventos', eventoRoutes);
+app.use('/api', cavaRoutes);
 app.use('/api/tv', tvRoutes);
 app.use('/api/upload', uploadRoutes);
 

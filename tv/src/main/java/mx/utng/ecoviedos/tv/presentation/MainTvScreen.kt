@@ -6,6 +6,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.*
 
@@ -25,10 +26,14 @@ fun MainTvScreen(
     var currentScreen by remember { mutableStateOf(TvScreen.DASHBOARD) }
 
     LaunchedEffect(uiState) {
-        if (uiState is TvUiState.NotLinked) {
-            currentScreen = TvScreen.PAIRING
-        } else if (uiState is TvUiState.Linked) {
-            currentScreen = TvScreen.DASHBOARD
+        when (uiState) {
+            is TvUiState.NotLinked -> currentScreen = TvScreen.PAIRING
+            is TvUiState.Linked -> {
+                if (currentScreen == TvScreen.PAIRING) {
+                    currentScreen = TvScreen.DASHBOARD
+                }
+            }
+            else -> {}
         }
     }
 
@@ -60,17 +65,29 @@ fun MainTvScreen(
                         cavas = state.cavas,
                         onNavigateBack = { currentScreen = TvScreen.DASHBOARD }
                     )
-                    TvScreen.ACTIVITIES -> ActivitiesScreen() 
+                    TvScreen.ACTIVITIES -> ActivitiesScreen()
+                    TvScreen.PAIRING -> {
+                        currentScreen = TvScreen.DASHBOARD
+                    }
                 }
             }
         }
         is TvUiState.Error -> {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(text = state.message)
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = state.message,
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.error
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(onClick = { viewModel.retry() }) {
+                    Text("Reintentar")
+                }
             }
-        }
-        else -> {
-            // Handle other states if any
         }
     }
 }

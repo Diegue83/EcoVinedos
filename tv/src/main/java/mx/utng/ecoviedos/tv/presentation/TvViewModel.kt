@@ -4,6 +4,7 @@ import android.app.Application
 import android.provider.Settings
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,17 +23,20 @@ class TvViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow<TvUiState>(TvUiState.Loading)
     val uiState = _uiState.asStateFlow()
 
+    private var pairingJob: Job? = null
+
     private val deviceId: String = android.provider.Settings.Secure.getString(
         application.contentResolver,
         android.provider.Settings.Secure.ANDROID_ID
     ) ?: "tv_emulator_id"
 
     init {
-        checkStatusAndStartPairing()
+        startPairingProcess()
     }
 
-    private fun checkStatusAndStartPairing() {
-        viewModelScope.launch {
+    private fun startPairingProcess() {
+        pairingJob?.cancel()
+        pairingJob = viewModelScope.launch {
             while (true) {
                 try {
                     val response = RetrofitClient.tvService.checkStatus(deviceId)
@@ -40,15 +44,18 @@ class TvViewModel(application: Application) : AndroidViewModel(application) {
                         val session = response.body()
                         if (session?.isLinked == true) {
                             cargarDatosCava()
-                            // No paramos el bucle si queremos refrescar datos, pero para estado vinculado sí
-                            break 
+                            break // Detener este bucle al estar vinculado
                         } else if (session != null) {
                             _uiState.value = TvUiState.NotLinked(session.pairingCode)
                         }
-                    } else {
+                    } else if (response.code() == 404) {
                         getNewPairingCode()
+                    } else {
+                        _uiState.value = TvUiState.Error("Servidor: ${response.code()}")
                     }
-                } catch (e: Exception) { }
+                } catch (e: Exception) {
+                    _uiState.value = TvUiState.Error("Error de conexión: ${e.localizedMessage}")
+                }
                 delay(5000)
             }
         }
@@ -60,9 +67,11 @@ class TvViewModel(application: Application) : AndroidViewModel(application) {
                 val response = RetrofitClient.cavaService.obtenerCavas()
                 if (response.isSuccessful && response.body() != null) {
                     _uiState.value = TvUiState.Linked(response.body()!!)
+                } else {
+                    _uiState.value = TvUiState.Error("Error al cargar cavas: ${response.code()}")
                 }
             } catch (e: Exception) {
-                _uiState.value = TvUiState.Error("Error al cargar cavas")
+                _uiState.value = TvUiState.Error("Error al cargar cavas: ${e.localizedMessage}")
             }
         }
     }
@@ -72,9 +81,16 @@ class TvViewModel(application: Application) : AndroidViewModel(application) {
             val response = RetrofitClient.tvService.getPairingCode(PairCodeRequest(deviceId))
             if (response.isSuccessful && response.body() != null) {
                 _uiState.value = TvUiState.NotLinked(response.body()!!.pairingCode)
+            } else {
+                _uiState.value = TvUiState.Error("Código: ${response.code()}")
             }
         } catch (e: Exception) {
-            _uiState.value = TvUiState.Error("Error al obtener código")
+            _uiState.value = TvUiState.Error("Error al obtener código: ${e.localizedMessage}")
         }
+    }
+
+    fun retry() {
+        _uiState.value = TvUiState.Loading
+        startPairingProcess()
     }
 }
