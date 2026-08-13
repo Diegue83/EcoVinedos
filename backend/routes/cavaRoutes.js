@@ -5,10 +5,10 @@ const {
   vincularSensor,
   actualizarBotellas
 } = require('../controllers/cavaController');
-const { protect } = require('../middleware/authMiddleware');
+const { protegerRuta } = require('../middleware/authMiddleware');
 
-router.route('/cavas').get(obtenerCavas);
-router.route('/cavas/:id/sensor').put(protect, vincularSensor);
-router.route('/cavas/:id/botellas').put(protect, actualizarBotellas);
+router.get('/cavas', obtenerCavas);
+router.put('/cavas/:id/sensor', protegerRuta, vincularSensor);
+router.put('/cavas/:id/botellas', protegerRuta, actualizarBotellas);
 
 module.exports = router;

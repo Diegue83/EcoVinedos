@@ -1,6 +1,7 @@
 package mx.utng.ecoviedos
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -17,6 +18,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import mx.utng.ecoviedos.presentation.auth.LoginScreen
 import mx.utng.ecoviedos.presentation.auth.ForgotPasswordScreen
 import mx.utng.ecoviedos.presentation.auth.VerifyCodeScreen
@@ -45,7 +47,7 @@ import mx.utng.ecoviedos.presentation.enologo.CavaManagementScreen
 import mx.utng.ecoviedos.presentation.theme.EcoViedosTheme
 
 class MainActivity : ComponentActivity() {
-    override fun onNewIntent(intent: android.content.Intent) {
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent) // Actualizar el intent para que NavHost lo vea
     }
@@ -124,7 +126,10 @@ class MainActivity : ComponentActivity() {
                                 CavaStateScreen(onNavigateBack = { navController.popBackStack() })
                             }
                             composable("cava_management") {
-                                CavaManagementScreen(onNavigateBack = { navController.popBackStack() })
+                                CavaManagementScreen(
+                                    onNavigateBack = { navController.popBackStack() },
+                                    onNavigateToLinkSensor = TODO()
+                                )
                             }
                             composable("forgot_password") {
                                 ForgotPasswordScreen(
@@ -215,7 +220,7 @@ class MainActivity : ComponentActivity() {
                             composable(
                                 route = "add_event?id={id}",
                                 arguments = listOf(
-                                    androidx.navigation.navArgument("id") {
+                                    navArgument("id") {
                                         nullable = true
                                         defaultValue = null
                                     }
@@ -260,9 +265,9 @@ class MainActivity : ComponentActivity() {
                             composable(
                                 route = "device_config?targetId={targetId}&targetName={targetName}&type={type}",
                                 arguments = listOf(
-                                    androidx.navigation.navArgument("targetId") { nullable = true; defaultValue = null },
-                                    androidx.navigation.navArgument("targetName") { nullable = true; defaultValue = null },
-                                    androidx.navigation.navArgument("type") { nullable = true; defaultValue = "PARCELA" }
+                                    navArgument("targetId") { nullable = true; defaultValue = null },
+                                    navArgument("targetName") { nullable = true; defaultValue = null },
+                                    navArgument("type") { nullable = true; defaultValue = "PARCELA" }
                                 )
                             ) { backStackEntry ->
                                 val targetId = backStackEntry.arguments?.getString("targetId")
@@ -294,7 +299,7 @@ class MainActivity : ComponentActivity() {
                             composable(
                                 route = "add_parcel?id={id}",
                                 arguments = listOf(
-                                    androidx.navigation.navArgument("id") {
+                                    navArgument("id") {
                                         nullable = true
                                         defaultValue = null
                                     }
