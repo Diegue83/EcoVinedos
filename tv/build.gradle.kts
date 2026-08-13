@@ -49,6 +49,7 @@ dependencies {
     // Compose for TV
     implementation("androidx.tv:tv-foundation:1.0.0-alpha11")
     implementation("androidx.tv:tv-material:1.0.0-alpha11")
+    implementation(libs.zxing.core)
 
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")

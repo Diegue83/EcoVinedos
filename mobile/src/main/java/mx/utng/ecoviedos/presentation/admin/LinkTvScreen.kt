@@ -1,5 +1,6 @@
 package mx.utng.ecoviedos.presentation.admin
 
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -14,11 +15,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 import kotlinx.coroutines.launch
 import mx.utng.ecoviedos.data.remote.LinkTvRequest
 import mx.utng.ecoviedos.data.remote.RetrofitClient
 import mx.utng.ecoviedos.presentation.main.MainViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,6 +35,15 @@ fun LinkTvScreen(
     var isError by remember { mutableStateOf(false) }
     
     val token by mainViewModel.sessionToken.collectAsState(initial = "")
+
+    val scanLauncher = rememberLauncherForActivityResult(
+        contract = ScanContract(),
+        onResult = { result ->
+            if (result.contents != null) {
+                code = result.contents
+            }
+        }
+    )
 
     Scaffold(
         topBar = {
@@ -54,12 +66,24 @@ fun LinkTvScreen(
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(64.dp), tint = Color(0xFFB4F391))
+            IconButton(
+                onClick = { 
+                    val options = ScanOptions()
+                    options.setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                    options.setPrompt("Escanea el QR de la TV")
+                    options.setBeepEnabled(true)
+                    options.setOrientationLocked(false)
+                    scanLauncher.launch(options)
+                },
+                modifier = Modifier.size(100.dp)
+            ) {
+                Icon(Icons.Default.QrCodeScanner, contentDescription = "Scan QR", modifier = Modifier.size(64.dp), tint = Color(0xFFB4F391))
+            }
             
             Spacer(modifier = Modifier.height(24.dp))
             
             Text(
-                text = "Ingresa el código que aparece en tu televisor",
+                text = "Escanea el código QR o ingresa el código manual",
                 style = MaterialTheme.typography.bodyLarge,
                 color = Color.White,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -90,7 +114,6 @@ fun LinkTvScreen(
             Button(
                 onClick = {
                     isLoading = true
-                    // Realizar vinculación
                     mainViewModel.viewModelScope.launch {
                         try {
                             val response = RetrofitClient.tvService.linkTV(
@@ -101,7 +124,6 @@ fun LinkTvScreen(
                                 message = "¡TV Vinculada con éxito!"
                                 isError = false
                                 code = ""
-                                // Optionally navigate back after success
                             } else {
                                 message = "Código inválido o expirado"
                                 isError = true

@@ -39,6 +39,9 @@ import mx.utng.ecoviedos.presentation.admin.DeviceConfigViewModel
 import mx.utng.ecoviedos.presentation.admin.TourismManagementScreen
 import mx.utng.ecoviedos.presentation.admin.AddEventScreen
 import mx.utng.ecoviedos.presentation.admin.LinkTvScreen
+import mx.utng.ecoviedos.presentation.enologo.EnologoPanelScreen
+import mx.utng.ecoviedos.presentation.enologo.CavaStateScreen
+import mx.utng.ecoviedos.presentation.enologo.CavaManagementScreen
 import mx.utng.ecoviedos.presentation.theme.EcoViedosTheme
 
 class MainActivity : ComponentActivity() {
@@ -74,21 +77,52 @@ class MainActivity : ComponentActivity() {
                     adminViewModel.setMainViewModel(mainViewModel)
 
                     val token by mainViewModel.sessionToken.collectAsState(initial = "loading")
+                    val userRol by mainViewModel.sessionRol.collectAsState(initial = "")
 
                     if (token != "loading") {
                         NavHost(
                             navController = navController,
-                            startDestination = if (token.isNullOrBlank()) "login" else "main"
+                            startDestination = when {
+                                token.isNullOrBlank() -> "login"
+                                userRol == "enologo" -> "enologo_panel"
+                                else -> "main"
+                            }
                         ) {
                             composable("login") {
                                 LoginScreen(
                                     onLoginSuccess = { rol ->
-                                        navController.navigate("main") {
-                                            popUpTo("login") { inclusive = true }
+                                        if (rol == "enologo") {
+                                            navController.navigate("enologo_panel") {
+                                                popUpTo("login") { inclusive = true }
+                                            }
+                                        } else {
+                                            navController.navigate("main") {
+                                                popUpTo("login") { inclusive = true }
+                                            }
                                         }
                                     },
                                     onForgotPassword = { navController.navigate("forgot_password") }
                                 )
+                            }
+                            composable("enologo_panel") {
+                                EnologoPanelScreen(
+                                    onNavigateBack = { navController.popBackStack() },
+                                    onNavigateToEventManagement = { navController.navigate("tourism_management") },
+                                    onNavigateToCavaManagement = { navController.navigate("cava_management") },
+                                    onNavigateToCavaState = { navController.navigate("cava_state") },
+                                    onLogout = {
+                                        mainViewModel.logout()
+                                        navController.navigate("login") {
+                                            popUpTo("enologo_panel") { inclusive = true }
+                                        }
+                                    }
+                                )
+                            }
+                            composable("cava_state") {
+                                CavaStateScreen(onNavigateBack = { navController.popBackStack() })
+                            }
+                            composable("cava_management") {
+                                CavaManagementScreen(onNavigateBack = { navController.popBackStack() })
                             }
                             composable("forgot_password") {
                                 ForgotPasswordScreen(
@@ -148,6 +182,7 @@ class MainActivity : ComponentActivity() {
                                     onNavigateBack = { navController.popBackStack() },
                                     onNavigateToParcelManagement = { navController.navigate("parcel_management") },
                                     onNavigateToTourismManagement = { navController.navigate("tourism_management") },
+                                    onNavigateToEnologoMode = { navController.navigate("enologo_panel") },
                                     onNavigateToLinkTv = { navController.navigate("link_tv") },
                                     onNavigateToSamples = { }, // Ya no se usa desde aquí
                                     onNavigateToUsers = { navController.navigate("users") },

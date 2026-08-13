@@ -30,6 +30,7 @@ fun AdminPanelScreen(
     onNavigateBack: () -> Unit,
     onNavigateToParcelManagement: () -> Unit,
     onNavigateToTourismManagement: () -> Unit,
+    onNavigateToEnologoMode: () -> Unit,
     onNavigateToLinkTv: () -> Unit,
     onNavigateToSamples: () -> Unit,
     onNavigateToUsers: () -> Unit,
@@ -41,15 +42,20 @@ fun AdminPanelScreen(
     val allOptions = listOf(
         AdminOption("Gestión Parcelas", Icons.Default.Map, onNavigateToParcelManagement, "Registra o edita parcelas"),
         AdminOption("Turismo y Eventos", Icons.Default.Explore, onNavigateToTourismManagement, "Gestionar eventos del viñedo"),
+        AdminOption("Modo Enólogo", Icons.Default.Science, onNavigateToEnologoMode, "Control de cava y producción"),
         AdminOption("Vincular TV", Icons.Default.Monitor, onNavigateToLinkTv, "Conectar una Smart TV"),
         AdminOption("Configurar Nodo", Icons.Default.Router, onNavigateToDeviceConfig, "Vincular hardware IoT"),
         AdminOption("Usuarios", Icons.Default.People, onNavigateToUsers, "Gestionar personal"),
         AdminOption("Configuración", Icons.Default.Settings, onNavigateToSettings, "Ajustes del sistema")
     )
 
-    // Solo el superusuario puede ver y acceder a la gestión de usuarios
+    // Solo el superusuario o administrador puede ver y acceder a la gestión de usuarios
     val adminOptions = allOptions.filter { option ->
-        if (option.title == "Usuarios") userRol == "superusuario" else true
+        when (option.title) {
+            "Usuarios" -> userRol == "superusuario"
+            "Modo Enólogo" -> userRol == "superusuario" || userRol == "administrador"
+            else -> true
+        }
     }
 
     Scaffold(

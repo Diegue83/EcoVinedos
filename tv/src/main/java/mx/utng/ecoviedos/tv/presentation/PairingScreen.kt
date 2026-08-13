@@ -13,9 +13,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.*
 
+import androidx.compose.foundation.Image
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.asImageBitmap
+
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun PairingScreen(pairingCode: String) {
+    val qrBitmap = remember(pairingCode) {
+        QrGenerator.generateQrBitmap(pairingCode, 400)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -41,19 +50,21 @@ fun PairingScreen(pairingCode: String) {
             horizontalArrangement = Arrangement.Center,
             modifier = Modifier.fillMaxWidth()
         ) {
-            // QR Code Placeholder
+            // QR Code
             Box(
                 modifier = Modifier
-                    .size(200.dp)
-                    .background(Color.White, RoundedCornerShape(16.dp)),
+                    .size(220.dp)
+                    .background(Color.White, RoundedCornerShape(16.dp))
+                    .padding(10.dp),
                 contentAlignment = Alignment.Center
             ) {
-                // Simplified QR representation
-                Column {
-                    Row { Box(Modifier.size(40.dp).background(Color.Black)); Box(Modifier.size(40.dp).background(Color.White)); Box(Modifier.size(40.dp).background(Color.Black)) }
-                    Row { Box(Modifier.size(40.dp).background(Color.White)); Box(Modifier.size(40.dp).background(Color.Black)); Box(Modifier.size(40.dp).background(Color.White)) }
-                    Row { Box(Modifier.size(40.dp).background(Color.Black)); Box(Modifier.size(40.dp).background(Color.White)); Box(Modifier.size(40.dp).background(Color.Black)) }
-                }
+                qrBitmap?.let {
+                    Image(
+                        bitmap = it.asImageBitmap(),
+                        contentDescription = "QR Pairing Code",
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } ?: CircularProgressIndicator()
             }
 
             Spacer(modifier = Modifier.width(48.dp))

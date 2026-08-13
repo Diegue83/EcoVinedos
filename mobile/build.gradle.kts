@@ -87,4 +87,7 @@ dependencies {
     implementation(libs.androidx.glance)
     implementation(libs.androidx.glance.appwidget)
     implementation(libs.androidx.glance.material3)
+
+    // QR Scanning
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
 }

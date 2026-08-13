@@ -24,7 +24,7 @@ const usuarioSchema = new mongoose.Schema(
     },
     rol: {
       type: String,
-      enum: ['superusuario', 'administrador', 'trabajador'],
+      enum: ['superusuario', 'administrador', 'trabajador', 'enologo'],
       default: 'trabajador'
     },
     telefono: {
