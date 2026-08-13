@@ -1,5 +1,6 @@
 const mqtt = require("mqtt");
 const Parcela = require("../models/Parcela");
+const Cava = require("../models/Cava");
 const HistorialSensor = require("../models/HistorialSensor");
 
 const BROKER = "mqtts://" + process.env.MOSQUITTO_BROKER_URL;
@@ -99,15 +100,26 @@ client.on("message", async (topic, message) => {
                 updateFields.tiempoRestanteRiego = tiempoRestante;
             }
 
-            // Actualizar valores actuales en la parcela
-            const parcelaActualizada = await Parcela.findByIdAndUpdate(parcelaId, updateFields, { new: true });
+            // 1. Intentar actualizar como Parcela
+            let target = await Parcela.findByIdAndUpdate(parcelaId, updateFields, { new: true });
 
-            // Guardar en historial solo cada 15 minutos
-            const ahora = Date.now();
-            const ultimo = ultimosGuardados.get(parcelaId) || 0;
-            const QUINCE_MINUTOS = 15 * 60 * 1000;
+            // 2. Si no es parcela, intentar como Cava
+            if (!target) {
+                target = await Cava.findByIdAndUpdate(parcelaId, {
+                    temperatura: tempAire,
+                    humedad: humAire,
+                    ultimaLectura: new Date()
+                }, { new: true });
 
-            if (ahora - ultimo >= QUINCE_MINUTOS && parcelaActualizada) {
+                if (target) {
+                    console.log(`🍷 Datos de cava actualizados: ${target.nombre}`);
+                    return; // No guardamos historial de cava en la misma colección por ahora o sí?
+                }
+            }
+
+            // Guardar en historial solo cada 15 minutos (Solo para parcelas por ahora)
+            if (target && target.constructor.modelName === 'Parcela') {
+                const ahora = Date.now();
                 // Calcular consumo de agua en este intervalo de 15 min (si el riego estaba activo)
                 let consumoIntervalo = 0;
                 if (parcelaActualizada.riegoActivo) {

@@ -5,7 +5,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Kitchen
 import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material3.*
@@ -18,9 +17,16 @@ import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CavaManagementScreen(onNavigateBack: () -> Unit) {
-    // Mock data for cavas
-    val cavas = listOf("Sección Roble", "Sección Acero", "Bodega Privada")
+fun CavaManagementScreen(
+    onNavigateBack: () -> Unit,
+    onNavigateToLinkSensor: (String, String) -> Unit // cavaId, cavaNombre
+) {
+    // Mock data for cavas (En producción vendrán de CavaService)
+    val cavas = listOf(
+        Pair("1", "Sección Roble"),
+        Pair("2", "Sección Acero"),
+        Pair("3", "Bodega Privada")
+    )
 
     Scaffold(
         topBar = {
@@ -42,7 +48,11 @@ fun CavaManagementScreen(onNavigateBack: () -> Unit) {
             
             LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(cavas) { cava ->
-                    CavaManageCard(cava)
+                    CavaManageCard(
+                        id = cava.first,
+                        name = cava.second,
+                        onLinkSensor = { onNavigateToLinkSensor(cava.first, cava.second) }
+                    )
                 }
             }
         }
@@ -50,7 +60,7 @@ fun CavaManagementScreen(onNavigateBack: () -> Unit) {
 }
 
 @Composable
-fun CavaManageCard(name: String) {
+fun CavaManageCard(id: String, name: String, onLinkSensor: () -> Unit) {
     var bottles by remember { mutableStateOf("100") }
     
     Card(
@@ -75,7 +85,7 @@ fun CavaManageCard(name: String) {
                     colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = Color(0xFFB4F391))
                 )
                 Spacer(Modifier.width(8.dp))
-                Button(onClick = { /* Update bottle count */ }) {
+                Button(onClick = { /* Update bottle count via API */ }) {
                     Text("Guardar")
                 }
             }
@@ -83,12 +93,12 @@ fun CavaManageCard(name: String) {
             Spacer(Modifier.height(8.dp))
             
             OutlinedButton(
-                onClick = { /* Open sensor linking dialog */ },
+                onClick = onLinkSensor,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Icon(Icons.Default.Sensors, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text("Vincular Sensor (ID: SN-001)")
+                Text("Vincular Sensor BLE")
             }
         }
     }

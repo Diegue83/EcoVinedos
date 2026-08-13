@@ -14,7 +14,7 @@ import mx.utng.ecoviedos.data.remote.RetrofitClient
 sealed class TvUiState {
     data object Loading : TvUiState()
     data class NotLinked(val pairingCode: String) : TvUiState()
-    data object Linked : TvUiState()
+    data class Linked(val cavas: List<mx.utng.ecoviedos.data.remote.CavaResponse>) : TvUiState()
     data class Error(val message: String) : TvUiState()
 }
 
@@ -22,9 +22,9 @@ class TvViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow<TvUiState>(TvUiState.Loading)
     val uiState = _uiState.asStateFlow()
 
-    private val deviceId: String = Settings.Secure.getString(
+    private val deviceId: String = android.provider.Settings.Secure.getString(
         application.contentResolver,
-        Settings.Secure.ANDROID_ID
+        android.provider.Settings.Secure.ANDROID_ID
     ) ?: "tv_emulator_id"
 
     init {
@@ -39,20 +39,30 @@ class TvViewModel(application: Application) : AndroidViewModel(application) {
                     if (response.isSuccessful) {
                         val session = response.body()
                         if (session?.isLinked == true) {
-                            _uiState.value = TvUiState.Linked
-                            break // Salir del bucle al estar vinculado
+                            cargarDatosCava()
+                            // No paramos el bucle si queremos refrescar datos, pero para estado vinculado sí
+                            break 
                         } else if (session != null) {
-                            // Si existe la sesión pero no está vinculada, mostramos el código actual
                             _uiState.value = TvUiState.NotLinked(session.pairingCode)
                         }
                     } else {
-                        // Si no hay sesión (404), pedir una nueva
                         getNewPairingCode()
                     }
-                } catch (e: Exception) {
-                    // No cambiar el estado a Error aquí para no interrumpir el flujo visual si es solo un fallo de red temporal
+                } catch (e: Exception) { }
+                delay(5000)
+            }
+        }
+    }
+
+    private fun cargarDatosCava() {
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.cavaService.obtenerCavas()
+                if (response.isSuccessful && response.body() != null) {
+                    _uiState.value = TvUiState.Linked(response.body()!!)
                 }
-                delay(5000) // Revisar cada 5 segundos es suficiente
+            } catch (e: Exception) {
+                _uiState.value = TvUiState.Error("Error al cargar cavas")
             }
         }
     }

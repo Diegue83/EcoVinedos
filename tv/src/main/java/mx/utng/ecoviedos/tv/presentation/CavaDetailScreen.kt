@@ -12,10 +12,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.*
+import mx.utng.ecoviedos.data.remote.CavaResponse
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-fun CavaDetailScreen(onNavigateBack: () -> Unit) {
+fun CavaDetailScreen(
+    cavas: List<CavaResponse>,
+    onNavigateBack: () -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -30,7 +34,6 @@ fun CavaDetailScreen(onNavigateBack: () -> Unit) {
                 color = Color.White
             )
             Spacer(Modifier.weight(1f))
-            // Indicator "En vivo"
             Box(
                 modifier = Modifier
                     .background(Color(0xFF2E7D32).copy(alpha = 0.2f), RoundedCornerShape(50))
@@ -50,9 +53,23 @@ fun CavaDetailScreen(onNavigateBack: () -> Unit) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            CavaSectionCard("Sección Roble", "16.5°C", "75%", "104 botellas", "Óptima", Color(0xFF4CAF50), Modifier.weight(1f))
-            CavaSectionCard("Sección Acero", "17.2°C", "78%", "89 botellas", "Óptima", Color(0xFF4CAF50), Modifier.weight(1f))
-            CavaSectionCard("Bodega privada", "20.1°C", "81%", "54 botellas", "Revisar", Color(0xFFF9A825), Modifier.weight(1f), isWarning = true)
+            if (cavas.isEmpty()) {
+                Text("Cargando detalles de secciones...", color = Color.Gray)
+            } else {
+                cavas.forEach { cava ->
+                    val isWarning = cava.estado != "OPTIMO"
+                    CavaSectionCard(
+                        title = "Sección ${cava.nombre}",
+                        temp = "${cava.temperatura}°C",
+                        hum = "${cava.humedad.toInt()}%",
+                        bottles = "${cava.botellasActuales} botellas",
+                        status = if(isWarning) "Revisar" else "Óptima",
+                        statusColor = if(isWarning) Color(0xFFF9A825) else Color(0xFF4CAF50),
+                        modifier = Modifier.weight(1f),
+                        isWarning = isWarning
+                    )
+                }
+            }
         }
     }
 }

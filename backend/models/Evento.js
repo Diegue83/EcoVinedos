@@ -21,8 +21,12 @@ const eventoSchema = new mongoose.Schema(
     },
     tipo: {
       type: String,
-      enum: ['EVENT', 'TOURISM', 'NOTICE'],
+      enum: ['EVENT', 'TOURISM'],
       default: 'EVENT'
+    },
+    precio: {
+      type: Number,
+      default: 0
     },
     cupo: {
       type: Number,

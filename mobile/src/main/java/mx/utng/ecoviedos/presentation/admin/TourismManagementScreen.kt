@@ -26,7 +26,8 @@ fun TourismManagementScreen(
     onNavigateToAdd: () -> Unit,
     onNavigateToEdit: (String) -> Unit,
     tourismViewModel: TourismViewModel = viewModel(),
-    mainViewModel: MainViewModel = viewModel()
+    mainViewModel: MainViewModel = viewModel(),
+    showBackButton: Boolean = true
 ) {
     val events by tourismViewModel.eventos.collectAsState()
     val isLoading by tourismViewModel.isLoading.collectAsState()
@@ -35,10 +36,12 @@ fun TourismManagementScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Gestión de Turismo y Eventos", fontWeight = FontWeight.Bold) },
+                title = { Text("Gestión de Actividades", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Regresar")
+                    if (showBackButton) {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Regresar")
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

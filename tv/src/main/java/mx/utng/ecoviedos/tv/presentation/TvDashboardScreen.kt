@@ -16,14 +16,20 @@ import androidx.tv.material3.*
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
+import mx.utng.ecoviedos.data.remote.CavaResponse
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun TvDashboardScreen(
+    cavas: List<CavaResponse>,
     onNavigateToCavaDetail: () -> Unit,
-    onNavigateToPromotionsDetail: () -> Unit
+    onNavigateToActivities: () -> Unit
 ) {
     val currentTime = remember { mutableStateOf(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())) }
+
+    val avgTemp = if (cavas.isNotEmpty()) cavas.map { it.temperatura }.average() else 0.0
+    val avgHum = if (cavas.isNotEmpty()) cavas.map { it.humedad }.average() else 0.0
+    val totalBottles = cavas.sumOf { it.botellasActuales }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -72,9 +78,9 @@ fun TvDashboardScreen(
 
         // Top Stats Row
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            StatCard("Temp. cava", "18°C", "Normal", Color(0xFF3897F0), Modifier.weight(1f))
-            StatCard("Humedad cava", "82%", "Normal", Color(0xFF4FC3F7), Modifier.weight(1f))
-            StatCard("Botellas añejando", "247", "3 variedades", Color(0xFFF9A825), Modifier.weight(1f))
+            StatCard("Temp. promedio cava", "${String.format("%.1f", avgTemp)}°C", "Normal", Color(0xFF3897F0), Modifier.weight(1f))
+            StatCard("Humedad promedio", "${String.format("%.0f", avgHum)}%", "Normal", Color(0xFF4FC3F7), Modifier.weight(1f))
+            StatCard("Botellas en cava", "$totalBottles", "Total secciones", Color(0xFFF9A825), Modifier.weight(1f))
             StatCard("Visitas hoy", "14", "+3 reservas", Color(0xFF4CAF50), Modifier.weight(1f))
         }
 
@@ -82,7 +88,6 @@ fun TvDashboardScreen(
 
         // Main Content Area
         Row(modifier = Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-            // Cava Status Section (Clickable)
             Surface(
                 onClick = onNavigateToCavaDetail,
                 modifier = Modifier
@@ -102,9 +107,13 @@ fun TvDashboardScreen(
                     Text("Estado de la Cava", style = MaterialTheme.typography.titleMedium, color = Color(0xFF3897F0), fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(16.dp))
                     
-                    CavaItem("Sección Roble", "Óptimo", Color(0xFF4CAF50))
-                    CavaItem("Sección Acero", "Óptimo", Color(0xFF4CAF50))
-                    CavaItem("Bodega privada", "Revisar", Color(0xFFF9A825))
+                    if (cavas.isEmpty()) {
+                        Text("No hay datos de cava", color = Color.Gray)
+                    } else {
+                        cavas.forEach { cava ->
+                            CavaItem(cava.nombre, if(cava.estado == "OPTIMO") "Óptimo" else "Revisar", if(cava.estado == "OPTIMO") Color(0xFF4CAF50) else Color(0xFFF9A825))
+                        }
+                    }
 
                     Spacer(modifier = Modifier.weight(1f))
                     Text("Maduración por variedad", style = MaterialTheme.typography.labelMedium, color = Color.Gray)
@@ -116,9 +125,8 @@ fun TvDashboardScreen(
                 }
             }
 
-            // Promotions Section (Clickable)
             Surface(
-                onClick = onNavigateToPromotionsDetail,
+                onClick = onNavigateToActivities,
                 modifier = Modifier
                     .fillMaxHeight()
                     .weight(1.5f),
@@ -130,14 +138,14 @@ fun TvDashboardScreen(
                 )
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
-                    Text("Promociones activas", style = MaterialTheme.typography.titleMedium, color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("Actividades y Experiencias", style = MaterialTheme.typography.titleMedium, color = Color.White, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(16.dp))
                     
-                    PromotionCardSummary("Tour Harvest Experience", "$850 MXN / pers.", Color(0xFF1565C0))
+                    PromotionCardSummary("Tour Harvest Experience", "$850 MXN", Color(0xFF1565C0))
                     Spacer(Modifier.height(12.dp))
-                    PromotionCardSummary("Membresía Primavera", "20% dto.", Color(0xFF2E7D32))
+                    PromotionCardSummary("Membresía Primavera", "Desde $680", Color(0xFF2E7D32))
                     Spacer(Modifier.height(12.dp))
-                    PromotionCardSummary("Maridaje Privado", "$1,200 MXN / pers.", Color(0xFF5D4037))
+                    PromotionCardSummary("Maridaje Privado", "$1,200 MXN", Color(0xFF5D4037))
                 }
             }
         }

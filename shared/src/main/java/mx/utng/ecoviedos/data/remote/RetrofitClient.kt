@@ -33,4 +33,6 @@ object RetrofitClient {
     val notificacionService: NotificacionService by lazy { retrofit.create(NotificacionService::class.java) }
     val eventoService: EventoService by lazy { retrofit.create(EventoService::class.java) }
     val tvService: TvService by lazy { retrofit.create(TvService::class.java) }
+    val cavaService: CavaService by lazy { retrofit.create(CavaService::class.java) }
+    val uploadService: UploadService by lazy { retrofit.create(UploadService::class.java) }
 }

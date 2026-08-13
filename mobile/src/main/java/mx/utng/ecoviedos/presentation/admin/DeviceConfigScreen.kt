@@ -35,7 +35,10 @@ fun DeviceConfigScreen(
     onNavigateBack: () -> Unit,
     onNavigateToAddParcel: () -> Unit,
     mainViewModel: MainViewModel,
-    configViewModel: DeviceConfigViewModel
+    configViewModel: DeviceConfigViewModel,
+    preselectedId: String? = null,
+    preselectedName: String? = null,
+    linkType: String = "PARCELA"
 ) {
     val context = LocalContext.current
     val uiState by configViewModel.uiState.collectAsState()
@@ -45,7 +48,6 @@ fun DeviceConfigScreen(
     var step by remember { mutableIntStateOf(1) }
     var selectedDeviceName by remember { mutableStateOf("") }
     
-    // Obtener SSID actual
     val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
     val currentSsid = remember { 
         val info = wifiManager.connectionInfo
@@ -55,9 +57,9 @@ fun DeviceConfigScreen(
     var ssid by remember { mutableStateOf(if (currentSsid == "<unknown ssid>") "" else currentSsid) }
     var password by remember { mutableStateOf("") }
     val parcelas by mainViewModel.parcelas.collectAsState()
-    var selectedParcela by remember { mutableStateOf<Parcela?>(null) }
+    var selectedId by remember { mutableStateOf(preselectedId) }
+    var selectedName by remember { mutableStateOf(preselectedName) }
 
-    // Manejo de permisos
     val bluetoothPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         listOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.ACCESS_FINE_LOCATION)
     } else {
@@ -77,20 +79,15 @@ fun DeviceConfigScreen(
         configViewModel.checkBluetoothStatus()
     }
 
-    // Detener escaneo al salir de la pantalla
     DisposableEffect(Unit) {
         onDispose {
             configViewModel.stopScanning()
         }
     }
 
-    // Navegación automática por estados de BLE
     LaunchedEffect(uiState) {
         when (uiState) {
             is BleUiState.Connected -> if (step == 1) step = 2
-            is BleUiState.Success -> {
-                // Diálogo de éxito ya manejado abajo
-            }
             else -> {}
         }
     }
@@ -98,7 +95,7 @@ fun DeviceConfigScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Configurar Nodo IoT", fontWeight = FontWeight.Bold) },
+                title = { Text("Configurar Nodo (${if(linkType == "CAVA") "Cava" else "Parcela"})", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = {
                         configViewModel.resetState()
@@ -107,26 +104,13 @@ fun DeviceConfigScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Regresar")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF1A1C18),
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1A1C18), titleContentColor = Color.White, navigationIconContentColor = Color.White)
             )
         },
         containerColor = Color(0xFF1A1C18)
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp)
-        ) {
-            // Progress Indicator
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
+        Column(modifier = Modifier.padding(padding).fillMaxSize().padding(16.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 StepIndicator(1, "Hardware", step >= 1)
                 StepIndicator(2, "Red", step >= 2)
                 StepIndicator(3, "Vincular", step >= 3)
@@ -154,20 +138,40 @@ fun DeviceConfigScreen(
                     onPasswordChange = { password = it },
                     onNext = { step = 3 }
                 )
-                3 -> LinkParcelaStep(
-                    parcelas = parcelas,
-                    selectedParcela = selectedParcela,
-                    onParcelaSelected = { selectedParcela = it },
-                    onRegisterNew = onNavigateToAddParcel,
-                    onFinish = {
-                        selectedParcela?.let {
-                            configViewModel.sendConfig(ssid, password, it.id, it.nombreParcela)
+                3 -> {
+                    if (linkType == "CAVA" && selectedId != null) {
+                        // Confirmación directa para Cava si ya viene preseleccionada
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                            Icon(Icons.Default.Kitchen, contentDescription = null, modifier = Modifier.size(64.dp), tint = Color(0xFFB4F391))
+                            Text("Vincular a: $selectedName", style = MaterialTheme.typography.titleLarge, color = Color.White)
+                            Spacer(Modifier.height(32.dp))
+                            Button(
+                                onClick = { configViewModel.sendConfig(ssid, password, selectedId!!, selectedName!!) },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB4F391), contentColor = Color.Black)
+                            ) {
+                                Text("Enviar Configuración al Nodo")
+                            }
                         }
+                    } else {
+                        LinkParcelaStep(
+                            parcelas = parcelas,
+                            selectedParcela = parcelas.find { it.id == selectedId },
+                            onParcelaSelected = { 
+                                selectedId = it.id
+                                selectedName = it.nombreParcela
+                            },
+                            onRegisterNew = onNavigateToAddParcel,
+                            onFinish = {
+                                selectedId?.let { id ->
+                                    configViewModel.sendConfig(ssid, password, id, selectedName ?: "")
+                                }
+                            }
+                        )
                     }
-                )
+                }
             }
 
-            // Diálogos de Estado
             when (val state = uiState) {
                 is BleUiState.Connecting -> LoadingDialog("Conectando con $selectedDeviceName...")
                 is BleUiState.Sending -> LoadingDialog("Enviando configuración...")
@@ -176,7 +180,7 @@ fun DeviceConfigScreen(
                     AlertDialog(
                         onDismissRequest = { configViewModel.resetState(); onNavigateBack() },
                         title = { Text("Configuración Exitosa") },
-                        text = { Text("El nodo '$selectedDeviceName' ha sido configurado y vinculado correctamente.") },
+                        text = { Text("El nodo ha sido configurado y vinculado correctamente.") },
                         confirmButton = {
                             TextButton(onClick = { 
                                 configViewModel.resetState()
@@ -192,8 +196,7 @@ fun DeviceConfigScreen(
                         text = { Text(state.message) },
                         confirmButton = {
                             TextButton(onClick = { 
-                                val wasWifiError = state.message.contains("WiFi", ignoreCase = true)
-                                if (wasWifiError) {
+                                if (state.message.contains("WiFi", ignoreCase = true)) {
                                     configViewModel.clearError()
                                     step = 2
                                 } else {
@@ -257,10 +260,7 @@ fun ScanDevicesStep(
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
             colors = CardDefaults.cardColors(containerColor = Color(0xFF410002))
         ) {
-            Row(
-                modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.BluetoothDisabled, contentDescription = null, tint = Color(0xFFF2B8B5))
                 Spacer(Modifier.width(12.dp))
                 Column {
@@ -290,15 +290,8 @@ fun ScanDevicesStep(
         } else {
             Column {
                 if (uiState is BleUiState.Scanning) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            color = Color(0xFFB4F391),
-                            strokeWidth = 2.dp
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color(0xFFB4F391), strokeWidth = 2.dp)
                         Spacer(Modifier.width(8.dp))
                         Text("Buscando dispositivos...", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
                     }
@@ -361,10 +354,7 @@ fun WifiConfigStep(
         visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
         trailingIcon = {
             IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                Icon(
-                    imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                    contentDescription = null
-                )
+                Icon(imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff, contentDescription = null)
             }
         }
     )
@@ -389,10 +379,6 @@ fun ColumnScope.LinkParcelaStep(
     onRegisterNew: () -> Unit,
     onFinish: () -> Unit
 ) {
-    val availableParcelas = remember(parcelas) {
-        parcelas.filter { it.nodoVinculado == null }
-    }
-
     Text("3. Vincular a Parcela", style = MaterialTheme.typography.titleMedium, color = Color(0xFFB4F391))
     Spacer(modifier = Modifier.height(16.dp))
     
@@ -406,26 +392,20 @@ fun ColumnScope.LinkParcelaStep(
         Text("Registrar nueva parcela")
     }
 
-    if (availableParcelas.isEmpty()) {
-        Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-            Text("No hay parcelas disponibles para vincular", color = Color.Gray, textAlign = TextAlign.Center)
-        }
-    } else {
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f)) {
-            items(availableParcelas) { parcela ->
-                val isSelected = selectedParcela?.id == parcela.id
-                OutlinedCard(
-                    onClick = { onParcelaSelected(parcela) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = if (isSelected) CardDefaults.outlinedCardColors(containerColor = Color(0xFF384B2F)) else CardDefaults.outlinedCardColors()
-                ) {
-                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(selected = isSelected, onClick = { onParcelaSelected(parcela) })
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Column {
-                            Text(parcela.nombreParcela, fontWeight = FontWeight.Bold)
-                            Text(parcela.variedad, style = MaterialTheme.typography.bodySmall)
-                        }
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f)) {
+        items(parcelas.filter { it.nodoVinculado == null }) { parcela ->
+            val isSelected = selectedParcela?.id == parcela.id
+            OutlinedCard(
+                onClick = { onParcelaSelected(parcela) },
+                modifier = Modifier.fillMaxWidth(),
+                colors = if (isSelected) CardDefaults.outlinedCardColors(containerColor = Color(0xFF384B2F)) else CardDefaults.outlinedCardColors()
+            ) {
+                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(selected = isSelected, onClick = { onParcelaSelected(parcela) })
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(parcela.nombreParcela, fontWeight = FontWeight.Bold)
+                        Text(parcela.variedad, style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }
@@ -443,60 +423,3 @@ fun ColumnScope.LinkParcelaStep(
         Text("Enviar Configuración al Nodo")
     }
 }
-
-@Preview(showBackground = true, backgroundColor = 0xFF1A1C18)
-@Composable
-fun StepIndicatorPreview() {
-    Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        StepIndicator(1, "Hardware", true)
-        StepIndicator(2, "Red", false)
-        StepIndicator(3, "Vincular", false)
-    }
-}
-
-@Preview(showBackground = true, backgroundColor = 0xFF1A1C18)
-@Composable
-fun ScanDevicesStepPreview() {
-    Column(modifier = Modifier.padding(16.dp)) {
-        ScanDevicesStep(
-            devices = emptyList(),
-            uiState = BleUiState.Scanning,
-            isBluetoothEnabled = true,
-            onDeviceSelected = {},
-            onRetry = {}
-        )
-    }
-}
-
-@Preview(showBackground = true, backgroundColor = 0xFF1A1C18)
-@Composable
-fun WifiConfigStepPreview() {
-    Column(modifier = Modifier.padding(16.dp)) {
-        WifiConfigStep(
-            ssid = "EcoVinedo_Guest",
-            onSsidChange = {},
-            password = "password123",
-            onPasswordChange = {},
-            onNext = {}
-        )
-    }
-}
-
-@Preview(showBackground = true, backgroundColor = 0xFF1A1C18)
-@Composable
-fun LinkParcelaStepPreview() {
-    val mockParcelas = listOf(
-        Parcela(id = "1", nombreParcela = "Lote Norte", variedad = "Merlot", areaM2 = 1000, umbralHumedad = 20f, umbralTemp = 35f, umbralHumedadSuelo = 30f, humedadOptimaSuelo = 60f, indiceMaduracion = 0f, fechaCosecha = null, activa = true),
-        Parcela(id = "2", nombreParcela = "Lote Sur", variedad = "Cabernet", areaM2 = 1200, umbralHumedad = 20f, umbralTemp = 35f, umbralHumedadSuelo = 30f, humedadOptimaSuelo = 60f, indiceMaduracion = 0f, fechaCosecha = null, activa = true)
-    )
-    Column(modifier = Modifier.padding(16.dp)) {
-        LinkParcelaStep(
-            parcelas = mockParcelas,
-            selectedParcela = mockParcelas[0],
-            onParcelaSelected = {},
-            onRegisterNew = {},
-            onFinish = {}
-        )
-    }
-}
-

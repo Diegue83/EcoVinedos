@@ -3,7 +3,8 @@ package mx.utng.ecoviedos.tv.presentation
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -11,10 +12,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.*
+import androidx.lifecycle.viewmodel.compose.viewModel
+import mx.utng.ecoviedos.data.remote.EventoResponse
+import mx.utng.ecoviedos.presentation.admin.TourismViewModel
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-fun ExperiencesScreen() {
+fun ActivitiesScreen(
+    viewModel: TourismViewModel = viewModel()
+) {
+    val activities by viewModel.eventos.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.cargarEventos()
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -22,7 +35,7 @@ fun ExperiencesScreen() {
             .padding(32.dp)
     ) {
         Text(
-            text = "Experiencias y promociones",
+            text = "Actividades y experiencias",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = Color.White
@@ -30,41 +43,37 @@ fun ExperiencesScreen() {
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            ExperienceCard(
-                title = "Tour Harvest Experience",
-                desc = "Recorrido por el viñedo con cata de 3 vinos seleccionados. Sábados y domingos 10am-2pm. Grupos máximo 12 personas.",
-                price = "$850 MXN",
-                tag = "Por persona",
-                bgColor = Color(0xFF1565C0),
-                modifier = Modifier.weight(1f)
-            )
-            ExperienceCard(
-                title = "Membresía Primavera",
-                desc = "6 botellas al mes con 20% de descuento permanente. Envío incluido en Querétaro. Cancela en cualquier momento.",
-                price = "Desde $680 / mes",
-                tag = "Suscripción",
-                bgColor = Color(0xFF2E7D32),
-                modifier = Modifier.weight(1f)
-            )
-            ExperienceCard(
-                title = "Maridaje Privado",
-                desc = "Experiencia exclusiva de maridaje con el enólogo de la bodega. Viernes, sáb y dom. Máximo 8 personas por sesión.",
-                price = "$1,200 MXN",
-                tag = "Reserva requerida",
-                bgColor = Color(0xFF5D4037),
-                modifier = Modifier.weight(1f)
-            )
+        if (isLoading) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = Color(0xFFB4F391))
+            }
+        } else if (activities.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("No hay actividades programadas", color = Color.Gray)
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                activities.forEach { activity ->
+                    ActivityCard(
+                        title = activity.titulo,
+                        desc = activity.descripcion,
+                        price = "${activity.precio} MXN",
+                        tag = if(activity.tipo == "TOURISM") "Turismo" else "Evento",
+                        bgColor = if(activity.tipo == "TOURISM") Color(0xFF2E7D32) else Color(0xFF1565C0),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
         }
     }
 }
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-fun ExperienceCard(
+fun ActivityCard(
     title: String,
     desc: String,
     price: String,
@@ -82,21 +91,20 @@ fun ExperienceCard(
         )
     ) {
         Column(modifier = Modifier.padding(24.dp)) {
-            // Icon Placeholder
             Box(
                 modifier = Modifier
                     .size(60.dp)
                     .background(Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Text("🍷", fontSize = 32.sp)
+                Text("📋", fontSize = 32.sp)
             }
             
             Spacer(modifier = Modifier.height(32.dp))
             
             Text(text = title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White)
             Spacer(modifier = Modifier.height(12.dp))
-            Text(text = desc, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.8f), lineHeight = 20.sp)
+            Text(text = desc, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.8f), lineHeight = 20.sp, maxLines = 4)
             
             Spacer(modifier = Modifier.weight(1f))
             

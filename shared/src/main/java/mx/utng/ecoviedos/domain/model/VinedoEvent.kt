@@ -7,6 +7,8 @@ data class VinedoEvent(
     val title: String,
     val description: String,
     val date: Date,
+    val precio: Double = 0.0,
+    val cupo: Int = 0,
     val imageUrl: String? = null,
-    val type: String = "EVENT" // "EVENT", "TOURISM", "NOTICE"
+    val type: String = "EVENT" // "EVENT", "TOURISM"
 )

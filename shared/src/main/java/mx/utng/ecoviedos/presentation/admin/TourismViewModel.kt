@@ -32,10 +32,9 @@ class TourismViewModel : ViewModel() {
         }
     }
 
-    fun crearEvento(token: String, titulo: String, descripcion: String, tipo: String, onExito: () -> Unit) {
+    fun crearEvento(token: String, request: EventoRequest, onExito: () -> Unit) {
         viewModelScope.launch {
             _isLoading.value = true
-            val request = EventoRequest(titulo, descripcion, tipo)
             repository.crearEvento(token, request).onSuccess {
                 cargarEventos()
                 onExito()

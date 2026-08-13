@@ -12,9 +12,11 @@ const historialRoutes = require('./routes/historialRoutes');
 const notificacionRoutes = require('./routes/notificacionRoutes');
 const eventoRoutes = require('./routes/eventoRoutes');
 const tvRoutes = require('./routes/tvRoutes');
+const uploadRoutes = require('./routes/uploadRoutes');
 const { iniciarTareasProgramadas } = require('./utils/cronJobs');
 const { iniciarVerificacionAlertas } = require('./utils/notificationService');
 const morgan = require('morgan');
+const path = require('path');
 
 
 connectDB();
@@ -27,6 +29,9 @@ app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
 
+// Carpeta estática para imágenes
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Rutas
 app.use('/api', usuarioRoutes);
 app.use('/api', parcelaRoutes);
@@ -37,6 +42,7 @@ app.use('/api', historialRoutes);
 app.use('/api', notificacionRoutes);
 app.use('/api/eventos', eventoRoutes);
 app.use('/api/tv', tvRoutes);
+app.use('/api/upload', uploadRoutes);
 
 app.get('/', (req, res) => {
   res.send('API de administración y riego de parcelas funcionando 🌱');

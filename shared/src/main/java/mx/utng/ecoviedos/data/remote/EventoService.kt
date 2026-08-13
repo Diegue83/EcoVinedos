@@ -7,6 +7,8 @@ data class EventoRequest(
     val titulo: String,
     val descripcion: String,
     val tipo: String,
+    val precio: Double = 0.0,
+    val cupo: Int = 0,
     val imagenUrl: String? = null
 )
 
@@ -16,6 +18,8 @@ data class EventoResponse(
     val descripcion: String,
     val fecha: String,
     val tipo: String,
+    val precio: Double = 0.0,
+    val cupo: Int = 0,
     val imagenUrl: String? = null
 )
 

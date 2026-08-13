@@ -39,7 +39,7 @@ import mx.utng.ecoviedos.presentation.admin.DeviceConfigViewModel
 import mx.utng.ecoviedos.presentation.admin.TourismManagementScreen
 import mx.utng.ecoviedos.presentation.admin.AddEventScreen
 import mx.utng.ecoviedos.presentation.admin.LinkTvScreen
-import mx.utng.ecoviedos.presentation.enologo.EnologoPanelScreen
+import mx.utng.ecoviedos.presentation.enologo.EnologoMainScreen
 import mx.utng.ecoviedos.presentation.enologo.CavaStateScreen
 import mx.utng.ecoviedos.presentation.enologo.CavaManagementScreen
 import mx.utng.ecoviedos.presentation.theme.EcoViedosTheme
@@ -105,16 +105,18 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             composable("enologo_panel") {
-                                EnologoPanelScreen(
-                                    onNavigateBack = { navController.popBackStack() },
-                                    onNavigateToEventManagement = { navController.navigate("tourism_management") },
-                                    onNavigateToCavaManagement = { navController.navigate("cava_management") },
-                                    onNavigateToCavaState = { navController.navigate("cava_state") },
+                                EnologoMainScreen(
+                                    mainViewModel = mainViewModel,
                                     onLogout = {
                                         mainViewModel.logout()
                                         navController.navigate("login") {
                                             popUpTo("enologo_panel") { inclusive = true }
                                         }
+                                    },
+                                    onNavigateToAddActivity = { navController.navigate("add_event") },
+                                    onNavigateToEditActivity = { id -> navController.navigate("add_event?id=$id") },
+                                    onNavigateToLinkSensor = { id, name -> 
+                                        navController.navigate("device_config?targetId=$id&targetName=$name&type=CAVA")
                                     }
                                 )
                             }
@@ -255,12 +257,26 @@ class MainActivity : ComponentActivity() {
                                     adminViewModel = adminViewModel
                                 )
                             }
-                            composable("device_config") {
+                            composable(
+                                route = "device_config?targetId={targetId}&targetName={targetName}&type={type}",
+                                arguments = listOf(
+                                    androidx.navigation.navArgument("targetId") { nullable = true; defaultValue = null },
+                                    androidx.navigation.navArgument("targetName") { nullable = true; defaultValue = null },
+                                    androidx.navigation.navArgument("type") { nullable = true; defaultValue = "PARCELA" }
+                                )
+                            ) { backStackEntry ->
+                                val targetId = backStackEntry.arguments?.getString("targetId")
+                                val targetName = backStackEntry.arguments?.getString("targetName")
+                                val type = backStackEntry.arguments?.getString("type") ?: "PARCELA"
+                                
                                 DeviceConfigScreen(
                                     onNavigateBack = { navController.popBackStack() },
                                     onNavigateToAddParcel = { navController.navigate("add_parcel") },
                                     mainViewModel = mainViewModel,
-                                    configViewModel = configViewModel
+                                    configViewModel = configViewModel,
+                                    preselectedId = targetId,
+                                    preselectedName = targetName,
+                                    linkType = type
                                 )
                             }
                             composable("settings") {
