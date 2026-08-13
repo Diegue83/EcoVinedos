@@ -38,6 +38,7 @@ import mx.utng.ecoviedos.presentation.admin.DeviceConfigScreen
 import mx.utng.ecoviedos.presentation.admin.DeviceConfigViewModel
 import mx.utng.ecoviedos.presentation.admin.TourismManagementScreen
 import mx.utng.ecoviedos.presentation.admin.AddEventScreen
+import mx.utng.ecoviedos.presentation.admin.LinkTvScreen
 import mx.utng.ecoviedos.presentation.theme.EcoViedosTheme
 
 class MainActivity : ComponentActivity() {
@@ -147,6 +148,7 @@ class MainActivity : ComponentActivity() {
                                     onNavigateBack = { navController.popBackStack() },
                                     onNavigateToParcelManagement = { navController.navigate("parcel_management") },
                                     onNavigateToTourismManagement = { navController.navigate("tourism_management") },
+                                    onNavigateToLinkTv = { navController.navigate("link_tv") },
                                     onNavigateToSamples = { }, // Ya no se usa desde aquí
                                     onNavigateToUsers = { navController.navigate("users") },
                                     onNavigateToSettings = { navController.navigate("settings") },
@@ -158,6 +160,12 @@ class MainActivity : ComponentActivity() {
                                         }
                                     },
                                     userRol = userRol ?: ""
+                                )
+                            }
+                            composable("link_tv") {
+                                LinkTvScreen(
+                                    onNavigateBack = { navController.popBackStack() },
+                                    mainViewModel = mainViewModel
                                 )
                             }
                             composable("tourism_management") {

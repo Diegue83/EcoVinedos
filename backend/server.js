@@ -11,6 +11,7 @@ const muestraRoutes = require('./routes/muestraRoutes');
 const historialRoutes = require('./routes/historialRoutes');
 const notificacionRoutes = require('./routes/notificacionRoutes');
 const eventoRoutes = require('./routes/eventoRoutes');
+const tvRoutes = require('./routes/tvRoutes');
 const { iniciarTareasProgramadas } = require('./utils/cronJobs');
 const { iniciarVerificacionAlertas } = require('./utils/notificationService');
 const morgan = require('morgan');
@@ -35,6 +36,7 @@ app.use('/api', muestraRoutes);
 app.use('/api', historialRoutes);
 app.use('/api', notificacionRoutes);
 app.use('/api/eventos', eventoRoutes);
+app.use('/api/tv', tvRoutes);
 
 app.get('/', (req, res) => {
   res.send('API de administración y riego de parcelas funcionando 🌱');
