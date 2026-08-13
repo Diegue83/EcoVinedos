@@ -21,8 +21,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
 import mx.utng.ecoviedos.domain.model.Parcela
 import mx.utng.ecoviedos.presentation.main.MainViewModel
 
@@ -333,6 +336,8 @@ fun WifiConfigStep(
     onPasswordChange: (String) -> Unit,
     onNext: () -> Unit
 ) {
+    var passwordVisible by remember { mutableStateOf(false) }
+
     Text("2. Configurar Red WiFi", style = MaterialTheme.typography.titleMedium, color = Color(0xFFB4F391))
     Spacer(modifier = Modifier.height(16.dp))
     
@@ -351,11 +356,17 @@ fun WifiConfigStep(
     OutlinedTextField(
         value = password,
         onValueChange = onPasswordChange,
-        label = { Text("Contraseña WiFi (Mín. 8 caracteres)") },
+        label = { Text("Contraseña WiFi (Dejar vacia si no se requiere)") },
         modifier = Modifier.fillMaxWidth(),
-        isError = password.isNotBlank() && password.length < 8,
-        supportingText = { if (password.isNotBlank() && password.length < 8) Text("Contraseña demasiado corta") },
-        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation()
+        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+        trailingIcon = {
+            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                Icon(
+                    imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                    contentDescription = null
+                )
+            }
+        }
     )
     
     Spacer(modifier = Modifier.height(24.dp))
@@ -363,7 +374,7 @@ fun WifiConfigStep(
     Button(
         onClick = onNext,
         modifier = Modifier.fillMaxWidth(),
-        enabled = ssid.isNotBlank() && password.length >= 8,
+        enabled = ssid.isNotBlank(),
         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB4F391), contentColor = Color.Black)
     ) {
         Text("Continuar a Vinculación")
@@ -432,3 +443,60 @@ fun ColumnScope.LinkParcelaStep(
         Text("Enviar Configuración al Nodo")
     }
 }
+
+@Preview(showBackground = true, backgroundColor = 0xFF1A1C18)
+@Composable
+fun StepIndicatorPreview() {
+    Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        StepIndicator(1, "Hardware", true)
+        StepIndicator(2, "Red", false)
+        StepIndicator(3, "Vincular", false)
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF1A1C18)
+@Composable
+fun ScanDevicesStepPreview() {
+    Column(modifier = Modifier.padding(16.dp)) {
+        ScanDevicesStep(
+            devices = emptyList(),
+            uiState = BleUiState.Scanning,
+            isBluetoothEnabled = true,
+            onDeviceSelected = {},
+            onRetry = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF1A1C18)
+@Composable
+fun WifiConfigStepPreview() {
+    Column(modifier = Modifier.padding(16.dp)) {
+        WifiConfigStep(
+            ssid = "EcoVinedo_Guest",
+            onSsidChange = {},
+            password = "password123",
+            onPasswordChange = {},
+            onNext = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF1A1C18)
+@Composable
+fun LinkParcelaStepPreview() {
+    val mockParcelas = listOf(
+        Parcela(id = "1", nombreParcela = "Lote Norte", variedad = "Merlot", areaM2 = 1000, umbralHumedad = 20f, umbralTemp = 35f, umbralHumedadSuelo = 30f, humedadOptimaSuelo = 60f, indiceMaduracion = 0f, fechaCosecha = null, activa = true),
+        Parcela(id = "2", nombreParcela = "Lote Sur", variedad = "Cabernet", areaM2 = 1200, umbralHumedad = 20f, umbralTemp = 35f, umbralHumedadSuelo = 30f, humedadOptimaSuelo = 60f, indiceMaduracion = 0f, fechaCosecha = null, activa = true)
+    )
+    Column(modifier = Modifier.padding(16.dp)) {
+        LinkParcelaStep(
+            parcelas = mockParcelas,
+            selectedParcela = mockParcelas[0],
+            onParcelaSelected = {},
+            onRegisterNew = {},
+            onFinish = {}
+        )
+    }
+}
+
