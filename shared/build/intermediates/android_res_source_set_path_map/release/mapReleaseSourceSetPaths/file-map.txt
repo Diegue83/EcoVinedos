@@ -1,0 +1,9 @@
+mx.utng.ecoviedos.shared-pngs-0 C:\Users\52418\AndroidStudioProjects\EcoViedos\shared\build\generated\res\pngs\release
+mx.utng.ecoviedos.shared-updated_navigation_xml-1 C:\Users\52418\AndroidStudioProjects\EcoViedos\shared\build\generated\updated_navigation_xml\release
+mx.utng.ecoviedos.shared-mergeReleaseResources-2 C:\Users\52418\AndroidStudioProjects\EcoViedos\shared\build\intermediates\incremental\release\mergeReleaseResources\merged.dir
+mx.utng.ecoviedos.shared-mergeReleaseResources-3 C:\Users\52418\AndroidStudioProjects\EcoViedos\shared\build\intermediates\incremental\release\mergeReleaseResources\stripped.dir
+mx.utng.ecoviedos.shared-release-4 C:\Users\52418\AndroidStudioProjects\EcoViedos\shared\build\intermediates\merged_res\release\mergeReleaseResources
+mx.utng.ecoviedos.shared-release-5 C:\Users\52418\AndroidStudioProjects\EcoViedos\shared\build\intermediates\packaged_res\release\packageReleaseResources
+mx.utng.ecoviedos.shared-main-6 C:\Users\52418\AndroidStudioProjects\EcoViedos\shared\src\main\res
+mx.utng.ecoviedos.shared-release-7 C:\Users\52418\AndroidStudioProjects\EcoViedos\shared\src\release\res
+gradleHome-0 C:\Users\52418\AndroidStudioProjects\MemoryWearWatch

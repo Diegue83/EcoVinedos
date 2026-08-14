@@ -1,0 +1,38 @@
+[
+    {
+        "merged": "mx.utng.ecoviedos.shared-release-2:/color-v23/abc_tint_switch_track.xml",
+        "source": "mx.utng.ecoviedos.shared-appcompat-1.6.1-9:/color-v23/abc_tint_switch_track.xml"
+    },
+    {
+        "merged": "mx.utng.ecoviedos.shared-release-2:/color-v23/abc_tint_seek_thumb.xml",
+        "source": "mx.utng.ecoviedos.shared-appcompat-1.6.1-9:/color-v23/abc_tint_seek_thumb.xml"
+    },
+    {
+        "merged": "mx.utng.ecoviedos.shared-release-2:/color-v23/abc_btn_colored_text_material.xml",
+        "source": "mx.utng.ecoviedos.shared-appcompat-1.6.1-9:/color-v23/abc_btn_colored_text_material.xml"
+    },
+    {
+        "merged": "mx.utng.ecoviedos.shared-release-2:/color-v23/abc_tint_spinner.xml",
+        "source": "mx.utng.ecoviedos.shared-appcompat-1.6.1-9:/color-v23/abc_tint_spinner.xml"
+    },
+    {
+        "merged": "mx.utng.ecoviedos.shared-release-2:/color-v23/abc_color_highlight_material.xml",
+        "source": "mx.utng.ecoviedos.shared-appcompat-1.6.1-9:/color-v23/abc_color_highlight_material.xml"
+    },
+    {
+        "merged": "mx.utng.ecoviedos.shared-release-2:/color-v23/abc_btn_colored_borderless_text_material.xml",
+        "source": "mx.utng.ecoviedos.shared-appcompat-1.6.1-9:/color-v23/abc_btn_colored_borderless_text_material.xml"
+    },
+    {
+        "merged": "mx.utng.ecoviedos.shared-release-2:/color-v23/abc_tint_btn_checkable.xml",
+        "source": "mx.utng.ecoviedos.shared-appcompat-1.6.1-9:/color-v23/abc_tint_btn_checkable.xml"
+    },
+    {
+        "merged": "mx.utng.ecoviedos.shared-release-2:/color-v23/abc_tint_default.xml",
+        "source": "mx.utng.ecoviedos.shared-appcompat-1.6.1-9:/color-v23/abc_tint_default.xml"
+    },
+    {
+        "merged": "mx.utng.ecoviedos.shared-release-2:/color-v23/abc_tint_edittext.xml",
+        "source": "mx.utng.ecoviedos.shared-appcompat-1.6.1-9:/color-v23/abc_tint_edittext.xml"
+    }
+]

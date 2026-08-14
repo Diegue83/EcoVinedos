@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "mx.utng.ecoviedos.shared"
-    compileSdk = 35
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 24

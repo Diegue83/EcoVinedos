@@ -1,0 +1,14 @@
+[
+    {
+        "merged": "mx.utng.ecoviedos.shared-release-2:/layout-land/material_timepicker.xml",
+        "source": "mx.utng.ecoviedos.shared-material-1.10.0-13:/layout-land/material_timepicker.xml"
+    },
+    {
+        "merged": "mx.utng.ecoviedos.shared-release-2:/layout-land/material_clock_period_toggle_land.xml",
+        "source": "mx.utng.ecoviedos.shared-material-1.10.0-13:/layout-land/material_clock_period_toggle_land.xml"
+    },
+    {
+        "merged": "mx.utng.ecoviedos.shared-release-2:/layout-land/mtrl_picker_header_dialog.xml",
+        "source": "mx.utng.ecoviedos.shared-material-1.10.0-13:/layout-land/mtrl_picker_header_dialog.xml"
+    }
+]

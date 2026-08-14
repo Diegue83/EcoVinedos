@@ -1,30 +1,38 @@
+/**
+ * Configuración de Multer con Cloudinary para la gestión de carga de archivos en la nube.
+ *
+ * Utiliza Cloudinary como motor de almacenamiento remoto, lo que permite que las
+ * imágenes sean accesibles mediante una URL segura (HTTPS) y persistente.
+ */
 const multer = require('multer');
-const path = require('path');
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
-// Configuración de almacenamiento
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/');
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
+// Configuración de las credenciales de Cloudinary desde variables de entorno
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// Filtro de archivos para asegurar que sean imágenes
-const fileFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith('image/')) {
-    cb(null, true);
-  } else {
-    cb(new Error('No es una imagen válida'), false);
-  }
-};
+// Configuración del motor de almacenamiento en Cloudinary
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'ecovinedos_assets',
+    allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
+    transformation: [{ width: 1000, height: 1000, crop: 'limit' }]
+  },
+});
 
+/**
+ * Middleware de Multer configurado con almacenamiento en la nube.
+ */
 const upload = multer({
   storage: storage,
-  fileFilter: fileFilter,
   limits: { fileSize: 5 * 1024 * 1024 } // Límite de 5MB
 });
 
 module.exports = upload;
+
+

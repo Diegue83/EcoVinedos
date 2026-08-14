@@ -1,0 +1,10 @@
+[
+    {
+        "merged": "mx.utng.ecoviedos.shared-release-2:/layout-v26/mtrl_calendar_month.xml",
+        "source": "mx.utng.ecoviedos.shared-material-1.10.0-13:/layout-v26/mtrl_calendar_month.xml"
+    },
+    {
+        "merged": "mx.utng.ecoviedos.shared-release-2:/layout-v26/abc_screen_toolbar.xml",
+        "source": "mx.utng.ecoviedos.shared-appcompat-1.6.1-9:/layout-v26/abc_screen_toolbar.xml"
+    }
+]

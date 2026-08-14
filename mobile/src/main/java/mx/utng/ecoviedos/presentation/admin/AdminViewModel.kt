@@ -9,14 +9,18 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import mx.utng.ecoviedos.data.local.SessionManager
+import mx.utng.ecoviedos.data.remote.BitacoraRequest
 import mx.utng.ecoviedos.data.remote.ParcelaRequest
 import mx.utng.ecoviedos.data.remote.UsuarioRequest
 import mx.utng.ecoviedos.data.remote.UsuarioResponse
 import mx.utng.ecoviedos.data.repository.ParcelaRepository
 import mx.utng.ecoviedos.data.repository.UsuarioRepository
-import mx.utng.ecoviedos.data.repository.NotificacionRepository
+import mx.utng.ecoviedos.data.repository.BitacoraRemoteRepository
 import mx.utng.ecoviedos.presentation.main.MainViewModel
 
+/**
+ * Estados posibles para la interfaz de creación y edición de parcelas.
+ */
 sealed class AddParcelUiState {
     data object Idle : AddParcelUiState()
     data object Loading : AddParcelUiState()
@@ -24,6 +28,9 @@ sealed class AddParcelUiState {
     data class Error(val mensaje: String) : AddParcelUiState()
 }
 
+/**
+ * Estados para la gestión de usuarios administrativos.
+ */
 sealed class UserManagementUiState {
     data object Idle : UserManagementUiState()
     data object Loading : UserManagementUiState()
@@ -31,25 +38,41 @@ sealed class UserManagementUiState {
     data class Error(val mensaje: String) : UserManagementUiState()
 }
 
+/**
+ * ViewModel encargado de las operaciones administrativas de la aplicación móvil.
+ *
+ * Provee funcionalidad para la gestión de parcelas (crear, actualizar, eliminar)
+ * y la administración de usuarios del sistema.
+ *
+ * @param application Instancia de la aplicación.
+ */
 class AdminViewModel(application: Application) : AndroidViewModel(application) {
 
     private val sessionManager = SessionManager(application)
     private val parcelaRepository = ParcelaRepository()
     private val usuarioRepository = UsuarioRepository()
-    private val notificacionRepository = NotificacionRepository()
+    private val bitacoraRepository = BitacoraRemoteRepository()
 
     private var mainViewModel: MainViewModel? = null
 
+    /** Flujo de estado para las acciones sobre parcelas. */
     private val _uiState = MutableStateFlow<AddParcelUiState>(AddParcelUiState.Idle)
     val uiState: StateFlow<AddParcelUiState> = _uiState.asStateFlow()
 
+    /** Flujo de estado para la gestión de usuarios. */
     private val _userUiState = MutableStateFlow<UserManagementUiState>(UserManagementUiState.Idle)
     val userUiState: StateFlow<UserManagementUiState> = _userUiState.asStateFlow()
 
+    /**
+     * Vincula el MainViewModel para coordinar la actualización de la lista global de parcelas.
+     */
     fun setMainViewModel(viewModel: MainViewModel) {
         mainViewModel = viewModel
     }
 
+    /**
+     * Registra una nueva parcela en el sistema con sus configuraciones y umbrales.
+     */
     fun addParcel(
         nombre: String,
         variedad: String,
@@ -89,18 +112,20 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
                     mainViewModel?.cargarParcelas()
                     _uiState.value = AddParcelUiState.Success
                     
-                    // Notificar sobre la nueva parcela
-                    val mensajeNotif = if (parcela.nodoVinculado == null) {
+                    // Registrar evento en bitácora
+                    val descripcion = if (parcela.nodoVinculado == null) {
                         "Nueva parcela '${parcela.nombreParcela}' registrada. Aún no tiene un nodo IoT vinculado."
                     } else {
                         "Nueva parcela '${parcela.nombreParcela}' registrada y vinculada."
                     }
                     
-                    notificacionRepository.crearNotificacion(
-                        tipo = "sistema",
-                        titulo = "Parcela Registrada",
-                        mensaje = mensajeNotif,
-                        parcelaId = parcela.id
+                    bitacoraRepository.crearBitacora(
+                        token = token,
+                        request = BitacoraRequest(
+                            parcela = parcela.id,
+                            accion = "Registro de Parcela",
+                            descripcion = descripcion
+                        )
                     )
                 }
                 .onFailure { e ->
@@ -109,6 +134,9 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Actualiza la información de una parcela existente.
+     */
     fun updateParcel(
         id: String,
         nombre: String,
@@ -156,6 +184,9 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Elimina una parcela del sistema.
+     */
     fun deleteParcel(id: String) {
         viewModelScope.launch {
             _uiState.value = AddParcelUiState.Loading
@@ -178,12 +209,18 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Reinicia el estado de la UI a su valor inicial.
+     */
     fun resetState() {
         _uiState.value = AddParcelUiState.Idle
     }
 
-    // --- User Management ---
+    // --- Gestión de Usuarios ---
 
+    /**
+     * Carga la lista de usuarios desde el servidor.
+     */
     fun loadUsers() {
         viewModelScope.launch {
             _userUiState.value = UserManagementUiState.Loading
@@ -203,6 +240,9 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Crea un nuevo usuario.
+     */
     fun createUser(nombre: String, correo: String, contrasena: String, rol: String, telefono: String?) {
         viewModelScope.launch {
             val token = sessionManager.token.first()
@@ -214,6 +254,9 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Actualiza los datos de un usuario existente.
+     */
     fun updateUser(id: String, nombre: String, correo: String, rol: String, telefono: String?) {
         viewModelScope.launch {
             val token = sessionManager.token.first()
@@ -225,6 +268,9 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Elimina un usuario.
+     */
     fun deleteUser(id: String) {
         viewModelScope.launch {
             val token = sessionManager.token.first()

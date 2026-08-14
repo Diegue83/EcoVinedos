@@ -50,12 +50,29 @@ import mx.utng.ecoviedos.presentation.enologo.CavaStateScreen
 import mx.utng.ecoviedos.presentation.enologo.CavaManagementScreen
 import mx.utng.ecoviedos.presentation.theme.EcoViedosTheme
 
+/**
+ * Actividad principal de la aplicación móvil EcoViñedos.
+ *
+ * Esta clase se encarga de:
+ * 1. Inicializar el sistema de navegación basado en Jetpack Compose.
+ * 2. Gestionar los ciclos de vida de la actividad y los intents entrantes.
+ * 3. Solicitar permisos necesarios (como notificaciones).
+ * 4. Programar tareas en segundo plano mediante [WorkManager].
+ * 5. Proveer los [ViewModel] principales a la jerarquía de UI.
+ */
 class MainActivity : ComponentActivity() {
+    /**
+     * Maneja los nuevos intents recibidos mientras la actividad está en ejecución.
+     * Útil para la navegación desde notificaciones.
+     */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent) // Actualizar el intent para que NavHost lo vea
     }
 
+    /**
+     * Punto de entrada de la actividad donde se configura el contenido de Compose y los servicios iniciales.
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -334,6 +351,10 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Programa la tarea periódica de sincronización de notificaciones.
+     * Se ejecuta cada 15 minutos para verificar nuevas alertas desde el servidor.
+     */
     private fun scheduleNotificationWorker() {
         val workRequest = PeriodicWorkRequestBuilder<NotificationWorker>(
             15, java.util.concurrent.TimeUnit.MINUTES
@@ -346,3 +367,4 @@ class MainActivity : ComponentActivity() {
         )
     }
 }
+

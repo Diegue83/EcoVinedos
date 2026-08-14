@@ -1,0 +1,36 @@
+{
+    "logs": [
+        {
+            "outputFile": "mx.utng.ecoviedos.shared-release-2:/values-watch-v20/values-watch-v20.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\52418\\AndroidStudioProjects\\MemoryWearWatch\\caches\\9.4.1\\transforms\\10f50353e4e6f5d1d3a16d82c7313fbf\\transformed\\appcompat-1.6.1\\res\\values-watch-v20\\values-watch-v20.xml",
+                    "from": {
+                        "startLines": "2,5,8",
+                        "startColumns": "4,4,4",
+                        "startOffsets": "55,214,385",
+                        "endLines": "4,7,10",
+                        "endColumns": "12,12,12",
+                        "endOffsets": "209,380,553"
+                    }
+                }
+            ]
+        },
+        {
+            "outputFile": "mx.utng.ecoviedos.shared-mergeReleaseResources-0:/values-watch-v20/values-watch-v20.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\52418\\AndroidStudioProjects\\MemoryWearWatch\\caches\\9.4.1\\transforms\\10f50353e4e6f5d1d3a16d82c7313fbf\\transformed\\appcompat-1.6.1\\res\\values-watch-v20\\values-watch-v20.xml",
+                    "from": {
+                        "startLines": "2,5,8",
+                        "startColumns": "4,4,4",
+                        "startOffsets": "55,214,385",
+                        "endLines": "4,7,10",
+                        "endColumns": "12,12,12",
+                        "endOffsets": "209,380,553"
+                    }
+                }
+            ]
+        }
+    ]
+}

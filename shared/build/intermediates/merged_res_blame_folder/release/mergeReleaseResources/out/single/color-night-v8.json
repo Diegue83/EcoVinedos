@@ -1,0 +1,14 @@
+[
+    {
+        "merged": "mx.utng.ecoviedos.shared-release-2:/color-night-v8/material_timepicker_modebutton_tint.xml",
+        "source": "mx.utng.ecoviedos.shared-material-1.10.0-13:/color-night-v8/material_timepicker_modebutton_tint.xml"
+    },
+    {
+        "merged": "mx.utng.ecoviedos.shared-release-2:/color-night-v8/material_timepicker_clockface.xml",
+        "source": "mx.utng.ecoviedos.shared-material-1.10.0-13:/color-night-v8/material_timepicker_clockface.xml"
+    },
+    {
+        "merged": "mx.utng.ecoviedos.shared-release-2:/color-night-v8/material_timepicker_button_stroke.xml",
+        "source": "mx.utng.ecoviedos.shared-material-1.10.0-13:/color-night-v8/material_timepicker_button_stroke.xml"
+    }
+]

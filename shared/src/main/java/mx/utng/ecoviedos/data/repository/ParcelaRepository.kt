@@ -6,17 +6,20 @@ import mx.utng.ecoviedos.data.remote.RetrofitClient
 import mx.utng.ecoviedos.domain.model.Parcela
 
 /**
- * Repositorio encargado de gestionar los datos de las parcelas.
- * 
- * Se comunica con la API REST para realizar operaciones CRUD sobre las parcelas.
+ * Repositorio encargado de gestionar los datos de las parcelas en el ecosistema EcoViñedos.
+ *
+ * Esta clase actúa como mediadora entre la capa de presentación y la API REST,
+ * encapsulando la lógica de red y la transformación de modelos de datos a modelos de dominio.
+ * Utiliza [RetrofitClient.parcelaService] para realizar las peticiones al servidor.
  */
 class ParcelaRepository {
 
     /**
-     * Obtiene todas las parcelas registradas en el sistema.
-     * 
-     * @param token Token de autenticación del usuario.
-     * @return Resultado con la lista de parcelas o el error producido.
+     * Obtiene todas las parcelas registradas asociadas al usuario autenticado.
+     *
+     * @param token Token de autenticación JWT del usuario.
+     * @return [Result] que contiene la lista de objetos [Parcela] (modelo de dominio) en caso de éxito,
+     * o una excepción en caso de error de red o del servidor.
      */
     suspend fun obtenerParcelas(token: String): Result<List<Parcela>> {
         return try {
@@ -36,11 +39,11 @@ class ParcelaRepository {
     }
 
     /**
-     * Registra una nueva parcela en el servidor.
-     * 
-     * @param token Token de autenticación del usuario.
-     * @param request Datos de la parcela a crear.
-     * @return Resultado con la parcela creada o el error producido.
+     * Registra una nueva parcela en el servidor central.
+     *
+     * @param token Token de autenticación del usuario administrador o técnico.
+     * @param request Objeto [ParcelaRequest] con los detalles técnicos y de configuración de la parcela.
+     * @return [Result] con el objeto [Parcela] creado y procesado por el dominio, o un error descriptivo.
      */
     suspend fun crearParcela(token: String, request: ParcelaRequest): Result<Parcela> {
         return try {
@@ -61,12 +64,12 @@ class ParcelaRepository {
     }
 
     /**
-     * Actualiza la información de una parcela existente.
-     * 
-     * @param token Token de autenticación del usuario.
-     * @param id Identificador único de la parcela.
-     * @param request Datos actualizados de la parcela.
-     * @return Resultado con la parcela actualizada o el error producido.
+     * Actualiza la información y umbrales de una parcela existente.
+     *
+     * @param token Token de autenticación.
+     * @param id Identificador único de la parcela en la base de datos.
+     * @param request Datos actualizados encapsulados en un [ParcelaRequest].
+     * @return [Result] con la instancia de [Parcela] actualizada.
      */
     suspend fun actualizarParcela(token: String, id: String, request: ParcelaRequest): Result<Parcela> {
         return try {
@@ -82,11 +85,11 @@ class ParcelaRepository {
     }
 
     /**
-     * Elimina una parcela mediante su identificador.
-     * 
-     * @param token Token de autenticación del usuario.
-     * @param id Identificador de la parcela a eliminar.
-     * @return Resultado unitario de éxito o el error producido.
+     * Elimina permanentemente una parcela del sistema.
+     *
+     * @param token Token de autenticación.
+     * @param id Identificador único de la parcela a eliminar.
+     * @return [Result] exitoso (Unit) si la operación fue confirmada por el servidor, o un error.
      */
     suspend fun eliminarParcela(token: String, id: String): Result<Unit> {
         return try {
@@ -101,3 +104,4 @@ class ParcelaRepository {
         }
     }
 }
+

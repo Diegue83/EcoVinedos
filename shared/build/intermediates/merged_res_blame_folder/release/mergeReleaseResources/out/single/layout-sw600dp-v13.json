@@ -1,0 +1,10 @@
+[
+    {
+        "merged": "mx.utng.ecoviedos.shared-release-2:/layout-sw600dp-v13/mtrl_layout_snackbar.xml",
+        "source": "mx.utng.ecoviedos.shared-material-1.10.0-13:/layout-sw600dp-v13/mtrl_layout_snackbar.xml"
+    },
+    {
+        "merged": "mx.utng.ecoviedos.shared-release-2:/layout-sw600dp-v13/design_layout_snackbar.xml",
+        "source": "mx.utng.ecoviedos.shared-material-1.10.0-13:/layout-sw600dp-v13/design_layout_snackbar.xml"
+    }
+]

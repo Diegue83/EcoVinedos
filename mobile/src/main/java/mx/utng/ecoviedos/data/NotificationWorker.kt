@@ -16,11 +16,31 @@ import mx.utng.ecoviedos.MainActivity
 import mx.utng.ecoviedos.data.local.SessionManager
 import mx.utng.ecoviedos.data.remote.RetrofitClient
 
+/**
+ * Trabajador en segundo plano encargado de la sincronización de notificaciones.
+ *
+ * Utiliza [CoroutineWorker] de la biblioteca AndroidX WorkManager para realizar consultas
+ * periódicas al servidor y verificar si hay nuevas notificaciones sin leer para el usuario actual.
+ *
+ * @param appContext Contexto de la aplicación.
+ * @param workerParams Parámetros de configuración del trabajador.
+ */
 class NotificationWorker(
     appContext: Context,
     workerParams: WorkerParameters
 ) : CoroutineWorker(appContext, workerParams) {
 
+    /**
+     * Ejecuta la lógica de sincronización.
+     *
+     * 1. Recupera el token de sesión.
+     * 2. Consulta las notificaciones mediante [RetrofitClient.notificacionService].
+     * 3. Filtra las notificaciones con estado "no leida".
+     * 4. Muestra una notificación del sistema si existen nuevos mensajes.
+     *
+     * @return [ListenableWorker.Result.success] si se procesó correctamente,
+     * [ListenableWorker.Result.retry] en caso de error de red.
+     */
     override suspend fun doWork(): ListenableWorker.Result {
         val sessionManager = SessionManager(applicationContext)
         val token = sessionManager.token.first()
@@ -49,6 +69,12 @@ class NotificationWorker(
         }
     }
 
+    /**
+     * Construye y despliega una notificación push en el sistema Android.
+     *
+     * @param title Título descriptivo de la alerta.
+     * @param message Cuerpo del mensaje a mostrar.
+     */
     private fun showNotification(title: String, message: String) {
         val context = applicationContext
         val channelId = "system_notifications"
@@ -81,3 +107,4 @@ class NotificationWorker(
         notificationManager.notify(999, notification)
     }
 }
+

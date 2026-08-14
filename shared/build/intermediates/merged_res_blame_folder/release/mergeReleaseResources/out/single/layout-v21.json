@@ -1,0 +1,18 @@
+[
+    {
+        "merged": "mx.utng.ecoviedos.shared-release-2:/layout-v21/notification_template_icon_group.xml",
+        "source": "mx.utng.ecoviedos.shared-core-1.16.0-17:/layout-v21/notification_template_icon_group.xml"
+    },
+    {
+        "merged": "mx.utng.ecoviedos.shared-release-2:/layout-v21/notification_template_custom_big.xml",
+        "source": "mx.utng.ecoviedos.shared-core-1.16.0-17:/layout-v21/notification_template_custom_big.xml"
+    },
+    {
+        "merged": "mx.utng.ecoviedos.shared-release-2:/layout-v21/notification_action.xml",
+        "source": "mx.utng.ecoviedos.shared-core-1.16.0-17:/layout-v21/notification_action.xml"
+    },
+    {
+        "merged": "mx.utng.ecoviedos.shared-release-2:/layout-v21/notification_action_tombstone.xml",
+        "source": "mx.utng.ecoviedos.shared-core-1.16.0-17:/layout-v21/notification_action_tombstone.xml"
+    }
+]

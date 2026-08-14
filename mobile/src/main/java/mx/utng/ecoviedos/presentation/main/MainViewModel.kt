@@ -25,21 +25,41 @@ import java.util.*
 import kotlinx.coroutines.flow.first
 
 /**
- * ViewModel principal de la aplicación.
- * 
- * Gestiona el estado global de las parcelas, la comunicación con Wearable,
- * la sincronización vía MQTT y las peticiones HTTP al servidor.
+ * ViewModel principal de la aplicación móvil EcoViñedos.
+ *
+ * Gestiona el estado global de las parcelas, la comunicación con dispositivos Wearable a través de
+ * la API de Google Play Services, la sincronización en tiempo real mediante el protocolo MQTT
+ * y la persistencia de sesión del usuario.
+ *
+ * Esta clase también se encarga de:
+ * - Mantener un temporizador local para el seguimiento del tiempo de riego.
+ * - Programar notificaciones del sistema para eventos de riego.
+ * - Sincronizar datos con el servidor backend mediante [ParcelaRepository].
+ *
+ * @param application Instancia de la aplicación para acceso a recursos del sistema y SharedPreferences.
  */
 class MainViewModel(application: Application) : AndroidViewModel(application), MessageClient.OnMessageReceivedListener {
+    /**
+     * Flujo de estado que contiene la lista actualizada de parcelas vinculadas al usuario.
+     */
     private val _parcelas = MutableStateFlow<List<Parcela>>(emptyList())
     val parcelas: StateFlow<List<Parcela>> = _parcelas.asStateFlow()
 
+    /**
+     * Indica si se está realizando una operación de carga de datos desde el servidor.
+     */
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
+    /**
+     * Descripción textual del estado actual de la conexión MQTT (e.g., "Conectado", "Error").
+     */
     private val _mqttStatus = MutableStateFlow("Desconectado")
     val mqttStatus: StateFlow<String> = _mqttStatus.asStateFlow()
 
+    /**
+     * Indica si existe una conexión activa con el broker MQTT.
+     */
     private val _isMqttConnected = MutableStateFlow(false)
     val isMqttConnected: StateFlow<Boolean> = _isMqttConnected.asStateFlow()
     
@@ -50,7 +70,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
     private val sessionManager = SessionManager(application)
     private var mqttManager: MqttManager? = null
 
+    /**
+     * Flujo que emite el token de sesión actual del usuario.
+     */
     val sessionToken: Flow<String?> = sessionManager.token
+    
+    /**
+     * Flujo que emite el rol del usuario autenticado.
+     */
     val sessionRol: Flow<String?> = sessionManager.rol
 
     private val prefs = application.getSharedPreferences("EcoViñedosPrefs", Context.MODE_PRIVATE)
@@ -75,7 +102,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
     }
 
     /**
-     * Cierra la sesión del usuario actual y libera recursos.
+     * Cierra la sesión del usuario actual, desconecta el cliente MQTT y limpia los datos de sesión local.
      */
     fun logout() {
         viewModelScope.launch {
@@ -86,8 +113,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
 
     /**
      * Realiza una petición HTTP GET al servidor para obtener la lista actualizada de parcelas.
-     * 
-     * Sincroniza los datos con la interfaz y con el dispositivo Wearable.
+     *
+     * Sincroniza los datos con la interfaz de usuario, aplica parches de persistencia local para el riego
+     * y notifica al dispositivo Wearable conectado sobre los nuevos datos.
      */
     fun cargarParcelas() {
         Log.d("MainViewModel", "Iniciando carga de parcelas via HTTP...")
@@ -135,7 +163,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
     }
 
     /**
-     * Actualiza la fecha de cosecha de una parcela.
+     * Actualiza la fecha programada de cosecha para una parcela específica.
+     *
+     * @param parcela La parcela a la cual se le asignará la fecha.
+     * @param nuevaFecha La nueva fecha de cosecha seleccionada.
      */
     fun actualizarFechaCosecha(parcela: Parcela, nuevaFecha: Date?) {
         viewModelScope.launch {
@@ -170,7 +201,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
     }
 
     /**
-     * Inicializa el cliente MQTT y configura los callbacks para recibir telemetría.
+     * Inicializa el cliente MQTT y configura los controladores de eventos para telemetría,
+     * estado de riego y cambios en la conexión.
      */
     private fun initializeMqtt() {
         mqttManager?.disconnect()
@@ -206,17 +238,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
     }
 
     /**
-     * Actualiza localmente los valores de una parcela recibidos por sensores vía MQTT.
+     * Actualiza el estado local de una parcela con los datos recibidos desde los sensores IoT.
+     * Gestiona la lógica de persistencia del tiempo de riego y lanza notificaciones si es necesario.
      */
     private fun updateParcelaFromSensor(id: String, hum: Float, temp: Float, humsuel: Float, riego: Boolean, tiempo: Int) {
         val currentList = _parcelas.value.toMutableList()
         val index = currentList.indexOfFirst { it.id == id }
         if (index != -1) {
             val oldParcela = currentList[index]
-            
-            // Si la placa siempre envía false en stats, ignoramos ese campo para no apagar el riego localmente.
-            // Solo actualizamos el estado de riego si el mensaje viene del tópico específico de riego/control.
-            // O, si decidimos confiar en el 'true', pero ignorar el 'false' si ya estaba activo.
             
             val nuevaRiegoActivo = if (oldParcela.riegoActivo && !riego) {
                 // Mantener activo si la app ya lo tenía así (evita el falso apagado de stats)
@@ -234,8 +263,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
                 realTiempo = diff.toInt()
             }
 
-            // Solo mostramos notificación de finalización si realmente cambió de true a false
-            // y no fue por un mensaje de stats ignorado.
+            // Notificación al finalizar riego
             if (oldParcela.riegoActivo && !nuevaRiegoActivo) {
                 showRiegoNotification(id, oldParcela.nombreParcela, "El riego automático ha finalizado correctamente.")
                 prefs.edit().remove("riego_end_$id").apply()
@@ -254,6 +282,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
         }
     }
 
+    /**
+     * Muestra una notificación del sistema relacionada con el estado de riego de una parcela.
+     *
+     * @param parcelaId ID de la parcela afectada.
+     * @param parcelaName Nombre descriptivo de la parcela.
+     * @param message Mensaje a mostrar en la notificación.
+     */
     private fun showRiegoNotification(parcelaId: String, parcelaName: String, message: String) {
         val context = getApplication<Application>()
         val channelId = "riego_notifications"
@@ -286,6 +321,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
         notificationManager.notify(parcelaId.hashCode(), notification)
     }
 
+    /**
+     * Actualiza el estado de riego y el tiempo restante en base a un mensaje explícito de control.
+     */
     private fun updateRiegoStatus(id: String, activo: Boolean, tiempo: Int) {
         val currentList = _parcelas.value.toMutableList()
         val index = currentList.indexOfFirst { it.id == id }
@@ -313,6 +351,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
         }
     }
 
+    /**
+     * Inicia un temporizador en segundo plano que decrementa el tiempo restante de riego
+     * de todas las parcelas activas cada segundo.
+     */
     private fun startLocalTimer() {
         timerJob?.cancel()
         timerJob = viewModelScope.launch(Dispatchers.Default) {
@@ -360,12 +402,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
     }
 
     /**
-     * Envía una orden de activación o desactivación de riego vía MQTT.
-     * 
-     * @param parcelId Identificador de la parcela.
-     * @param activo true para encender, false para apagar.
-     * @param duracionMinutos Tiempo de riego en minutos.
-     * @param modo "AUTO" o "MANUAL".
+     * Alterna el estado de riego de una parcela (Activar/Desactivar).
+     *
+     * Si se activa, programa una alarma para notificar el fin del riego y persiste el tiempo de finalización.
+     * Si se desactiva, cancela las alarmas y notificaciones pendientes.
+     *
+     * @param parcelId Identificador único de la parcela.
+     * @param activo true para activar el riego, false para desactivarlo.
+     * @param duracionMinutos Duración programada en minutos.
+     * @param modo Modo de riego ("AUTO" o "MANUAL").
      */
     fun toggleRiego(parcelId: String, activo: Boolean, duracionMinutos: Int, modo: String = "AUTO") {
         Log.d("MainViewModel", "Toggle Riego: Parcela=$parcelId, Activo=$activo, Duracion=$duracionMinutos, Modo=$modo")
@@ -418,25 +463,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
         mqttManager?.toggleRiego(parcelId, activo, duracionMinutos, modo)
     }
 
+    /**
+     * Cancela la notificación de riego activa para una parcela determinada.
+     */
     private fun cancelRiegoNotification(parcelId: String) {
         val notificationManager = getApplication<Application>().getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
         notificationManager.cancel(parcelId.hashCode())
     }
 
     /**
-     * Reenvía la lista actual de parcelas al dispositivo Wearable conectado.
+     * Sincroniza forzosamente la lista actual de parcelas con el dispositivo Wearable.
      */
     fun reloadParcelas() {
         wearableDataSender.sendParcelas(_parcelas.value)
     }
 
+    /**
+     * Controlador para mensajes entrantes desde la API de Wearable.
+     */
     override fun onMessageReceived(event: MessageEvent) {
-        // Manejar mensajes entrantes desde el reloj
+        // Implementación futura si se requiere comunicación bidireccional específica
     }
 
+    /**
+     * Limpia recursos al destruir el ViewModel, desconectando el cliente MQTT y los listeners de Wearable.
+     */
     override fun onCleared() {
         super.onCleared()
         mqttManager?.disconnect()
         Wearable.getMessageClient(getApplication()).removeListener(this)
     }
 }
+

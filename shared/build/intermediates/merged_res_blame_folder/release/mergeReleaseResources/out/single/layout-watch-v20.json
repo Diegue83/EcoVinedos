@@ -1,0 +1,10 @@
+[
+    {
+        "merged": "mx.utng.ecoviedos.shared-release-2:/layout-watch-v20/abc_alert_dialog_title_material.xml",
+        "source": "mx.utng.ecoviedos.shared-appcompat-1.6.1-9:/layout-watch-v20/abc_alert_dialog_title_material.xml"
+    },
+    {
+        "merged": "mx.utng.ecoviedos.shared-release-2:/layout-watch-v20/abc_alert_dialog_button_bar_material.xml",
+        "source": "mx.utng.ecoviedos.shared-appcompat-1.6.1-9:/layout-watch-v20/abc_alert_dialog_button_bar_material.xml"
+    }
+]

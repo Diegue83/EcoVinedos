@@ -1,0 +1,34 @@
+{
+    "logs": [
+        {
+            "outputFile": "mx.utng.ecoviedos.shared-release-2:/values-w320dp-land-v13/values-w320dp-land-v13.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\52418\\AndroidStudioProjects\\MemoryWearWatch\\caches\\9.4.1\\transforms\\261dbbd3c9af727a8524502e50c8c560\\transformed\\material-1.10.0\\res\\values-w320dp-land-v13\\values-w320dp-land-v13.xml",
+                    "from": {
+                        "startLines": "2,3",
+                        "startColumns": "4,4",
+                        "startOffsets": "55,110",
+                        "endColumns": "54,61",
+                        "endOffsets": "105,167"
+                    }
+                }
+            ]
+        },
+        {
+            "outputFile": "mx.utng.ecoviedos.shared-mergeReleaseResources-0:/values-w320dp-land-v13/values-w320dp-land-v13.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\52418\\AndroidStudioProjects\\MemoryWearWatch\\caches\\9.4.1\\transforms\\261dbbd3c9af727a8524502e50c8c560\\transformed\\material-1.10.0\\res\\values-w320dp-land-v13\\values-w320dp-land-v13.xml",
+                    "from": {
+                        "startLines": "2,3",
+                        "startColumns": "4,4",
+                        "startOffsets": "55,110",
+                        "endColumns": "54,61",
+                        "endOffsets": "105,167"
+                    }
+                }
+            ]
+        }
+    ]
+}
