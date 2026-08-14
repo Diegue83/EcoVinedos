@@ -118,9 +118,12 @@ client.on("message", async (topic, message) => {
             }
             
 
+            const ahora = Date.now();
+            const ultimo = ultimosGuardados.get(parcelaId) || 0;
+            const QUINCE_MINUTOS = 15 * 60 * 1000;
+
             // Guardar en historial solo cada 15 minutos (Solo para parcelas por ahora)
-            if (target && target.constructor.modelName === 'Parcela') {
-                const ahora = Date.now();
+            if (ahora - ultimo >= QUINCE_MINUTOS &&target && target.constructor.modelName === 'Parcela') {
                 // Calcular consumo de agua en este intervalo de 15 min (si el riego estaba activo)
                 let consumoIntervalo = 0;
                 if (target.riegoActivo) {
