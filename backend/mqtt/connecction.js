@@ -122,9 +122,9 @@ client.on("message", async (topic, message) => {
                 const ahora = Date.now();
                 // Calcular consumo de agua en este intervalo de 15 min (si el riego estaba activo)
                 let consumoIntervalo = 0;
-                if (parcelaActualizada.riegoActivo) {
+                if (parcela.riegoActivo) {
                     const horas = 15 / 60; // 0.25 horas
-                    consumoIntervalo = horas * parcelaActualizada.consumoAguaM2 * parcelaActualizada.areaM2;
+                    consumoIntervalo = horas * parcela.consumoAguaM2 * parcela.areaM2;
                 }
 
                 await HistorialSensor.create({
