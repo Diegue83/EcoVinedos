@@ -1,7 +1,5 @@
 package mx.utng.ecoviedos.presentation.enologo
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,9 +14,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import mx.utng.ecoviedos.data.remote.CavaResponse
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,13 +26,15 @@ fun CavaStateScreen(
     val cavas by enologoViewModel.cavas.collectAsState()
     val isLoading by enologoViewModel.isLoading.collectAsState()
 
-    val avgTemp = if (cavas.isNotEmpty()) cavas.map { it.temperatura }.average() else 0.0
-    val avgHum = if (cavas.isNotEmpty()) cavas.map { it.humedad }.average() else 0.0
+    // Aplanamos todas las secciones para calcular promedios globales
+    val todasLasSecciones = cavas.flatMap { it.secciones }
+    val avgTemp = if (todasLasSecciones.isNotEmpty()) todasLasSecciones.map { it.temperatura }.average() else 0.0
+    val avgHum = if (todasLasSecciones.isNotEmpty()) todasLasSecciones.map { it.humedad }.average() else 0.0
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Estado de la Cava", fontWeight = FontWeight.Bold) },
+                title = { Text("Estado de la Bodega", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     if (showBackButton) {
                         IconButton(onClick = onNavigateBack) {
@@ -62,7 +60,7 @@ fun CavaStateScreen(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Average Stats Card
+                // Tarjeta de Promedios Globales
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1C18)),
@@ -70,33 +68,45 @@ fun CavaStateScreen(
                 ) {
                     Row(Modifier.padding(24.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("Temp. Promedio", style = MaterialTheme.typography.labelMedium, color = Color.Gray)
+                            Text("Temp. Global", style = MaterialTheme.typography.labelMedium, color = Color.Gray)
                             Text("${String.format(java.util.Locale.US, "%.1f", avgTemp)}°C", style = MaterialTheme.typography.headlineMedium, color = Color(0xFFB4F391), fontWeight = FontWeight.Bold)
                         }
                         VerticalDivider(modifier = Modifier.height(50.dp).width(1.dp), color = Color.Gray.copy(alpha = 0.3f))
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("Humedad Promedio", style = MaterialTheme.typography.labelMedium, color = Color.Gray)
+                            Text("Humedad Global", style = MaterialTheme.typography.labelMedium, color = Color.Gray)
                             Text("${avgHum.toInt()}%", style = MaterialTheme.typography.headlineMedium, color = Color(0xFF4FC3F7), fontWeight = FontWeight.Bold)
                         }
                     }
                 }
 
-                Spacer(Modifier.height(8.dp))
-
-                // Detail Sections
-                Text("Detalle por Secciones", style = MaterialTheme.typography.titleMedium, color = Color.White, fontWeight = FontWeight.Bold)
-                
                 cavas.forEach { cava ->
-                    MobileCavaSection(cava.nombre, "${cava.temperatura}°C", "${cava.humedad.toInt()}%", cava.estado)
+                    Text(
+                        text = cava.nombre, 
+                        style = MaterialTheme.typography.titleMedium, 
+                        color = Color(0xFFB4F391), 
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                    
+                    if (cava.secciones.isEmpty()) {
+                        Text("No hay secciones en esta cava", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    }
+
+                    cava.secciones.forEach { seccion ->
+                        MobileCavaSection(
+                            seccion.nombre, 
+                            "${String.format(java.util.Locale.US, "%.1f", seccion.temperatura)}°C", 
+                            "${seccion.humedad.toInt()}%", 
+                            seccion.estado
+                        )
+                    }
                 }
 
                 Spacer(Modifier.height(8.dp))
 
-                // Variety Progress (Based on average or specific data if available)
                 Text("Maduración por Variedad", style = MaterialTheme.typography.titleMedium, color = Color.White, fontWeight = FontWeight.Bold)
                 MobileVarietyProgress("Merlot", 0.85f, "82°Bx", Color(0xFF3897F0))
                 MobileVarietyProgress("Viognier", 0.70f, "71°Bx", Color(0xFF4CAF50))
-                MobileVarietyProgress("Gamacha", 0.65f, "68°Bx", Color(0xFFF9A825))
             }
         }
     }
@@ -104,7 +114,11 @@ fun CavaStateScreen(
 
 @Composable
 fun MobileCavaSection(name: String, temp: String, hum: String, status: String) {
-    val statusColor = if(status == "OPTIMO") Color(0xFF4CAF50) else Color(0xFFF9A825)
+    val statusColor = when(status) {
+        "OPTIMO" -> Color(0xFF4CAF50)
+        "REVISAR" -> Color(0xFFF9A825)
+        else -> Color(0xFFE57373)
+    }
     
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -117,8 +131,13 @@ fun MobileCavaSection(name: String, temp: String, hum: String, status: String) {
                     shape = RoundedCornerShape(50),
                     color = statusColor.copy(alpha = 0.1f)
                 ) {
+                    val statusText = when(status) {
+                        "OPTIMO" -> "Óptimo"
+                        "REVISAR" -> "Revisar"
+                        else -> "Crítico"
+                    }
                     Text(
-                        text = if(status == "OPTIMO") "Óptimo" else "Revisar",
+                        text = statusText,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                         style = MaterialTheme.typography.labelSmall,
                         color = statusColor

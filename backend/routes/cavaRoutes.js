@@ -2,20 +2,29 @@ const express = require('express');
 const router = express.Router();
 const {
   obtenerCavas,
-  guardarCava,
-  actualizarBotellas,
-  vincularSensor,
-  eliminarCava
+  crearCava,
+  eliminarCava,
+  crearSeccion,
+  actualizarSeccion,
+  eliminarSeccion
 } = require('../controllers/cavaController');
 const { protegerRuta, permitirRoles } = require('../middleware/authMiddleware');
 
-// Obtener cavas es público para la TV
+/**
+ * Rutas para la gestión de Cavas y sus Secciones.
+ * El enólogo y el superusuario pueden gestionar estas entidades.
+ */
+
+// Obtener todas las cavas (con sus secciones integradas)
 router.get('/', obtenerCavas);
 
-// Gestión protegida
-router.post('/', protegerRuta, permitirRoles('superusuario', 'enologo'), guardarCava);
-router.put('/:id/botellas', protegerRuta, permitirRoles('superusuario', 'enologo'), actualizarBotellas);
-router.put('/:id/sensor', protegerRuta, permitirRoles('superusuario', 'enologo'), vincularSensor);
+// Gestión de Cavas (Entidad Principal)
+router.post('/', protegerRuta, permitirRoles('superusuario', 'enologo'), crearCava);
 router.delete('/:id', protegerRuta, permitirRoles('superusuario', 'enologo'), eliminarCava);
+
+// Gestión de Secciones
+router.post('/secciones', protegerRuta, permitirRoles('superusuario', 'enologo'), crearSeccion);
+router.put('/secciones/:id', protegerRuta, permitirRoles('superusuario', 'enologo'), actualizarSeccion);
+router.delete('/secciones/:id', protegerRuta, permitirRoles('superusuario', 'enologo'), eliminarSeccion);
 
 module.exports = router;

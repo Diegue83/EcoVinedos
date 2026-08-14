@@ -2,7 +2,6 @@ package mx.utng.ecoviedos.tv.presentation
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -30,9 +29,11 @@ fun TvDashboardScreen(
 ) {
     val currentTime = remember { mutableStateOf(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())) }
 
-    val avgTemp = if (cavas.isNotEmpty()) cavas.map { it.temperatura }.average() else 0.0
-    val avgHum = if (cavas.isNotEmpty()) cavas.map { it.humedad }.average() else 0.0
-    val totalBottles = cavas.sumOf { it.botellasActuales }
+    // Agregamos todas las secciones de todas las cavas para las estadísticas globales
+    val todasLasSecciones = cavas.flatMap { it.secciones }
+    val avgTemp = if (todasLasSecciones.isNotEmpty()) todasLasSecciones.map { it.temperatura }.average() else 0.0
+    val avgHum = if (todasLasSecciones.isNotEmpty()) todasLasSecciones.map { it.humedad }.average() else 0.0
+    val totalBottles = todasLasSecciones.sumOf { it.botellasActuales }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -64,7 +65,6 @@ fun TvDashboardScreen(
             }
             
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // Logout Button for TV
                 Button(
                     onClick = onLogout,
                     colors = ButtonDefaults.colors(containerColor = Color.Red.copy(alpha = 0.1f), contentColor = Color.Red),
@@ -122,14 +122,19 @@ fun TvDashboardScreen(
                 )
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
-                    Text("Estado de la Cava", style = MaterialTheme.typography.titleMedium, color = Color(0xFF3897F0), fontWeight = FontWeight.Bold)
+                    Text("Estado de la Bodega", style = MaterialTheme.typography.titleMedium, color = Color(0xFF3897F0), fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(16.dp))
                     
                     if (cavas.isEmpty()) {
                         Text("No hay datos de cava", color = Color.Gray)
                     } else {
-                        cavas.forEach { cava ->
-                            CavaItem(cava.nombre, if(cava.estado == "OPTIMO") "Óptimo" else "Revisar", if(cava.estado == "OPTIMO") Color(0xFF4CAF50) else Color(0xFFF9A825))
+                        // Mostramos las primeras 5 secciones para no saturar el dashboard
+                        todasLasSecciones.take(5).forEach { seccion ->
+                            CavaItem(
+                                seccion.nombre, 
+                                if(seccion.estado == "OPTIMO") "Óptimo" else "Revisar", 
+                                if(seccion.estado == "OPTIMO") Color(0xFF4CAF50) else Color(0xFFF9A825)
+                            )
                         }
                     }
 

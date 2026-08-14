@@ -3,8 +3,12 @@ package mx.utng.ecoviedos.data.remote
 import retrofit2.Response
 import retrofit2.http.*
 
-data class CavaResponse(
+/**
+ * Representa una sección de una cava con sus datos de sensores y capacidad.
+ */
+data class SeccionCavaResponse(
     val _id: String,
+    val cava: String,
     val nombre: String,
     val tipo: String,
     val temperatura: Double,
@@ -12,24 +16,77 @@ data class CavaResponse(
     val capacidadBotellas: Int,
     val botellasActuales: Int,
     val sensorId: String?,
-    val estado: String
+    val estado: String,
+    val ultimaLectura: String
 )
 
+/**
+ * Representa una cava principal que agrupa varias secciones.
+ */
+data class CavaResponse(
+    val _id: String,
+    val nombre: String,
+    val ubicacion: String,
+    val descripcion: String?,
+    val secciones: List<SeccionCavaResponse> = emptyList()
+)
+
+/**
+ * Petición para crear o actualizar una Cava principal.
+ */
+data class CavaRequest(
+    val nombre: String,
+    val ubicacion: String,
+    val descripcion: String? = null
+)
+
+/**
+ * Petición para crear o actualizar una sección de cava.
+ */
+data class SeccionCavaRequest(
+    val cava: String? = null, // ID de la cava padre
+    val nombre: String,
+    val tipo: String,
+    val capacidadBotellas: Int,
+    val botellasActuales: Int? = null,
+    val sensorId: String? = null
+)
+
+/**
+ * Interfaz de Retrofit para la gestión de cavas y secciones.
+ */
 interface CavaService {
     @GET("api/cavas")
     suspend fun obtenerCavas(): Response<List<CavaResponse>>
 
-    @PUT("api/cavas/{id}/sensor")
-    suspend fun vincularSensor(
+    @POST("api/cavas")
+    suspend fun crearCava(
         @Header("Authorization") token: String,
-        @Path("id") id: String,
-        @Body request: Map<String, String>
+        @Body request: CavaRequest
     ): Response<CavaResponse>
 
-    @PUT("api/cavas/{id}/botellas")
-    suspend fun actualizarBotellas(
+    @DELETE("api/cavas/{id}")
+    suspend fun eliminarCava(
+        @Header("Authorization") token: String,
+        @Path("id") id: String
+    ): Response<Unit>
+
+    @POST("api/cavas/secciones")
+    suspend fun crearSeccion(
+        @Header("Authorization") token: String,
+        @Body request: SeccionCavaRequest
+    ): Response<SeccionCavaResponse>
+
+    @PUT("api/cavas/secciones/{id}")
+    suspend fun actualizarSeccion(
         @Header("Authorization") token: String,
         @Path("id") id: String,
-        @Body request: Map<String, Int>
-    ): Response<CavaResponse>
+        @Body request: Map<String, Any>
+    ): Response<SeccionCavaResponse>
+
+    @DELETE("api/cavas/secciones/{id}")
+    suspend fun eliminarSeccion(
+        @Header("Authorization") token: String,
+        @Path("id") id: String
+    ): Response<Unit>
 }

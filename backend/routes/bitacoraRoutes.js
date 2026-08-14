@@ -9,13 +9,15 @@ const {
 } = require('../controllers/bitacoraController');
 const { protegerRuta, permitirRoles } = require('../middleware/authMiddleware');
 
+// Se monta en '/api/bitacoras'
+
 // Cualquier usuario autenticado puede ver y crear entradas (registran su propia actividad)
-router.get('/bitacoras', protegerRuta, obtenerBitacoras);
-router.get('/bitacoras/:id', protegerRuta, obtenerBitacoraPorId);
-router.post('/bitacoras', protegerRuta, crearBitacora);
+router.get('/', protegerRuta, obtenerBitacoras);
+router.get('/:id', protegerRuta, obtenerBitacoraPorId);
+router.post('/', protegerRuta, crearBitacora);
 
 // Solo administradores pueden editar o eliminar el historial
-router.put('/bitacoras/:id', protegerRuta, permitirRoles('administrador'), actualizarBitacora);
-router.delete('/bitacoras/:id', protegerRuta, permitirRoles('administrador'), eliminarBitacora);
+router.put('/:id', protegerRuta, permitirRoles('administrador'), actualizarBitacora);
+router.delete('/:id', protegerRuta, permitirRoles('administrador'), eliminarBitacora);
 
 module.exports = router;

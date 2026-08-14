@@ -1,68 +1,87 @@
 const Cava = require('../models/Cava');
+const SeccionCava = require('../models/SeccionCava');
 
-// @desc    Obtener todas las cavas
+// --- Controladores de Cavas (Entidad Principal) ---
+
+// @desc    Obtener todas las cavas con sus secciones
 // @route   GET /api/cavas
 const obtenerCavas = async (req, res, next) => {
   try {
-    const cavas = await Cava.find();
-    res.json(cavas);
+    // Buscamos todas las cavas
+    const cavas = await Cava.find().lean();
+
+    // Para cada cava, buscamos sus secciones
+    const cavasConSecciones = await Promise.all(cavas.map(async (cava) => {
+      const secciones = await SeccionCava.find({ cava: cava._id });
+      return { ...cava, secciones };
+    }));
+
+    res.json(cavasConSecciones);
   } catch (error) {
     next(error);
   }
 };
 
-// @desc    Crear o actualizar sección de cava
+// @desc    Crear una nueva cava
 // @route   POST /api/cavas
-const guardarCava = async (req, res, next) => {
+const crearCava = async (req, res, next) => {
   try {
-    const { _id, nombre, tipo, capacidadBotellas, botellasActuales, sensorId } = req.body;
-
-    let cava;
-    if (_id) {
-      cava = await Cava.findByIdAndUpdate(_id, req.body, { new: true, runValidators: true });
-    } else {
-      cava = await Cava.create(req.body);
-    }
-
+    const cava = await Cava.create(req.body);
     res.status(201).json(cava);
   } catch (error) {
     next(error);
   }
 };
 
-// @desc    Actualizar botellas
-// @route   PUT /api/cavas/:id/botellas
-const actualizarBotellas = async (req, res, next) => {
-  try {
-    const { botellasActuales } = req.body;
-    const cava = await Cava.findByIdAndUpdate(req.params.id, { botellasActuales }, { new: true });
-    if (!cava) return res.status(404).json({ mensaje: 'Cava no encontrada' });
-    res.json(cava);
-  } catch (error) {
-    next(error);
-  }
-};
-
-// @desc    Vincular sensor BLE a cava
-// @route   PUT /api/cavas/:id/sensor
-const vincularSensor = async (req, res, next) => {
-  try {
-    const { sensorId } = req.body;
-    const cava = await Cava.findByIdAndUpdate(req.params.id, { sensorId }, { new: true });
-    if (!cava) return res.status(404).json({ mensaje: 'Cava no encontrada' });
-    res.json(cava);
-  } catch (error) {
-    next(error);
-  }
-};
-
-// @desc    Eliminar sección de cava
+// @desc    Eliminar una cava y sus secciones
 // @route   DELETE /api/cavas/:id
 const eliminarCava = async (req, res, next) => {
   try {
+    await SeccionCava.deleteMany({ cava: req.params.id });
     const cava = await Cava.findByIdAndDelete(req.params.id);
     if (!cava) return res.status(404).json({ mensaje: 'Cava no encontrada' });
-    res.json({ mensaje: 'Eliminado correctamente' });
+    res.json({ mensaje: 'Cava y sus secciones eliminadas correctamente' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// --- Controladores de Secciones ---
+
+// @desc    Crear una nueva sección en una cava
+// @route   POST /api/cavas/secciones
+const crearSeccion = async (req, res, next) => {
+  try {
+    const seccion = await SeccionCava.create(req.body);
+    res.status(201).json(seccion);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Actualizar una sección (incluyendo vinculación de sensor o botellas)
+// @route   PUT /api/cavas/secciones/:id
+const actualizarSeccion = async (req, res, next) => {
+  try {
+    const seccion = await SeccionCava.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    );
+    if (!seccion) return res.status(404).json({ mensaje: 'Sección no encontrada' });
+    res.json(seccion);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Eliminar una sección específica
+// @route   DELETE /api/cavas/secciones/:id
+const eliminarSeccion = async (req, res, next) => {
+  try {
+    const seccion = await SeccionCava.findByIdAndDelete(req.params.id);
+    if (!seccion) return res.status(404).json({ mensaje: 'Sección no encontrada' });
+    res.json({ mensaje: 'Sección eliminada correctamente' });
   } catch (error) {
     next(error);
   }
@@ -70,8 +89,9 @@ const eliminarCava = async (req, res, next) => {
 
 module.exports = {
   obtenerCavas,
-  guardarCava,
-  actualizarBotellas,
-  vincularSensor,
-  eliminarCava
+  crearCava,
+  eliminarCava,
+  crearSeccion,
+  actualizarSeccion,
+  eliminarSeccion
 };

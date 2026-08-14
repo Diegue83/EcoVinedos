@@ -1,6 +1,6 @@
 const mqtt = require("mqtt");
 const Parcela = require("../models/Parcela");
-const Cava = require("../models/Cava");
+const SeccionCava = require("../models/SeccionCava");
 const HistorialSensor = require("../models/HistorialSensor");
 
 const BROKER = "mqtts://" + process.env.MOSQUITTO_BROKER_URL;
@@ -103,17 +103,17 @@ client.on("message", async (topic, message) => {
             // 1. Intentar actualizar como Parcela
             let target = await Parcela.findByIdAndUpdate(parcelaId, updateFields, { returnDocument: 'after' });
 
-            // 2. Si no es parcela, intentar como Cava
+            // 2. Si no es parcela, intentar como Sección de Cava
             if (!target) {
-                target = await Cava.findByIdAndUpdate(parcelaId, {
+                target = await SeccionCava.findByIdAndUpdate(parcelaId, {
                     temperatura: tempAire,
                     humedad: humAire,
                     ultimaLectura: new Date()
                 }, { returnDocument: 'after' });
 
                 if (target) {
-                    console.log(`🍷 Datos de cava actualizados: ${target.nombre}`);
-                    return; // No guardamos historial de cava en la misma colección por ahora o sí?
+                    console.log(`🍷 Datos de sección de cava actualizados: ${target.nombre}`);
+                    return;
                 }
             }
             

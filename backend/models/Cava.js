@@ -1,45 +1,25 @@
 const mongoose = require('mongoose');
 
+/**
+ * Modelo que representa una Cava (Bodega) en el sistema.
+ * Una cava es una entidad de alto nivel que contiene múltiples secciones.
+ */
 const cavaSchema = new mongoose.Schema(
   {
     nombre: {
       type: String,
       required: [true, 'El nombre de la cava es obligatorio'],
+      unique: true,
       trim: true
     },
-    tipo: {
+    ubicacion: {
       type: String,
-      enum: ['ROBLE', 'ACERO', 'PRIVADA'],
-      default: 'ROBLE'
+      required: [true, 'La ubicación es obligatoria'],
+      trim: true
     },
-    temperatura: {
-      type: Number,
-      default: 18
-    },
-    humedad: {
-      type: Number,
-      default: 80
-    },
-    capacidadBotellas: {
-      type: Number,
-      default: 0
-    },
-    botellasActuales: {
-      type: Number,
-      default: 0
-    },
-    sensorId: {
+    descripcion: {
       type: String,
-      default: null
-    },
-    estado: {
-      type: String,
-      enum: ['OPTIMO', 'REVISAR', 'CRITICO'],
-      default: 'OPTIMO'
-    },
-    ultimaLectura: {
-      type: Date,
-      default: Date.now
+      trim: true
     }
   },
   { versionKey: false, timestamps: true }
