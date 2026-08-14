@@ -5,21 +5,14 @@ import retrofit2.http.*
 
 interface NotificacionService {
     @GET("api/notificaciones")
-    suspend fun obtenerNotificaciones(): Response<List<NotificacionResponse>>
+    suspend fun obtenerMisNotificaciones(
+        @Header("Authorization") token: String
+    ): Response<List<NotificacionResponse>>
 
-    @PUT("api/notificaciones/{id}/leer")
-    suspend fun marcarLeida(@Path("id") id: String): Response<NotificacionResponse>
-
-    @DELETE("api/notificaciones/limpiar")
-    suspend fun limpiarLeidas(): Response<Unit>
-
-    @POST("api/notificaciones")
-    suspend fun crearNotificacion(@Body request: NotificacionRequest): Response<NotificacionResponse>
+    @PUT("api/notificaciones/{id}/estado")
+    suspend fun cambiarEstado(
+        @Header("Authorization") token: String,
+        @Path("id") id: String,
+        @Body request: Map<String, String>
+    ): Response<NotificacionResponse>
 }
-
-data class NotificacionRequest(
-    val tipo: String,
-    val titulo: String,
-    val mensaje: String,
-    val parcela: String? = null
-)

@@ -1,6 +1,11 @@
 const mongoose = require("mongoose");
 
 const notificacionSchema = new mongoose.Schema({
+    usuario: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Usuario',
+        required: true
+    },
     tipo: {
         type: String,
         enum: ['cosecha', 'humedad', 'desconexion', 'sistema'],
@@ -13,7 +18,11 @@ const notificacionSchema = new mongoose.Schema({
         ref: 'Parcela',
         required: false
     },
-    leida: { type: Boolean, default: false },
+    estado: {
+        type: String,
+        enum: ['no leida', 'leida', 'descartada'],
+        default: 'no leida'
+    },
     fecha: { type: Date, default: Date.now }
 }, {
     versionKey: false,

@@ -30,20 +30,16 @@ class NotificacionViewModel : ViewModel() {
     private val _unreadCount = MutableStateFlow(0)
     val unreadCount: StateFlow<Int> = _unreadCount.asStateFlow()
 
-    init {
-        cargarNotificaciones()
-    }
-
     /**
      * Obtiene el listado de notificaciones del servidor y actualiza el contador.
      */
-    fun cargarNotificaciones() {
+    fun cargarNotificaciones(token: String) {
         viewModelScope.launch {
             _uiState.value = NotificacionUiState.Loading
-            repository.obtenerNotificaciones()
+            repository.obtenerMisNotificaciones(token)
                 .onSuccess { list ->
                     _uiState.value = NotificacionUiState.Success(list)
-                    _unreadCount.value = list.count { !it.leida }
+                    _unreadCount.value = list.count { it.estado == "no leida" }
                 }
                 .onFailure {
                     _uiState.value = NotificacionUiState.Error(it.message ?: "Error desconocido")
@@ -52,24 +48,12 @@ class NotificacionViewModel : ViewModel() {
     }
 
     /**
-     * Marca una notificación como leída en el servidor.
-     * 
-     * @param id Identificador de la notificación.
+     * Cambia el estado de una notificación.
      */
-    fun marcarComoLeida(id: String) {
+    fun cambiarEstado(token: String, id: String, nuevoEstado: String) {
         viewModelScope.launch {
-            repository.marcarLeida(id)
-                .onSuccess { cargarNotificaciones() }
-        }
-    }
-
-    /**
-     * Elimina del servidor todas las notificaciones marcadas como leídas.
-     */
-    fun limpiarLeidas() {
-        viewModelScope.launch {
-            repository.limpiarLeidas()
-                .onSuccess { cargarNotificaciones() }
+            repository.cambiarEstado(token, id, nuevoEstado)
+                .onSuccess { cargarNotificaciones(token) }
         }
     }
 }

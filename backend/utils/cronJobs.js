@@ -1,6 +1,7 @@
 const HistorialSensor = require('../models/HistorialSensor');
 const ResumenDiario = require('../models/ResumenDiario');
 const Parcela = require('../models/Parcela');
+const Notificacion = require('../models/Notificacion');
 
 /**
  * Genera promedios diarios de las lecturas de los sensores para cada parcela.
@@ -56,16 +57,38 @@ async function generarResumenesDiarios() {
 }
 
 /**
+ * Elimina las notificaciones marcadas como 'descartada' que tengan más de una semana.
+ */
+async function limpiarNotificacionesDescartadas() {
+    console.log("🕒 Iniciando limpieza de notificaciones descartadas...");
+    try {
+        const unaSemanaAtras = new Date();
+        unaSemanaAtras.setDate(unaSemanaAtras.getDate() - 7);
+
+        const resultado = await Notificacion.deleteMany({
+            estado: 'descartada',
+            updatedAt: { $lt: unaSemanaAtras }
+        });
+
+        console.log(`✅ Se eliminaron ${resultado.deletedCount} notificaciones descartadas antiguas`);
+    } catch (error) {
+        console.error("❌ Error limpiando notificaciones:", error.message);
+    }
+}
+
+/**
  * Inicia el temporizador para la ejecución de tareas programadas (Cron).
- *
- * Actualmente ejecuta la generación de resúmenes cada 24 horas.
  */
 function iniciarTareasProgramadas() {
     // Primera ejecución en 1 minuto para pruebas tras reinicio del servidor
-    setTimeout(generarResumenesDiarios, 60000);
+    setTimeout(() => {
+        generarResumenesDiarios();
+        limpiarNotificacionesDescartadas();
+    }, 60000);
 
     // Intervalo de 24 horas
     setInterval(generarResumenesDiarios, 24 * 60 * 60 * 1000);
+    setInterval(limpiarNotificacionesDescartadas, 24 * 60 * 60 * 1000);
 }
 
 module.exports = { iniciarTareasProgramadas };

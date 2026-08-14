@@ -139,6 +139,6 @@ data class NotificacionResponse(
     val titulo: String,
     val mensaje: String,
     val parcela: String?,
-    val leida: Boolean,
+    val estado: String,
     val fecha: String
 )

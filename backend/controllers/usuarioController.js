@@ -12,7 +12,7 @@ const generarToken = (id) => {
 // @route   POST /api/login
 const login = async (req, res, next) => {
   try {
-    const { correo, contraseña } = req.body;
+    const { correo, contraseña, fcmToken } = req.body;
 
     if (!correo || !contraseña) {
       return res.status(400).json({ mensaje: 'Correo y contraseña son obligatorios' });
@@ -21,6 +21,12 @@ const login = async (req, res, next) => {
     const usuario = await Usuario.findOne({ correo }).select('+contraseña');
     if (!usuario || !(await usuario.compararContraseña(contraseña))) {
       return res.status(401).json({ mensaje: 'Credenciales inválidas' });
+    }
+
+    // Actualizar token push si se proporciona
+    if (fcmToken) {
+        usuario.fcmToken = fcmToken;
+        await usuario.save();
     }
 
     res.json({

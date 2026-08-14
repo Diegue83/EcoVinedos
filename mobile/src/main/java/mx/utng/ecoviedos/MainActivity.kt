@@ -19,6 +19,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import mx.utng.ecoviedos.data.NotificationWorker
 import mx.utng.ecoviedos.presentation.auth.LoginScreen
 import mx.utng.ecoviedos.presentation.auth.ForgotPasswordScreen
 import mx.utng.ecoviedos.presentation.auth.VerifyCodeScreen
@@ -55,6 +59,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        scheduleNotificationWorker()
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 101)
@@ -128,7 +134,9 @@ class MainActivity : ComponentActivity() {
                             composable("cava_management") {
                                 CavaManagementScreen(
                                     onNavigateBack = { navController.popBackStack() },
-                                    onNavigateToLinkSensor = TODO()
+                                    onNavigateToLinkSensor = { id, name -> 
+                                        navController.navigate("device_config?targetId=$id&targetName=$name&type=CAVA")
+                                    }
                                 )
                             }
                             composable("forgot_password") {
@@ -324,5 +332,17 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun scheduleNotificationWorker() {
+        val workRequest = PeriodicWorkRequestBuilder<NotificationWorker>(
+            15, java.util.concurrent.TimeUnit.MINUTES
+        ).build()
+
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "NotificationSync",
+            ExistingPeriodicWorkPolicy.KEEP,
+            workRequest
+        )
     }
 }

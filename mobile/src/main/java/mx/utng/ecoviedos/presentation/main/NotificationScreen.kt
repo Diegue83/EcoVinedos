@@ -26,9 +26,15 @@ import java.util.*
 @Composable
 fun NotificationScreen(
     onNavigateBack: () -> Unit,
-    viewModel: NotificacionViewModel = viewModel()
+    viewModel: NotificacionViewModel = viewModel(),
+    mainViewModel: MainViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val token by mainViewModel.sessionToken.collectAsState(initial = "")
+
+    LaunchedEffect(token) {
+        token?.let { viewModel.cargarNotificaciones(it) }
+    }
 
     Scaffold(
         topBar = {
@@ -37,11 +43,6 @@ fun NotificationScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Regresar")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { viewModel.limpiarLeidas() }) {
-                        Icon(Icons.Default.DeleteSweep, contentDescription = "Limpiar leídas")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -62,7 +63,11 @@ fun NotificationScreen(
                     } else {
                         LazyColumn(modifier = Modifier.fillMaxSize()) {
                             items(state.notificaciones) { notif ->
-                                NotificationItem(notif) { viewModel.marcarComoLeida(notif._id) }
+                                NotificationItem(
+                                    notif = notif, 
+                                    onRead = { token?.let { viewModel.cambiarEstado(it, notif._id, "leida") } },
+                                    onDiscard = { token?.let { viewModel.cambiarEstado(it, notif._id, "descartada") } }
+                                )
                             }
                         }
                     }
@@ -74,7 +79,8 @@ fun NotificationScreen(
 }
 
 @Composable
-fun NotificationItem(notif: NotificacionResponse, onRead: () -> Unit) {
+fun NotificationItem(notif: NotificacionResponse, onRead: () -> Unit, onDiscard: () -> Unit) {
+    val isRead = notif.estado == "leida"
     val icon = when (notif.tipo) {
         "humedad" -> Icons.Default.WaterDrop
         "cosecha" -> Icons.Default.Grass
@@ -92,8 +98,8 @@ fun NotificationItem(notif: NotificacionResponse, onRead: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(if (notif.leida) Color.Transparent else Color.White.copy(alpha = 0.05f))
-            .clickable { if (!notif.leida) onRead() }
+            .background(if (isRead) Color.Transparent else Color.White.copy(alpha = 0.05f))
+            .clickable { if (!isRead) onRead() }
             .padding(16.dp)
     ) {
         Row(verticalAlignment = Alignment.Top) {
@@ -110,7 +116,7 @@ fun NotificationItem(notif: NotificacionResponse, onRead: () -> Unit) {
             Spacer(Modifier.width(16.dp))
             
             Column(modifier = Modifier.weight(1f)) {
-                Text(notif.titulo, fontWeight = if (notif.leida) FontWeight.Normal else FontWeight.Bold, color = Color.White, fontSize = 14.sp)
+                Text(notif.titulo, fontWeight = if (isRead) FontWeight.Normal else FontWeight.Bold, color = Color.White, fontSize = 14.sp)
                 Text(notif.mensaje, color = Color.Gray, fontSize = 12.sp, lineHeight = 16.sp)
                 
                 val date = try {
@@ -126,10 +132,15 @@ fun NotificationItem(notif: NotificacionResponse, onRead: () -> Unit) {
                 )
             }
             
-            if (!notif.leida) {
-                Box(modifier = Modifier.size(8.dp).background(Color(0xFFB4F391), CircleShape).align(Alignment.CenterVertically))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (!isRead) {
+                    Box(modifier = Modifier.size(8.dp).background(Color(0xFFB4F391), CircleShape).padding(end = 8.dp))
+                }
+                IconButton(onClick = onDiscard) {
+                    Icon(Icons.Default.Clear, contentDescription = "Descartar", tint = Color.Gray.copy(alpha = 0.4f), modifier = Modifier.size(18.dp))
+                }
             }
         }
-        HorizontalDivider(modifier = Modifier.padding(top = 16.dp), color = Color.Gray.copy(alpha = 0.2f))
+        HorizontalDivider(modifier = Modifier.padding(top = 8.dp), color = Color.Gray.copy(alpha = 0.1f))
     }
 }
