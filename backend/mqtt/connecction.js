@@ -116,15 +116,16 @@ client.on("message", async (topic, message) => {
                     return; // No guardamos historial de cava en la misma colección por ahora o sí?
                 }
             }
+            
 
             // Guardar en historial solo cada 15 minutos (Solo para parcelas por ahora)
             if (target && target.constructor.modelName === 'Parcela') {
                 const ahora = Date.now();
                 // Calcular consumo de agua en este intervalo de 15 min (si el riego estaba activo)
                 let consumoIntervalo = 0;
-                if (parcela.riegoActivo) {
+                if (target.riegoActivo) {
                     const horas = 15 / 60; // 0.25 horas
-                    consumoIntervalo = horas * parcela.consumoAguaM2 * parcela.areaM2;
+                    consumoIntervalo = horas * target.consumoAguaM2 * target.areaM2;
                 }
 
                 await HistorialSensor.create({
