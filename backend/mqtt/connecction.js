@@ -101,7 +101,7 @@ client.on("message", async (topic, message) => {
             }
 
             // 1. Intentar actualizar como Parcela
-            let target = await Parcela.findByIdAndUpdate(parcelaId, updateFields, { new: true });
+            let target = await Parcela.findByIdAndUpdate(parcelaId, updateFields, { returnDocument: 'after' });
 
             // 2. Si no es parcela, intentar como Cava
             if (!target) {
@@ -109,7 +109,7 @@ client.on("message", async (topic, message) => {
                     temperatura: tempAire,
                     humedad: humAire,
                     ultimaLectura: new Date()
-                }, { new: true });
+                }, { returnDocument: 'after' });
 
                 if (target) {
                     console.log(`🍷 Datos de cava actualizados: ${target.nombre}`);
