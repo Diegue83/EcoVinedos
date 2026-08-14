@@ -2,6 +2,7 @@ package mx.utng.ecoviedos.presentation.main
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,11 +17,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.text.font.FontWeight
@@ -278,32 +282,95 @@ fun BrixHistoryChart(muestras: List<MuestraResponse>) {
 
     val locale = LocalLocale.current.platformLocale
     val chartData = muestras.take(7).sortedBy { it.fecha ?: it.createdAt }
-    val maxBrix = (chartData.maxOfOrNull { it.brix } ?: 25.0).toFloat().coerceAtLeast(10f)
+    
+    // Dynamic Scale Calculation
+    val minVal = chartData.minOf { it.brix.toFloat() }
+    val maxVal = chartData.maxOf { it.brix.toFloat() }
+    val minBrix = (kotlin.math.floor(minVal / 5f) * 5f - 5f).coerceAtLeast(0f)
+    val maxBrix = (kotlin.math.ceil(maxVal / 5f) * 5f + 5f)
+    val brixRange = maxBrix - minBrix
+
+    // Interaction State
+    var selectedIndex by remember { mutableStateOf<Int?>(null) }
     
     val dateFormat = SimpleDateFormat("dd/MM", locale)
 
     Card(
-        modifier = Modifier.fillMaxWidth().height(200.dp),
+        modifier = Modifier.fillMaxWidth().height(240.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2D26))
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(top = 16.dp, end = 16.dp, bottom = 12.dp, start = 8.dp)) {
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    val width = size.width
-                    val height = size.height
-                    val spacing = if (chartData.size > 1) width / (chartData.size - 1) else width
+                Canvas(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .pointerInput(chartData) {
+                            detectTapGestures { offset ->
+                                val labelWidth = 30.dp.toPx()
+                                val chartWidth = size.width - labelWidth
+                                val spacing = if (chartData.size > 1) chartWidth / (chartData.size - 1) else chartWidth
+                                
+                                val touchX = offset.x - labelWidth
+                                val index = (touchX / spacing + 0.5f).toInt()
+                                selectedIndex = if (index in chartData.indices) index else null
+                            }
+                        }
+                ) {
+                    val labelWidth = 30.dp.toPx()
+                    val chartWidth = size.width - labelWidth
+                    val chartHeight = size.height
+                    val spacing = if (chartData.size > 1) chartWidth / (chartData.size - 1) else chartWidth
+
+                    // Draw Horizontal Grid and Vertical Scale
+                    val stepSize = 5f
+                    var currentYValue = minBrix
+                    while (currentYValue <= maxBrix) {
+                        val y = chartHeight - ((currentYValue - minBrix) / brixRange * chartHeight)
+                        
+                        // Horizontal Line
+                        drawLine(
+                            color = Color.Gray.copy(alpha = 0.2f),
+                            start = Offset(labelWidth, y),
+                            end = Offset(size.width, y),
+                            strokeWidth = 1.dp.toPx()
+                        )
+                        
+                        // Draw Scale Label
+                        drawContext.canvas.nativeCanvas.drawText(
+                            "${currentYValue.toInt()}",
+                            5.dp.toPx(),
+                            y + 4.dp.toPx(),
+                            android.graphics.Paint().apply {
+                                color = android.graphics.Color.GRAY
+                                textSize = 10.sp.toPx()
+                                textAlign = android.graphics.Paint.Align.LEFT
+                            }
+                        )
+                        currentYValue += stepSize
+                    }
+
+                    // Draw Vertical Grid Lines
+                    chartData.forEachIndexed { index, _ ->
+                        val x = labelWidth + (index * spacing)
+                        drawLine(
+                            color = Color.Gray.copy(alpha = 0.1f),
+                            start = Offset(x, 0f),
+                            end = Offset(x, chartHeight),
+                            strokeWidth = 1.dp.toPx()
+                        )
+                    }
 
                     val path = Path()
                     val fillPath = Path()
 
                     chartData.forEachIndexed { index, muestra ->
-                        val x = index * spacing
+                        val x = labelWidth + (index * spacing)
                         val brixValue = muestra.brix.toFloat()
-                        val y = height - (brixValue / maxBrix * height)
+                        val y = chartHeight - ((brixValue - minBrix) / brixRange * chartHeight)
 
                         if (index == 0) {
                             path.moveTo(x, y)
-                            fillPath.moveTo(x, height)
+                            fillPath.moveTo(x, chartHeight)
                             fillPath.lineTo(x, y)
                         } else {
                             path.lineTo(x, y)
@@ -311,7 +378,7 @@ fun BrixHistoryChart(muestras: List<MuestraResponse>) {
                         }
 
                         if (index == chartData.size - 1) {
-                            fillPath.lineTo(x, height)
+                            fillPath.lineTo(x, chartHeight)
                             fillPath.close()
                         }
                     }
@@ -322,7 +389,7 @@ fun BrixHistoryChart(muestras: List<MuestraResponse>) {
                             brush = Brush.verticalGradient(
                                 colors = listOf(Color(0xFF1976D2).copy(alpha = 0.3f), Color.Transparent),
                                 startY = 0f,
-                                endY = height
+                                endY = chartHeight
                             )
                         )
                         drawPath(
@@ -332,27 +399,47 @@ fun BrixHistoryChart(muestras: List<MuestraResponse>) {
                         )
                     }
 
+                    // Draw points and interaction
                     chartData.forEachIndexed { index, muestra ->
-                        val x = index * spacing
-                        val y = height - (muestra.brix.toFloat() / maxBrix * height)
+                        val x = labelWidth + (index * spacing)
+                        val y = chartHeight - ((muestra.brix.toFloat() - minBrix) / brixRange * chartHeight)
+                        
+                        val isSelected = selectedIndex == index
+                        
                         drawCircle(
-                            color = Color.White,
-                            radius = 4.dp.toPx(),
-                            center = androidx.compose.ui.geometry.Offset(x, y)
+                            color = if (isSelected) Color(0xFFB4F391) else Color.White,
+                            radius = if (isSelected) 6.dp.toPx() else 4.dp.toPx(),
+                            center = Offset(x, y)
                         )
                         drawCircle(
                             color = Color(0xFF1976D2),
-                            radius = 2.dp.toPx(),
-                            center = androidx.compose.ui.geometry.Offset(x, y)
+                            radius = if (isSelected) 3.dp.toPx() else 2.dp.toPx(),
+                            center = Offset(x, y)
                         )
+
+                        if (isSelected) {
+                            // Draw value tooltip
+                            drawContext.canvas.nativeCanvas.drawText(
+                                "${muestra.brix}°",
+                                x,
+                                y - 10.dp.toPx(),
+                                android.graphics.Paint().apply {
+                                    color = android.graphics.Color.WHITE
+                                    textSize = 12.sp.toPx()
+                                    textAlign = android.graphics.Paint.Align.CENTER
+                                    typeface = android.graphics.Typeface.DEFAULT_BOLD
+                                }
+                            )
+                        }
                     }
                 }
             }
 
             Spacer(Modifier.height(8.dp))
 
+            // X-Axis Labels
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().padding(start = 30.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 chartData.forEach { muestra ->
@@ -374,3 +461,5 @@ fun BrixHistoryChart(muestras: List<MuestraResponse>) {
         }
     }
 }
+
+

@@ -17,17 +17,31 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import mx.utng.ecoviedos.data.remote.CavaResponse
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CavaStateScreen(onNavigateBack: () -> Unit) {
+fun CavaStateScreen(
+    onNavigateBack: () -> Unit,
+    enologoViewModel: EnologoViewModel = viewModel(),
+    showBackButton: Boolean = true
+) {
+    val cavas by enologoViewModel.cavas.collectAsState()
+    val isLoading by enologoViewModel.isLoading.collectAsState()
+
+    val avgTemp = if (cavas.isNotEmpty()) cavas.map { it.temperatura }.average() else 0.0
+    val avgHum = if (cavas.isNotEmpty()) cavas.map { it.humedad }.average() else 0.0
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Estado de la Cava", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Regresar")
+                    if (showBackButton) {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Regresar")
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1A1C18), titleContentColor = Color.White, navigationIconContentColor = Color.White)
@@ -35,81 +49,93 @@ fun CavaStateScreen(onNavigateBack: () -> Unit) {
         },
         containerColor = Color(0xFF0F100D)
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState())
-        ) {
-            // Stats Row 1
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                MobileStatCard("Temp. cava", "18°C", "Normal", Color(0xFF3897F0), Modifier.weight(1f))
-                MobileStatCard("Humedad", "82%", "Normal", Color(0xFF4FC3F7), Modifier.weight(1f))
+        if (isLoading && cavas.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = Color(0xFFB4F391))
             }
-            Spacer(Modifier.height(12.dp))
-            // Stats Row 2
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                MobileStatCard("Botellas", "247", "3 variedades", Color(0xFFF9A825), Modifier.weight(1f))
-                MobileStatCard("Visitas", "14", "+3 reservas", Color(0xFF4CAF50), Modifier.weight(1f))
+        } else {
+            Column(
+                modifier = Modifier
+                    .padding(padding)
+                    .fillMaxSize()
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Average Stats Card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1C18)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFB4F391).copy(alpha = 0.3f))
+                ) {
+                    Row(Modifier.padding(24.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("Temp. Promedio", style = MaterialTheme.typography.labelMedium, color = Color.Gray)
+                            Text("${String.format(java.util.Locale.US, "%.1f", avgTemp)}°C", style = MaterialTheme.typography.headlineMedium, color = Color(0xFFB4F391), fontWeight = FontWeight.Bold)
+                        }
+                        VerticalDivider(modifier = Modifier.height(50.dp).width(1.dp), color = Color.Gray.copy(alpha = 0.3f))
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("Humedad Promedio", style = MaterialTheme.typography.labelMedium, color = Color.Gray)
+                            Text("${avgHum.toInt()}%", style = MaterialTheme.typography.headlineMedium, color = Color(0xFF4FC3F7), fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                // Detail Sections
+                Text("Detalle por Secciones", style = MaterialTheme.typography.titleMedium, color = Color.White, fontWeight = FontWeight.Bold)
+                
+                cavas.forEach { cava ->
+                    MobileCavaSection(cava.nombre, "${cava.temperatura}°C", "${cava.humedad.toInt()}%", cava.estado)
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                // Variety Progress (Based on average or specific data if available)
+                Text("Maduración por Variedad", style = MaterialTheme.typography.titleMedium, color = Color.White, fontWeight = FontWeight.Bold)
+                MobileVarietyProgress("Merlot", 0.85f, "82°Bx", Color(0xFF3897F0))
+                MobileVarietyProgress("Viognier", 0.70f, "71°Bx", Color(0xFF4CAF50))
+                MobileVarietyProgress("Gamacha", 0.65f, "68°Bx", Color(0xFFF9A825))
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Sections
-            Text("Secciones", style = MaterialTheme.typography.titleMedium, color = Color.White, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            MobileCavaSection("Sección Roble", "Óptimo", Color(0xFF4CAF50))
-            MobileCavaSection("Sección Acero", "Óptimo", Color(0xFF4CAF50))
-            MobileCavaSection("Bodega privada", "Revisar", Color(0xFFF9A825))
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Variety Progress
-            Text("Maduración por Variedad", style = MaterialTheme.typography.titleMedium, color = Color.White, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            MobileVarietyProgress("Merlot", 0.85f, "82°Bx", Color(0xFF3897F0))
-            MobileVarietyProgress("Viognier", 0.70f, "71°Bx", Color(0xFF4CAF50))
-            MobileVarietyProgress("Gamacha", 0.65f, "68°Bx", Color(0xFFF9A825))
         }
     }
 }
 
 @Composable
-fun MobileStatCard(label: String, value: String, subValue: String, accentColor: Color, modifier: Modifier = Modifier) {
+fun MobileCavaSection(name: String, temp: String, hum: String, status: String) {
+    val statusColor = if(status == "OPTIMO") Color(0xFF4CAF50) else Color(0xFFF9A825)
+    
     Card(
-        modifier = modifier.height(100.dp),
-        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2D26))
     ) {
-        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.Center) {
-            Text(text = label, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
-            Text(text = value, style = MaterialTheme.typography.titleLarge, color = accentColor, fontWeight = FontWeight.Bold)
-            Text(text = subValue, style = MaterialTheme.typography.labelSmall, color = Color.Gray.copy(alpha = 0.7f))
-        }
-    }
-}
-
-@Composable
-fun MobileCavaSection(name: String, status: String, statusColor: Color) {
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1C18))
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(text = name, color = Color.White)
-            Text(
-                text = status, 
-                style = MaterialTheme.typography.labelSmall, 
-                color = statusColor,
-                modifier = Modifier.background(statusColor.copy(alpha = 0.1f), RoundedCornerShape(50)).padding(horizontal = 8.dp, vertical = 2.dp)
-            )
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                Text(text = name, fontWeight = FontWeight.Bold, color = Color.White)
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = statusColor.copy(alpha = 0.1f)
+                ) {
+                    Text(
+                        text = if(status == "OPTIMO") "Óptimo" else "Revisar",
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = statusColor
+                    )
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Temperatura", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                    Text(temp, style = MaterialTheme.typography.titleLarge, color = Color.White, fontWeight = FontWeight.Bold)
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Humedad", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                    Text(hum, style = MaterialTheme.typography.titleLarge, color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
         }
     }
 }

@@ -7,7 +7,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Logout
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,28 +17,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import mx.utng.ecoviedos.data.remote.CavaResponse
-import mx.utng.ecoviedos.data.remote.EventoResponse
-import mx.utng.ecoviedos.presentation.admin.TourismViewModel
+import java.text.SimpleDateFormat
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EnologoDashboardScreen(
     onLogout: () -> Unit,
-    enologoViewModel: EnologoViewModel = viewModel(),
-    tourismViewModel: TourismViewModel = viewModel()
+    enologoViewModel: EnologoViewModel = viewModel()
 ) {
-    // In real app, these come from ViewModels
-    // val cavas by enologoViewModel.cavas.collectAsState()
-    // val events by tourismViewModel.eventos.collectAsState()
+    val cavas by enologoViewModel.cavas.collectAsState()
+    val events by enologoViewModel.eventos.collectAsState()
+    val isLoading by enologoViewModel.isLoading.collectAsState()
     
-    // For now, let's assume we have them or use mock for UI structure with "REAL" data logic
-    val cavas = listOf(
-        CavaResponse("1", "Roble", "ROBLE", 16.5, 75.0, 500, 104, null, "OPTIMO"),
-        CavaResponse("2", "Acero", "ACERO", 17.2, 78.0, 500, 89, null, "OPTIMO"),
-        CavaResponse("3", "Privada", "PRIVADA", 20.1, 81.0, 200, 54, null, "REVISAR")
-    )
-    
-    val avgTemp = cavas.map { it.temperatura }.average()
+    val avgTemp = if (cavas.isNotEmpty()) cavas.map { it.temperatura }.average() else 0.0
     val totalBottles = cavas.sumOf { it.botellasActuales }
 
     Scaffold(
@@ -59,58 +50,59 @@ fun EnologoDashboardScreen(
         },
         containerColor = Color(0xFF1A1C18)
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState())
-        ) {
-            Text(
-                "Resumen de Producción",
-                style = MaterialTheme.typography.titleLarge,
-                color = Color.White,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                "Estado actual de la cava y eventos",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Quick Stats Row
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                DashboardStatCard("Temp. Media", "${String.format("%.1f", avgTemp)}°C", Color(0xFF3897F0), Modifier.weight(1f))
-                DashboardStatCard("Total Botellas", "$totalBottles", Color(0xFFF9A825), Modifier.weight(1f))
+        if (isLoading && cavas.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = Color(0xFFB4F391))
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Cava Sections Preview
-            Text("Secciones de Cava", style = MaterialTheme.typography.titleMedium, color = Color.White)
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            cavas.take(3).forEach { cava ->
-                CavaPreviewItem(cava)
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Upcoming Events Preview
-            Text("Próximas Actividades", style = MaterialTheme.typography.titleMedium, color = Color.White)
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            // This would take from events list
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2D26))
+        } else {
+            Column(
+                modifier = Modifier
+                    .padding(padding)
+                    .fillMaxSize()
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Column(Modifier.padding(16.dp)) {
-                    Text("Vendimia 2026", fontWeight = FontWeight.Bold, color = Color(0xFFB4F391))
-                    Text("12 de Octubre - 10:00 AM", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.7f))
-                    Text("Quedan 15 lugares disponibles", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                Text(
+                    "Resumen de Producción",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+
+                // Quick Stats Row
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    DashboardStatCard("Temp. Media", "${String.format("%.1f", avgTemp)}°C", Color(0xFF3897F0), Modifier.weight(1f))
+                    DashboardStatCard("Total Botellas", "$totalBottles", Color(0xFFF9A825), Modifier.weight(1f))
+                }
+
+                // Cava Sections Preview
+                Text("Secciones de Cava", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                if (cavas.isEmpty()) {
+                    Text("No hay cavas registradas", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+                } else {
+                    cavas.forEach { cava ->
+                        CavaPreviewItem(cava)
+                    }
+                }
+
+                // Upcoming Events Preview
+                Text("Próximas Actividades", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                if (events.isEmpty()) {
+                    Text("No hay actividades registradas", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+                } else {
+                    events.take(3).forEach { event ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2D26))
+                        ) {
+                            Column(Modifier.padding(16.dp)) {
+                                Text(event.titulo, fontWeight = FontWeight.Bold, color = Color(0xFFB4F391))
+                                Text(event.fecha, style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.7f))
+                                Text("Capacidad: ${event.cupo} personas", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -135,9 +127,9 @@ fun CavaPreviewItem(cava: CavaResponse) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp)
-            .background(Color(0xFF1A1C18), RoundedCornerShape(8.dp))
-            .padding(12.dp),
+            .padding(vertical = 4.dp)
+            .background(Color(0xFF2A2D26), RoundedCornerShape(12.dp))
+            .padding(16.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -148,7 +140,8 @@ fun CavaPreviewItem(cava: CavaResponse) {
         Text(
             text = if(cava.estado == "OPTIMO") "Óptimo" else "Revisar",
             color = if(cava.estado == "OPTIMO") Color(0xFF4CAF50) else Color(0xFFF9A825),
-            style = MaterialTheme.typography.labelSmall
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold
         )
     }
 }
