@@ -9,7 +9,7 @@ const { protegerRuta } = require('../middleware/authMiddleware');
 // Todas las rutas de notificaciones requieren autenticación
 router.use(protegerRuta);
 
-router.get('/', obtenerMisNotificaciones);
-router.put('/:id/estado', cambiarEstado);
+router.get('/notificaciones/', obtenerMisNotificaciones);
+router.put('/notificaciones/:id/estado', cambiarEstado);
 
 module.exports = router;
