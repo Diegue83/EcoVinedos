@@ -33,6 +33,9 @@ dependencies {
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
 
+    // MQTT
+    api(libs.org.eclipse.paho.client.mqttv3)
+
     // ViewModel
     api(libs.androidx.lifecycle.runtime.ktx)
     api("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")

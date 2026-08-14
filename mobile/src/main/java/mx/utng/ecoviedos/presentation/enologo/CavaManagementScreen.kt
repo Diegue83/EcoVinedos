@@ -177,6 +177,13 @@ fun SeccionManageItem(
     enologoViewModel: EnologoViewModel
 ) {
     var bottles by remember { mutableStateOf(seccion.botellasActuales.toString()) }
+    var isSaving by remember { mutableStateOf(false) }
+    
+    // Sincronizar el estado local si el remoto cambia (ej. tras cargarDatos)
+    LaunchedEffect(seccion.botellasActuales) {
+        bottles = seccion.botellasActuales.toString()
+        isSaving = false
+    }
     
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -218,16 +225,27 @@ fun SeccionManageItem(
                         focusedBorderColor = Color(0xFFB4F391),
                         unfocusedBorderColor = Color.Gray.copy(alpha = 0.5f)
                     ),
-                    textStyle = MaterialTheme.typography.bodyMedium
+                    textStyle = MaterialTheme.typography.bodyMedium,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                    )
                 )
                 Spacer(Modifier.width(8.dp))
                 Button(
-                    onClick = { enologoViewModel.actualizarBotellas(token, seccion._id, bottles.toIntOrNull() ?: 0) },
+                    onClick = { 
+                        isSaving = true
+                        enologoViewModel.actualizarBotellas(token, seccion._id, bottles.toIntOrNull() ?: 0) 
+                    },
+                    enabled = !isSaving,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF384B2F)),
                     shape = RoundedCornerShape(8.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
                 ) {
-                    Text("Guardar", fontSize = 12.sp)
+                    if (isSaving) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
+                    } else {
+                        Text("Guardar", fontSize = 12.sp)
+                    }
                 }
             }
         }

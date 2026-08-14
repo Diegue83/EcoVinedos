@@ -1,4 +1,4 @@
-package mx.utng.ecoviedos.data.mqtt
+package mx.utng.ecoviedos.shared.data.mqtt
 
 import android.content.Context
 import android.util.Log
@@ -11,6 +11,7 @@ class MqttManager(
     private val onMessageReceived: (parcelId: String, humedad: Float, temp: Float, humedadSuelo: Float, riegoActivo: Boolean, tiempoRestante: Int) -> Unit,
     private val onRiegoStatusReceived: (parcelId: String, activo: Boolean, tiempo: Int) -> Unit,
     private val onParcelListReceived: (jsonPayload: String) -> Unit,
+    private val onCavaListReceived: (jsonPayload: String) -> Unit = {},
     private val onConnectionStatusChanged: (isConnected: Boolean, message: String?) -> Unit
 ) {
     private var mqttClient: MqttClient? = null
@@ -77,9 +78,11 @@ class MqttManager(
                             topic == MqttConfig.TOPIC_PARCELAS_LISTA -> {
                                 onParcelListReceived(payload)
                             }
+                            topic == MqttConfig.TOPIC_SECCIONES_LISTA -> {
+                                onCavaListReceived(payload)
+                            }
                             topic?.startsWith("vinedo/parcela/") == true &&
                                     topic.endsWith("/stats") -> {
-                                // ... existing logic ...
                                 handleStatsMessage(topic, payload)
                             }
                             topic?.startsWith("vinedo/parcela/") == true &&
@@ -159,6 +162,7 @@ class MqttManager(
             mqttClient?.let {
                 if (it.isConnected) {
                     it.subscribe(MqttConfig.TOPIC_PARCELAS_LISTA, 1)
+                    it.subscribe(MqttConfig.TOPIC_SECCIONES_LISTA, 1)
                     it.subscribe(MqttConfig.TOPIC_PARCELA_STATS, 1)
                     it.subscribe("vinedo/parcela/+/riego", 1)
                     it.subscribe("vinedo/parcela/+/control", 1)

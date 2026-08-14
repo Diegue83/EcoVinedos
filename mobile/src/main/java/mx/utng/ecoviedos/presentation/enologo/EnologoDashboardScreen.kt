@@ -6,7 +6,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.automirrored.filled.Logout
+import java.util.Locale
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,7 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import mx.utng.ecoviedos.data.remote.CavaResponse
 import java.text.SimpleDateFormat
@@ -30,8 +30,9 @@ fun EnologoDashboardScreen(
     val events by enologoViewModel.eventos.collectAsState()
     val isLoading by enologoViewModel.isLoading.collectAsState()
     
-    val avgTemp = if (cavas.isNotEmpty()) cavas.map { it.temperatura }.average() else 0.0
-    val totalBottles = cavas.sumOf { it.botellasActuales }
+    val allSections = cavas.flatMap { it.secciones }
+    val avgTemp = if (allSections.isNotEmpty()) allSections.map { it.temperatura }.average() else 0.0
+    val totalBottles = allSections.sumOf { it.botellasActuales }
 
     Scaffold(
         topBar = {
@@ -39,10 +40,10 @@ fun EnologoDashboardScreen(
                 title = { Text("Eco-Viñedos", fontWeight = FontWeight.Bold) },
                 actions = {
                     IconButton(onClick = onLogout) {
-                        Icon(Icons.Default.Logout, contentDescription = "Cerrar Sesión", tint = Color(0xFFFFB4AB))
+                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Cerrar Sesión", tint = Color(0xFFFFB4AB))
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFF1A1C18),
                     titleContentColor = Color.White
                 )
@@ -72,7 +73,7 @@ fun EnologoDashboardScreen(
 
                 // Quick Stats Row
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    DashboardStatCard("Temp. Media", "${String.format("%.1f", avgTemp)}°C", Color(0xFF3897F0), Modifier.weight(1f))
+                    DashboardStatCard("Temp. Media", "${String.format(Locale.US, "%.1f", avgTemp)}°C", Color(0xFF3897F0), Modifier.weight(1f))
                     DashboardStatCard("Total Botellas", "$totalBottles", Color(0xFFF9A825), Modifier.weight(1f))
                 }
 
@@ -124,6 +125,9 @@ fun DashboardStatCard(label: String, value: String, color: Color, modifier: Modi
 
 @Composable
 fun CavaPreviewItem(cava: CavaResponse) {
+    val totalBottles = cava.secciones.sumOf { it.botellasActuales }
+    val isAnyWarning = cava.secciones.any { it.estado != "OPTIMO" }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -135,11 +139,11 @@ fun CavaPreviewItem(cava: CavaResponse) {
     ) {
         Column {
             Text(cava.nombre, fontWeight = FontWeight.Bold, color = Color.White)
-            Text("${cava.botellasActuales} botellas", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            Text("$totalBottles botellas", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
         }
         Text(
-            text = if(cava.estado == "OPTIMO") "Óptimo" else "Revisar",
-            color = if(cava.estado == "OPTIMO") Color(0xFF4CAF50) else Color(0xFFF9A825),
+            text = if(!isAnyWarning) "Óptimo" else "Revisar",
+            color = if(!isAnyWarning) Color(0xFF4CAF50) else Color(0xFFF9A825),
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold
         )

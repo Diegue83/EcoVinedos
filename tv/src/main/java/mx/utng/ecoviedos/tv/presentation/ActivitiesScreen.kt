@@ -90,8 +90,8 @@ fun ActivityCard(
         modifier = modifier.fillMaxHeight(),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = bgColor.copy(alpha = 0.8f),
-            focusedContainerColor = bgColor
+            containerColor = bgColor.copy(alpha = 0.2f),
+            focusedContainerColor = bgColor.copy(alpha = 0.4f)
         )
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -102,7 +102,7 @@ fun ActivityCard(
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
-                    alpha = 0.4f
+                    alpha = 0.6f
                 )
             }
 
@@ -118,17 +118,17 @@ fun ActivityCard(
                 
                 Spacer(modifier = Modifier.height(32.dp))
                 
-                Text(text = title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White)
+                Text(text = title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White)
                 Spacer(modifier = Modifier.height(12.dp))
-                Text(text = desc, style = MaterialTheme.typography.bodyMedium, color = Color.White, lineHeight = 20.sp, maxLines = 4)
+                Text(text = desc, style = MaterialTheme.typography.titleMedium, color = Color.White, lineHeight = 28.sp, maxLines = 4)
                 
                 Spacer(modifier = Modifier.weight(1f))
                 
-                Text(text = price, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White)
+                Text(text = price, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Color.White)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = tag, 
-                    style = MaterialTheme.typography.labelSmall, 
+                    style = MaterialTheme.typography.titleSmall,
                     color = Color(0xFFB4F391),
                     modifier = Modifier
                         .background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(50))

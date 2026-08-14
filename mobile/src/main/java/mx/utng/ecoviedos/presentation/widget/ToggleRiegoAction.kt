@@ -8,7 +8,7 @@ import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.state.PreferencesGlanceStateDefinition
 import kotlinx.coroutines.flow.first
 import mx.utng.ecoviedos.data.local.SessionManager
-import mx.utng.ecoviedos.data.mqtt.MqttManager
+import mx.utng.ecoviedos.shared.data.mqtt.MqttManager
 
 class ToggleRiegoAction : ActionCallback {
     override suspend fun onAction(
@@ -26,7 +26,14 @@ class ToggleRiegoAction : ActionCallback {
         val token = sessionManager.token.first() ?: return
 
         // Enviar comando vía MQTT usando el tiempo configurado
-        val mqttManager = MqttManager(context, { _, _, _, _, _, _ -> }, { _, _, _ -> }, {}, { _, _ -> })
+        val mqttManager = MqttManager(
+            context = context, 
+            onMessageReceived = { _, _, _, _, _, _ -> }, 
+            onRiegoStatusReceived = { _, _, _ -> }, 
+            onParcelListReceived = {}, 
+            onCavaListReceived = {},
+            onConnectionStatusChanged = { _, _ -> }
+        )
         mqttManager.connect()
         
         // Damos un pequeño margen para conectar y enviamos

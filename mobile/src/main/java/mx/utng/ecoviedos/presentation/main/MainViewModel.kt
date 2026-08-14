@@ -15,8 +15,8 @@ import kotlinx.coroutines.launch
 import mx.utng.ecoviedos.data.WearableDataSender
 import mx.utng.ecoviedos.data.RiegoAlarmReceiver
 import mx.utng.ecoviedos.data.local.SessionManager
-import mx.utng.ecoviedos.data.mqtt.MqttConfig
-import mx.utng.ecoviedos.data.mqtt.MqttManager
+import mx.utng.ecoviedos.shared.data.mqtt.MqttConfig
+import mx.utng.ecoviedos.shared.data.mqtt.MqttManager
 import mx.utng.ecoviedos.data.repository.ParcelaRepository
 import mx.utng.ecoviedos.domain.model.Parcela
 import mx.utng.ecoviedos.data.remote.ParcelaRequest

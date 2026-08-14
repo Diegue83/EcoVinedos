@@ -1,10 +1,16 @@
 package mx.utng.ecoviedos.presentation.enologo
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import android.util.Log
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import mx.utng.ecoviedos.shared.data.mqtt.MqttManager
 import mx.utng.ecoviedos.data.remote.*
 import mx.utng.ecoviedos.data.repository.EventoRepository
 
@@ -12,8 +18,9 @@ import mx.utng.ecoviedos.data.repository.EventoRepository
  * ViewModel para el perfil de Enólogo.
  * Gestiona la carga de datos de cavas, secciones y eventos de turismo.
  */
-class EnologoViewModel : ViewModel() {
+class EnologoViewModel(application: Application) : AndroidViewModel(application) {
     private val eventoRepository = EventoRepository()
+    private var mqttManager: MqttManager? = null
     
     private val _eventos = MutableStateFlow<List<EventoResponse>>(emptyList())
     val eventos = _eventos.asStateFlow()
@@ -26,6 +33,76 @@ class EnologoViewModel : ViewModel() {
 
     init {
         cargarDatos()
+        initializeMqtt()
+    }
+
+    private fun initializeMqtt() {
+        mqttManager = MqttManager(
+            context = getApplication(),
+            onMessageReceived = { id, hum, temp, _, _, _ ->
+                viewModelScope.launch(Dispatchers.Main) {
+                    actualizarSeccionEnTiempoReal(id, hum, temp)
+                }
+            },
+            onRiegoStatusReceived = { _, _, _ -> },
+            onParcelListReceived = { },
+            onCavaListReceived = { payload ->
+                viewModelScope.launch(Dispatchers.Main) {
+                    actualizarListaCavasMqtt(payload)
+                }
+            },
+            onConnectionStatusChanged = { _, _ -> }
+        )
+        viewModelScope.launch(Dispatchers.IO) {
+            mqttManager?.connect()
+        }
+    }
+
+    private fun actualizarSeccionEnTiempoReal(id: String, hum: Float, temp: Float) {
+        val currentCavas = _cavas.value.toMutableList()
+        var changed = false
+        
+        val updatedCavas = currentCavas.map { cava ->
+            val index = cava.secciones.indexOfFirst { it._id == id }
+            if (index != -1) {
+                changed = true
+                val updatedSecciones = cava.secciones.toMutableList()
+                updatedSecciones[index] = updatedSecciones[index].copy(
+                    humedad = hum.toDouble(),
+                    temperatura = temp.toDouble(),
+                    ultimaLectura = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).format(java.util.Date())
+                )
+                cava.copy(secciones = updatedSecciones)
+            } else {
+                cava
+            }
+        }
+        
+        if (changed) {
+            _cavas.value = updatedCavas
+        }
+    }
+
+    private fun actualizarListaCavasMqtt(payload: String) {
+        try {
+            val type = object : TypeToken<List<SeccionCavaResponse>>() {}.type
+            val list = Gson().fromJson<List<SeccionCavaResponse>>(payload, type)
+            
+            // Aquí agrupamos las secciones de vuelta en sus cavas correspondientes
+            // O si el payload ya viniera agrupado sería más fácil, pero con la lógica actual de connecction.js
+            // vinedo/secciones/lista envía un array plano de SeccionCavaResponse
+            
+            val currentCavas = _cavas.value.toMutableList()
+            val updatedCavas = currentCavas.map { cava ->
+                val seccionesActualizadas = cava.secciones.map { seccion ->
+                    list.find { it._id == seccion._id } ?: seccion
+                }
+                cava.copy(secciones = seccionesActualizadas)
+            }
+            _cavas.value = updatedCavas
+        } catch (e: Exception) {
+            Log.e("EnologoViewModel", "Error parseando lista cavas MQTT", e)
+        }
     }
 
     /**
@@ -46,7 +123,7 @@ class EnologoViewModel : ViewModel() {
                     _cavas.value = response.body() ?: emptyList()
                 }
             } catch (e: Exception) {
-                // Manejo de errores silencioso por ahora
+                Log.e("EnologoViewModel", "Error cargando datos", e)
             } finally {
                 _isLoading.value = false
             }
@@ -88,13 +165,20 @@ class EnologoViewModel : ViewModel() {
     fun actualizarBotellas(token: String, seccionId: String, cantidad: Int) {
         viewModelScope.launch {
             try {
-                RetrofitClient.cavaService.actualizarSeccion(
+                val response = RetrofitClient.cavaService.actualizarSeccion(
                     "Bearer $token", 
                     seccionId, 
-                    mapOf("botellasActuales" to cantidad)
+                    mapOf("botellasActuales" to cantidad),
                 )
-                cargarDatos()
-            } catch (e: Exception) {}
+                if (response.isSuccessful) {
+                    Log.d("EnologoViewModel", "Botellas actualizadas exitosamente: $cantidad")
+                    cargarDatos()
+                } else {
+                    Log.e("EnologoViewModel", "Error al actualizar botellas: ${response.code()} - ${response.errorBody()?.string()}")
+                }
+            } catch (e: Exception) {
+                Log.e("EnologoViewModel", "Excepción al actualizar botellas", e)
+            }
         }
     }
 
@@ -118,5 +202,10 @@ class EnologoViewModel : ViewModel() {
             }
             _isLoading.value = false
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        mqttManager?.disconnect()
     }
 }

@@ -53,16 +53,17 @@ fun CavaDetailScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            if (cavas.isEmpty()) {
+            val allSections = cavas.flatMap { it.secciones }
+            if (allSections.isEmpty()) {
                 Text("Cargando detalles de secciones...", color = Color.Gray)
             } else {
-                cavas.forEach { cava ->
-                    val isWarning = cava.estado != "OPTIMO"
+                allSections.forEach { seccion ->
+                    val isWarning = seccion.estado != "OPTIMO"
                     CavaSectionCard(
-                        title = "Sección ${cava.nombre}",
-                        temp = "${cava.temperatura}°C",
-                        hum = "${cava.humedad.toInt()}%",
-                        bottles = "${cava.botellasActuales} botellas",
+                        title = "Sección ${seccion.nombre}",
+                        temp = "${seccion.temperatura}°C",
+                        hum = "${seccion.humedad.toInt()}%",
+                        bottles = "${seccion.botellasActuales} botellas",
                         status = if(isWarning) "Revisar" else "Óptima",
                         statusColor = if(isWarning) Color(0xFFF9A825) else Color(0xFF4CAF50),
                         modifier = Modifier.weight(1f),

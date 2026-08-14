@@ -9,8 +9,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import android.util.Log
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.Dispatchers
+import mx.utng.ecoviedos.shared.data.mqtt.MqttManager
 import mx.utng.ecoviedos.data.remote.PairCodeRequest
 import mx.utng.ecoviedos.data.remote.RetrofitClient
+import mx.utng.ecoviedos.data.remote.SeccionCavaResponse
 
 sealed class TvUiState {
     data object Loading : TvUiState()
@@ -24,6 +30,7 @@ class TvViewModel(application: Application) : AndroidViewModel(application) {
     val uiState = _uiState.asStateFlow()
 
     private var pairingJob: Job? = null
+    private var mqttManager: MqttManager? = null
 
     private val deviceId: String = android.provider.Settings.Secure.getString(
         application.contentResolver,
@@ -61,12 +68,81 @@ class TvViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private fun initializeMqtt() {
+        mqttManager?.disconnect()
+        mqttManager = MqttManager(
+            context = getApplication(),
+            onMessageReceived = { id, hum, temp, _, _, _ ->
+                viewModelScope.launch(Dispatchers.Main) {
+                    actualizarSeccionEnTiempoReal(id, hum, temp)
+                }
+            },
+            onRiegoStatusReceived = { _, _, _ -> },
+            onParcelListReceived = { },
+            onCavaListReceived = { payload ->
+                viewModelScope.launch(Dispatchers.Main) {
+                    actualizarListaCavasMqtt(payload)
+                }
+            },
+            onConnectionStatusChanged = { _, _ -> }
+        )
+        viewModelScope.launch(Dispatchers.IO) {
+            mqttManager?.connect()
+        }
+    }
+
+    private fun actualizarSeccionEnTiempoReal(id: String, hum: Float, temp: Float) {
+        val state = _uiState.value
+        if (state is TvUiState.Linked) {
+            var changed = false
+            val updatedCavas = state.cavas.map { cava ->
+                val index = cava.secciones.indexOfFirst { it._id == id }
+                if (index != -1) {
+                    changed = true
+                    val updatedSecciones = cava.secciones.toMutableList()
+                    updatedSecciones[index] = updatedSecciones[index].copy(
+                        humedad = hum.toDouble(),
+                        temperatura = temp.toDouble(),
+                        ultimaLectura = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).format(java.util.Date())
+                    )
+                    cava.copy(secciones = updatedSecciones)
+                } else {
+                    cava
+                }
+            }
+            if (changed) {
+                _uiState.value = TvUiState.Linked(updatedCavas)
+            }
+        }
+    }
+
+    private fun actualizarListaCavasMqtt(payload: String) {
+        val state = _uiState.value
+        if (state is TvUiState.Linked) {
+            try {
+                val type = object : TypeToken<List<SeccionCavaResponse>>() {}.type
+                val list = Gson().fromJson<List<SeccionCavaResponse>>(payload, type)
+                
+                val updatedCavas = state.cavas.map { cava ->
+                    val seccionesActualizadas = cava.secciones.map { seccion ->
+                        list.find { it._id == seccion._id } ?: seccion
+                    }
+                    cava.copy(secciones = seccionesActualizadas)
+                }
+                _uiState.value = TvUiState.Linked(updatedCavas)
+            } catch (e: Exception) {
+                Log.e("TvViewModel", "Error parseando lista cavas MQTT", e)
+            }
+        }
+    }
+
     private fun cargarDatosCava() {
         viewModelScope.launch {
             try {
                 val response = RetrofitClient.cavaService.obtenerCavas()
                 if (response.isSuccessful && response.body() != null) {
                     _uiState.value = TvUiState.Linked(response.body()!!)
+                    initializeMqtt()
                 } else {
                     _uiState.value = TvUiState.Error("Error al cargar cavas: ${response.code()}")
                 }
@@ -97,5 +173,10 @@ class TvViewModel(application: Application) : AndroidViewModel(application) {
     fun retry() {
         _uiState.value = TvUiState.Loading
         startPairingProcess()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        mqttManager?.disconnect()
     }
 }

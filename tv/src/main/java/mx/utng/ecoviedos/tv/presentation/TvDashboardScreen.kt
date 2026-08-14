@@ -19,15 +19,37 @@ import java.text.SimpleDateFormat
 import java.util.*
 import mx.utng.ecoviedos.data.remote.CavaResponse
 
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import mx.utng.ecoviedos.data.remote.EventoResponse
+import mx.utng.ecoviedos.presentation.admin.TourismViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
+
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun TvDashboardScreen(
     cavas: List<CavaResponse>,
     onNavigateToCavaDetail: () -> Unit,
     onNavigateToActivities: () -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    tourismViewModel: TourismViewModel = viewModel()
 ) {
     val currentTime = remember { mutableStateOf(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())) }
+    val eventos by tourismViewModel.eventos.collectAsState()
+
+    // Focus management
+    val focusRequesterCava = remember { FocusRequester() }
+    val focusRequesterActivities = remember { FocusRequester() }
+    var lastFocusedCard by remember { mutableStateOf("cava") }
+
+    LaunchedEffect(Unit) {
+        if (lastFocusedCard == "cava") {
+            focusRequesterCava.requestFocus()
+        } else {
+            focusRequesterActivities.requestFocus()
+        }
+    }
 
     // Agregamos todas las secciones de todas las cavas para las estadísticas globales
     val todasLasSecciones = cavas.flatMap { it.secciones }
@@ -107,10 +129,15 @@ fun TvDashboardScreen(
         // Main Content Area
         Row(modifier = Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
             Surface(
-                onClick = onNavigateToCavaDetail,
+                onClick = { 
+                    lastFocusedCard = "cava"
+                    onNavigateToCavaDetail() 
+                },
                 modifier = Modifier
                     .fillMaxHeight()
-                    .weight(1f),
+                    .weight(1f)
+                    .focusRequester(focusRequesterCava)
+                    .onFocusChanged { if(it.isFocused) lastFocusedCard = "cava" },
                 shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
                 scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
                 colors = ClickableSurfaceDefaults.colors(
@@ -122,7 +149,7 @@ fun TvDashboardScreen(
                 )
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
-                    Text("Estado de la Bodega", style = MaterialTheme.typography.titleMedium, color = Color(0xFF3897F0), fontWeight = FontWeight.Bold)
+                    Text("Estado de la Bodega", style = MaterialTheme.typography.headlineSmall, color = Color(0xFF3897F0), fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(16.dp))
                     
                     if (cavas.isEmpty()) {
@@ -139,7 +166,7 @@ fun TvDashboardScreen(
                     }
 
                     Spacer(modifier = Modifier.weight(1f))
-                    Text("Maduración por variedad", style = MaterialTheme.typography.labelMedium, color = Color.Gray)
+                    Text("Maduración por variedad", style = MaterialTheme.typography.labelLarge, color = Color.Gray)
                     Spacer(Modifier.height(12.dp))
                     
                     VarietyProgress("Merlot", 0.85f, "82°Bx", Color(0xFF3897F0))
@@ -149,10 +176,15 @@ fun TvDashboardScreen(
             }
 
             Surface(
-                onClick = onNavigateToActivities,
+                onClick = { 
+                    lastFocusedCard = "activities"
+                    onNavigateToActivities() 
+                },
                 modifier = Modifier
                     .fillMaxHeight()
-                    .weight(1.5f),
+                    .weight(1.5f)
+                    .focusRequester(focusRequesterActivities)
+                    .onFocusChanged { if(it.isFocused) lastFocusedCard = "activities" },
                 shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
                 scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
                 colors = ClickableSurfaceDefaults.colors(
@@ -161,14 +193,17 @@ fun TvDashboardScreen(
                 )
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
-                    Text("Actividades y Experiencias", style = MaterialTheme.typography.titleMedium, color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("Actividades y Experiencias", style = MaterialTheme.typography.headlineSmall, color = Color.White, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(16.dp))
                     
-                    PromotionCardSummary("Tour Harvest Experience", "$850 MXN", Color(0xFF1565C0))
-                    Spacer(Modifier.height(12.dp))
-                    PromotionCardSummary("Membresía Primavera", "Desde $680", Color(0xFF2E7D32))
-                    Spacer(Modifier.height(12.dp))
-                    PromotionCardSummary("Maridaje Privado", "$1,200 MXN", Color(0xFF5D4037))
+                    if (eventos.isEmpty()) {
+                        PromotionCardSummary("Cargando eventos...", "", Color(0xFF1565C0))
+                    } else {
+                        eventos.take(3).forEach { evento ->
+                            PromotionCardSummary(evento.titulo, "$${evento.precio} MXN", if(evento.tipo == "TOURISM") Color(0xFF2E7D32) else Color(0xFF1565C0))
+                            Spacer(Modifier.height(12.dp))
+                        }
+                    }
                 }
             }
         }
@@ -201,10 +236,10 @@ fun CavaItem(name: String, status: String, statusColor: Color) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text = name, style = MaterialTheme.typography.bodyMedium, color = Color.White)
+        Text(text = name, style = MaterialTheme.typography.titleMedium, color = Color.White)
         Text(
             text = status, 
-            style = MaterialTheme.typography.labelSmall, 
+            style = MaterialTheme.typography.labelLarge, 
             color = statusColor,
             modifier = Modifier
                 .background(statusColor.copy(alpha = 0.1f), RoundedCornerShape(50))
@@ -218,11 +253,11 @@ fun CavaItem(name: String, status: String, statusColor: Color) {
 fun VarietyProgress(name: String, progress: Float, label: String, color: Color) {
     Column(modifier = Modifier.padding(vertical = 4.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(text = name, style = MaterialTheme.typography.labelSmall, color = Color.White)
-            Text(text = label, style = MaterialTheme.typography.labelSmall, color = Color.White)
+            Text(text = name, style = MaterialTheme.typography.labelLarge, color = Color.White)
+            Text(text = label, style = MaterialTheme.typography.labelLarge, color = Color.White)
         }
         Spacer(Modifier.height(4.dp))
-        Box(modifier = Modifier.fillMaxWidth().height(8.dp).background(Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(50))) {
+        Box(modifier = Modifier.fillMaxWidth().height(10.dp).background(Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(50))) {
             Box(modifier = Modifier.fillMaxWidth(progress).fillMaxHeight().background(color, RoundedCornerShape(50)))
         }
     }
@@ -234,7 +269,7 @@ fun PromotionCardSummary(title: String, price: String, bgColor: Color) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(70.dp)
+            .height(80.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(bgColor.copy(alpha = 0.8f))
             .padding(12.dp)
@@ -244,8 +279,8 @@ fun PromotionCardSummary(title: String, price: String, bgColor: Color) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = title, style = MaterialTheme.typography.titleSmall, color = Color.White, fontWeight = FontWeight.Bold)
-            Text(text = price, style = MaterialTheme.typography.labelSmall, color = Color(0xFFB4F391), fontWeight = FontWeight.Bold)
+            Text(text = title, style = MaterialTheme.typography.titleMedium, color = Color.White, fontWeight = FontWeight.Bold)
+            Text(text = price, style = MaterialTheme.typography.labelLarge, color = Color(0xFFB4F391), fontWeight = FontWeight.Bold)
         }
     }
 }

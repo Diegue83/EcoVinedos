@@ -116,7 +116,7 @@ client.on("message", async (topic, message) => {
                     return;
                 }
             }
-            
+
 
             const ahora = Date.now();
             const ultimo = ultimosGuardados.get(parcelaId) || 0;
@@ -179,37 +179,58 @@ client.on("error", (err) => {
 });
 
 /**
- * Mapea un objeto de parcela de Mongoose a un objeto plano para envío MQTT.
+ * Mapea un objeto de parcela o sección de Mongoose a un objeto plano para envío MQTT.
  *
- * @param {Object} parcela - Objeto parcela de la base de datos.
- * @returns {Object} Objeto parcela formateado.
+ * @param {Object} item - Objeto parcela o sección de la base de datos.
+ * @param {String} type - Tipo del objeto ('PARCELA' o 'SECCION').
+ * @returns {Object} Objeto formateado.
  */
-const mapParcela = (parcela) => ({
-    id: String(parcela._id),
-    nombreParcela: parcela.nombreParcela,
-    variedad: parcela.variedad,
-    areaM2: parcela.areaM2,
-    umbralHumedad: parcela.umbralHumedad,
-    umbralTemp: parcela.umbralTemp,
-    indiceMaduracion: parcela.indiceMaduracion,
-    fechaCosecha: parcela.fechaCosecha,
-    activa: parcela.activa,
-    humedad: parcela.humedad,
-    temperatura: parcela.temperatura,
-    humedadSuelo: parcela.humedadSuelo,
-    brix: parcela.brix,
-    ph: parcela.ph,
-    acidez: parcela.acidez,
-    phSuelo: parcela.phSuelo,
-    riegoActivo: parcela.riegoActivo,
-    tiempoRestanteRiego: parcela.tiempoRestanteRiego,
-    tipoRiego: parcela.tipoRiego,
-    consumoAguaM2: parcela.consumoAguaM2,
-    nodoVinculado: parcela.nodoVinculado
-});
+const mapToMqtt = (item, type) => {
+    const base = {
+        id: String(item._id),
+        type: type,
+        temperatura: item.temperatura,
+        humedad: item.humedad,
+        ultimaLectura: item.ultimaLectura || item.ultimaConexion
+    };
+
+    if (type === 'PARCELA') {
+        return {
+            ...base,
+            nombreParcela: item.nombreParcela,
+            variedad: item.variedad,
+            areaM2: item.areaM2,
+            umbralHumedad: item.umbralHumedad,
+            umbralTemp: item.umbralTemp,
+            indiceMaduracion: item.indiceMaduracion,
+            fechaCosecha: item.fechaCosecha,
+            activa: item.activa,
+            humedadSuelo: item.humedadSuelo,
+            brix: item.brix,
+            ph: item.ph,
+            acidez: item.acidez,
+            phSuelo: item.phSuelo,
+            riegoActivo: item.riegoActivo,
+            tiempoRestanteRiego: item.tiempoRestanteRiego,
+            tipoRiego: item.tipoRiego,
+            consumoAguaM2: item.consumoAguaM2,
+            nodoVinculado: item.nodoVinculado
+        };
+    } else {
+        return {
+            ...base,
+            nombre: item.nombre,
+            tipo: item.tipo,
+            capacidadBotellas: item.capacidadBotellas,
+            botellasActuales: item.botellasActuales,
+            sensorId: item.sensorId,
+            estado: item.estado
+        };
+    }
+};
 
 /**
- * Publica la lista completa de parcelas en el tópico de lista MQTT.
+ * Publica la lista completa de parcelas y secciones en el tópico de lista MQTT.
  *
  * @returns {Promise<void>}
  */
@@ -221,29 +242,32 @@ async function publicarListaParcelas() {
     }
 
     try {
-
         const parcelas = await Parcela.find().lean();
+        const secciones = await SeccionCava.find().lean();
 
-        const lista = parcelas.map(mapParcela);
+        const listaParcelas = parcelas.map(p => mapToMqtt(p, 'PARCELA'));
+        const listaSecciones = secciones.map(s => mapToMqtt(s, 'SECCION'));
 
+        // Publicar lista de parcelas
         client.publish(
             "vinedo/parcelas/lista",
-            JSON.stringify(lista),
-            {
-                qos: 1,
-                retain: true
-            },
-            (err) => {
-                if (err) {
-                    console.error("Error publicando parcelas:", err);
-                } else {
-                    console.log(`📤 Se publicaron ${lista.length} parcelas`);
-                }
-            }
+            JSON.stringify(listaParcelas),
+            { qos: 1, retain: true },
+            (err) => { if (err) console.error("Error publicando parcelas:", err); }
         );
 
+        // Publicar lista de secciones
+        client.publish(
+            "vinedo/secciones/lista",
+            JSON.stringify(listaSecciones),
+            { qos: 1, retain: true },
+            (err) => { if (err) console.error("Error publicando secciones:", err); }
+        );
+
+        console.log(`📤 Publicadas ${listaParcelas.length} parcelas y ${listaSecciones.length} secciones`);
+
     } catch (err) {
-        console.error("Error obteniendo parcelas:", err);
+        console.error("Error obteniendo datos para MQTT:", err);
     }
 }
 
