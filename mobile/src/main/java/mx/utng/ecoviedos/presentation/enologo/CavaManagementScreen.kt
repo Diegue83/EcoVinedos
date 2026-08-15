@@ -236,7 +236,7 @@ fun SeccionManageItem(
                         isSaving = true
                         enologoViewModel.actualizarBotellas(token, seccion._id, bottles.toIntOrNull() ?: 0) 
                     },
-                    enabled = !isSaving,
+                    enabled = !isSaving && token.isNotEmpty(),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF384B2F)),
                     shape = RoundedCornerShape(8.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)

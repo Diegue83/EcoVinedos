@@ -163,18 +163,35 @@ class EnologoViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun actualizarBotellas(token: String, seccionId: String, cantidad: Int) {
+        if (token.isBlank()) {
+            Log.e("EnologoViewModel", "Error: Token vacío al intentar actualizar botellas")
+            return
+        }
+        
         viewModelScope.launch {
             try {
+                // Buscar la sección actual para enviar los datos requeridos por el backend
+                val seccionActual = _cavas.value.flatMap { it.secciones }.find { it._id == seccionId }
+                
+                val requestBody = mutableMapOf<String, Any>("botellasActuales" to cantidad)
+                seccionActual?.let {
+                    requestBody["nombre"] = it.nombre
+                    requestBody["tipo"] = it.tipo
+                    requestBody["capacidadBotellas"] = it.capacidadBotellas
+                    requestBody["cava"] = it.cava
+                }
+
                 val response = RetrofitClient.cavaService.actualizarSeccion(
                     "Bearer $token", 
                     seccionId, 
-                    mapOf("botellasActuales" to cantidad),
+                    requestBody,
                 )
                 if (response.isSuccessful) {
                     Log.d("EnologoViewModel", "Botellas actualizadas exitosamente: $cantidad")
                     cargarDatos()
                 } else {
-                    Log.e("EnologoViewModel", "Error al actualizar botellas: ${response.code()} - ${response.errorBody()?.string()}")
+                    val errorMsg = response.errorBody()?.string()
+                    Log.e("EnologoViewModel", "Error al actualizar botellas: ${response.code()} - $errorMsg")
                 }
             } catch (e: Exception) {
                 Log.e("EnologoViewModel", "Excepción al actualizar botellas", e)

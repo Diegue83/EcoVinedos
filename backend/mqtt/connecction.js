@@ -187,7 +187,7 @@ client.on("error", (err) => {
  */
 const mapToMqtt = (item, type) => {
     const base = {
-        id: String(item._id),
+        _id: String(item._id),
         type: type,
         temperatura: item.temperatura,
         humedad: item.humedad,

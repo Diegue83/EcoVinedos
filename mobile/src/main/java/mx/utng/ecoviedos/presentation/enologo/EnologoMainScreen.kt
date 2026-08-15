@@ -59,7 +59,8 @@ fun EnologoMainScreen(
                 )
                 2 -> CavaManagementScreen(
                     onNavigateBack = {},
-                    onNavigateToLinkSensor = onNavigateToLinkSensor
+                    onNavigateToLinkSensor = onNavigateToLinkSensor,
+                    mainViewModel = mainViewModel
                 )
                 3 -> CavaStateScreen(onNavigateBack = {})
             }

@@ -153,7 +153,8 @@ class MainActivity : ComponentActivity() {
                                     onNavigateBack = { navController.popBackStack() },
                                     onNavigateToLinkSensor = { id, name -> 
                                         navController.navigate("device_config?targetId=$id&targetName=$name&type=CAVA")
-                                    }
+                                    },
+                                    mainViewModel = mainViewModel
                                 )
                             }
                             composable("forgot_password") {

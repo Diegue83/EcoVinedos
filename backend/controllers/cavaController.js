@@ -1,5 +1,6 @@
 const Cava = require('../models/Cava');
 const SeccionCava = require('../models/SeccionCava');
+const { publicarListaParcelas } = require('../mqtt/connecction');
 
 // --- Controladores de Cavas (Entidad Principal) ---
 
@@ -27,6 +28,7 @@ const obtenerCavas = async (req, res, next) => {
 const crearCava = async (req, res, next) => {
   try {
     const cava = await Cava.create(req.body);
+    publicarListaParcelas();
     res.status(201).json(cava);
   } catch (error) {
     next(error);
@@ -40,6 +42,7 @@ const eliminarCava = async (req, res, next) => {
     await SeccionCava.deleteMany({ cava: req.params.id });
     const cava = await Cava.findByIdAndDelete(req.params.id);
     if (!cava) return res.status(404).json({ mensaje: 'Cava no encontrada' });
+    publicarListaParcelas();
     res.json({ mensaje: 'Cava y sus secciones eliminadas correctamente' });
   } catch (error) {
     next(error);
@@ -53,6 +56,7 @@ const eliminarCava = async (req, res, next) => {
 const crearSeccion = async (req, res, next) => {
   try {
     const seccion = await SeccionCava.create(req.body);
+    publicarListaParcelas();
     res.status(201).json(seccion);
   } catch (error) {
     next(error);
@@ -63,14 +67,18 @@ const crearSeccion = async (req, res, next) => {
 // @route   PUT /api/cavas/secciones/:id
 const actualizarSeccion = async (req, res, next) => {
   try {
+    console.log(`📝 Actualizando sección ${req.params.id}. Body:`, req.body);
     const seccion = await SeccionCava.findByIdAndUpdate(
       req.params.id,
       req.body,
       { new: true, runValidators: true }
     );
     if (!seccion) return res.status(404).json({ mensaje: 'Sección no encontrada' });
+    console.log(`✅ Sección actualizada: ${seccion.nombre}, Botellas: ${seccion.botellasActuales}`);
+    publicarListaParcelas();
     res.json(seccion);
   } catch (error) {
+    console.error("❌ Error actualizando sección:", error);
     next(error);
   }
 };
@@ -81,6 +89,7 @@ const eliminarSeccion = async (req, res, next) => {
   try {
     const seccion = await SeccionCava.findByIdAndDelete(req.params.id);
     if (!seccion) return res.status(404).json({ mensaje: 'Sección no encontrada' });
+    publicarListaParcelas();
     res.json({ mensaje: 'Sección eliminada correctamente' });
   } catch (error) {
     next(error);
