@@ -67,15 +67,32 @@ const crearSeccion = async (req, res, next) => {
 // @route   PUT /api/cavas/secciones/:id
 const actualizarSeccion = async (req, res, next) => {
   try {
-    console.log(`📝 Actualizando sección ${req.params.id}. Body:`, req.body);
+    const { botellasActuales, nombre, tipo, capacidadBotellas, cava } = req.body;
+
+    // Si solo viene botellasActuales, permitimos la actualización parcial
+    // Pero si el usuario mandó todo el objeto, lo usamos
+    const updateData = {};
+    if (botellasActuales !== undefined) updateData.botellasActuales = Number(botellasActuales);
+    if (nombre) updateData.nombre = nombre;
+    if (tipo) updateData.tipo = tipo;
+    if (capacidadBotellas !== undefined) updateData.capacidadBotellas = Number(capacidadBotellas);
+    if (cava) updateData.cava = cava;
+
+    console.log(`📝 Actualizando sección ${req.params.id}:`, updateData);
+
     const seccion = await SeccionCava.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       { new: true, runValidators: true }
     );
+
     if (!seccion) return res.status(404).json({ mensaje: 'Sección no encontrada' });
+
     console.log(`✅ Sección actualizada: ${seccion.nombre}, Botellas: ${seccion.botellasActuales}`);
+
+    // Disparar actualización MQTT para que Móvil/TV se enteren al instante
     publicarListaParcelas();
+
     res.json(seccion);
   } catch (error) {
     console.error("❌ Error actualizando sección:", error);

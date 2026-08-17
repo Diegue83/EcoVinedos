@@ -46,6 +46,8 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         
+        mx.utng.ecoviedos.data.ParcelaRepository.init(application)
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 101)
@@ -63,10 +65,10 @@ class MainActivity : ComponentActivity() {
             AppTheme {
                 val navController = rememberSwipeDismissableNavController()
                 
-                // Manejar navegación desde AlertaActivity
+                // Manejar navegación desde AlertaActivity o Notificaciones
                 LaunchedEffect(intent) {
                     intent.getStringExtra("navigate_to_parcel")?.let { id ->
-                        navController.navigate("parcel_detail/$id")
+                        viewModel.seleccionarParcela(id)
                         intent.removeExtra("navigate_to_parcel")
                     }
                 }

@@ -30,6 +30,10 @@ fun EnologoDashboardScreen(
     val events by enologoViewModel.eventos.collectAsState()
     val isLoading by enologoViewModel.isLoading.collectAsState()
     
+    LaunchedEffect(Unit) {
+        enologoViewModel.cargarDatos()
+    }
+    
     val allSections = cavas.flatMap { it.secciones }
     val avgTemp = if (allSections.isNotEmpty()) allSections.map { it.temperatura }.average() else 0.0
     val totalBottles = allSections.sumOf { it.botellasActuales }

@@ -16,6 +16,7 @@ import mx.utng.ecoviedos.presentation.main.MainViewModel
 @Composable
 fun EnologoMainScreen(
     mainViewModel: MainViewModel = viewModel(),
+    enologoViewModel: EnologoViewModel = viewModel(),
     onLogout: () -> Unit = {},
     onNavigateToAddActivity: () -> Unit = {},
     onNavigateToEditActivity: (String) -> Unit = {},
@@ -50,7 +51,7 @@ fun EnologoMainScreen(
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
             when (selectedItem) {
-                0 -> EnologoDashboardScreen(onLogout = onLogout)
+                0 -> EnologoDashboardScreen(onLogout = onLogout, enologoViewModel = enologoViewModel)
                 1 -> TourismManagementScreen(
                     onNavigateBack = {}, 
                     onNavigateToAdd = onNavigateToAddActivity,
@@ -60,9 +61,10 @@ fun EnologoMainScreen(
                 2 -> CavaManagementScreen(
                     onNavigateBack = {},
                     onNavigateToLinkSensor = onNavigateToLinkSensor,
+                    enologoViewModel = enologoViewModel,
                     mainViewModel = mainViewModel
                 )
-                3 -> CavaStateScreen(onNavigateBack = {})
+                3 -> CavaStateScreen(onNavigateBack = {}, enologoViewModel = enologoViewModel)
             }
         }
     }

@@ -50,9 +50,10 @@ fun AlertScreen(
             )
 
             Text(
-                text = "Parcela $idParcela - $nombreParcela",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = nombreParcela.ifBlank { "Parcela $idParcela" },
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
             )
 
             Spacer(modifier = Modifier.height(12.dp))

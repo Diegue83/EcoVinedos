@@ -77,30 +77,14 @@ fun ParcelDetailScreen(
                 DetailMiniCard(label = "Def.", value = "${maxOf(0f, (parcela?.umbralHumedadSuelo ?: 40f) - (parcela?.humedadSuelo ?: 0f)).toInt()}%")
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            if (parcela != null) {
-                Button(
-                    onClick = { 
-                        if (parcela.riegoActivo) {
-                            viewModel.detenerRiego(parcela.id)
-                        } else {
-                            viewModel.activarRiego(parcela.id)
-                        }
-                    },
-                    modifier = Modifier.size(36.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (parcela.riegoActivo) Color.Red else Color(0xFFB4F391)
-                    )
-                ) {
-                    Icon(
-                        imageVector = if (parcela.riegoActivo) Icons.Default.Stop else Icons.Default.PlayArrow,
-                        contentDescription = if (parcela.riegoActivo) "Detener" else "Iniciar",
-                        modifier = Modifier.size(20.dp),
-                        tint = Color.Black
-                    )
-                }
-            }
+            Text(
+                text = if (parcela?.riegoActivo == true) "RIEGO ACTIVO" else "RIEGO APAGADO",
+                style = MaterialTheme.typography.labelSmall,
+                color = if (parcela?.riegoActivo == true) Color(0xFFB4F391) else Color.Gray,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }

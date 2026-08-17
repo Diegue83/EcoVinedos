@@ -186,13 +186,16 @@ fun TvDashboardScreen(
                     .focusRequester(focusRequesterActivities)
                     .onFocusChanged { if(it.isFocused) lastFocusedCard = "activities" },
                 shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
-                scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
+                scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
                 colors = ClickableSurfaceDefaults.colors(
-                    containerColor = Color.Transparent,
-                    focusedContainerColor = Color(0xFF2A2D26).copy(alpha = 0.3f)
+                    containerColor = Color(0xFF1A1C18),
+                    focusedContainerColor = Color(0xFF2A2D26)
+                ),
+                border = ClickableSurfaceDefaults.border(
+                    focusedBorder = Border(border = BorderStroke(2.dp, Color(0xFF3897F0)))
                 )
             ) {
-                Column(modifier = Modifier.padding(12.dp)) {
+                Column(modifier = Modifier.padding(20.dp)) {
                     Text("Actividades y Experiencias", style = MaterialTheme.typography.headlineSmall, color = Color.White, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(16.dp))
                     

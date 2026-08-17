@@ -34,8 +34,10 @@ class BitacoraViewModel(
     private val _uiState = MutableStateFlow(BitacoraUiState())
     val uiState: StateFlow<BitacoraUiState> = _uiState.asStateFlow()
 
-    private val _selectedParcelId = MutableStateFlow("4")
+    private val _selectedParcelId = MutableStateFlow("")
     val selectedParcelId: StateFlow<String> = _selectedParcelId.asStateFlow()
+
+    private val prefs = application.getSharedPreferences("parcela_cache", Context.MODE_PRIVATE)
 
     private var mediaPlayer: MediaPlayer? = null
     private var mediaRecorder: MediaRecorder? = null
@@ -63,6 +65,8 @@ class BitacoraViewModel(
         }
 
         viewModelScope.launch {
+            _selectedParcelId.value = prefs.getString("last_parcel_id", "") ?: ""
+            
             ParcelaRepository.parcelas.collect { parcelas ->
                 if (parcelas.isNotEmpty() && _selectedParcelId.value.isBlank()) {
                     _selectedParcelId.value = parcelas.first().id
@@ -123,7 +127,7 @@ class BitacoraViewModel(
             )
             currentList[index] = updatedParcela
             viewModelScope.launch(Dispatchers.Main) {
-                ParcelaRepository.updateParcelas(currentList.toList())
+                ParcelaRepository.updateParcelas(currentList.toList(), getApplication())
             }
         }
     }
@@ -138,13 +142,14 @@ class BitacoraViewModel(
             )
             currentList[index] = updatedParcela
             viewModelScope.launch(Dispatchers.Main) {
-                ParcelaRepository.updateParcelas(currentList.toList())
+                ParcelaRepository.updateParcelas(currentList.toList(), getApplication())
             }
         }
     }
 
     fun seleccionarParcela( idParcela: String) {
         _selectedParcelId.value = idParcela
+        prefs.edit().putString("last_parcel_id", idParcela).apply()
         cargarBitacoras(idParcela)
     }
 
