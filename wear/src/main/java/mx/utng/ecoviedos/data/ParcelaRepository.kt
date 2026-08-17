@@ -33,7 +33,7 @@ object ParcelaRepository {
 }
 
 data class ParcelaMap(
-    val id: String,
+    val _id: String,
     val nombreParcela: String?,
     val variedad: String?,
     val areaM2: Int,
@@ -48,5 +48,6 @@ data class ParcelaMap(
     val humedadSuelo: Float? = null,
     val riegoActivo: Boolean? = null,
     val tiempoRestanteRiego: Int? = null,
-    val tipoRiego: String? = null
+    val tipoRiego: String? = null,
+    val nodoVinculado: String? = null
 )

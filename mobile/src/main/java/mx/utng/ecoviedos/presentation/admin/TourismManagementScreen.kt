@@ -33,6 +33,10 @@ fun TourismManagementScreen(
     val isLoading by tourismViewModel.isLoading.collectAsState()
     val token by mainViewModel.sessionToken.collectAsState(initial = "")
 
+    LaunchedEffect(Unit) {
+        tourismViewModel.cargarEventos()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(

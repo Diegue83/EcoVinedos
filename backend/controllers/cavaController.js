@@ -67,22 +67,22 @@ const crearSeccion = async (req, res, next) => {
 // @route   PUT /api/cavas/secciones/:id
 const actualizarSeccion = async (req, res, next) => {
   try {
-    const { botellasActuales, nombre, tipo, capacidadBotellas, cava } = req.body;
+    const { botellasActuales, nombre, tipo, capacidadBotellas, cava, sensorId } = req.body;
 
-    // Si solo viene botellasActuales, permitimos la actualización parcial
-    // Pero si el usuario mandó todo el objeto, lo usamos
+    // Preparar objeto de actualización
     const updateData = {};
     if (botellasActuales !== undefined) updateData.botellasActuales = Number(botellasActuales);
     if (nombre) updateData.nombre = nombre;
     if (tipo) updateData.tipo = tipo;
     if (capacidadBotellas !== undefined) updateData.capacidadBotellas = Number(capacidadBotellas);
     if (cava) updateData.cava = cava;
+    if (sensorId !== undefined) updateData.sensorId = sensorId;
 
     console.log(`📝 Actualizando sección ${req.params.id}:`, updateData);
 
     const seccion = await SeccionCava.findByIdAndUpdate(
       req.params.id,
-      updateData,
+      { $set: updateData },
       { new: true, runValidators: true }
     );
 

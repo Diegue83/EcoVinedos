@@ -1,5 +1,6 @@
 package mx.utng.ecoviedos.data.mqtt
 
+import android.content.Context
 import android.util.Log
 import com.google.gson.Gson
 import mx.utng.ecoviedos.data.ParcelaMap
@@ -11,6 +12,7 @@ import org.json.JSONObject
 import java.util.Date
 
 class MqttManager(
+    private val context: Context,
     private val onSensorsUpdated: (parcelId: String, humedad: Float, temperatura: Float, humedadSuelo: Float, riegoActivo: Boolean, tiempoRestante: Int) -> Unit,
     private val onRiegoStatusReceived: (parcelId: String, activo: Boolean, tiempo: Int) -> Unit,
     private val onStatusChanged: (String) -> Unit
@@ -116,8 +118,8 @@ class MqttManager(
             val parcelasMobile: List<ParcelaMap> = gson.fromJson(payload, itemType)
             val parcelasWear = parcelasMobile.map { m ->
                 Parcela(
-                    id = m.id,
-                    nombreParcela = m.nombreParcela ?: "Parcela ${m.id}",
+                    id = m._id,
+                    nombreParcela = m.nombreParcela ?: "Parcela ${m._id}",
                     variedad = m.variedad ?: "",
                     areaM2 = m.areaM2,
                     umbralHumedad = m.umbralHumedad,
@@ -128,10 +130,11 @@ class MqttManager(
                     activa = m.activa,
                     humedad = m.humedad,
                     temperatura = m.temperatura,
-                    humedadSuelo = m.humedadSuelo ?: 0f
+                    humedadSuelo = m.humedadSuelo ?: 0f,
+                    nodoVinculado = m.nodoVinculado
                 )
             }
-            ParcelaRepository.updateParcelas(parcelasWear)
+            ParcelaRepository.updateParcelas(parcelasWear, context)
         } catch (e: Exception) { Log.e("MQTT_Wear", "Error list: $e") }
     }
 
@@ -141,9 +144,11 @@ class MqttManager(
             val parcelId = parts[2]
             try {
                 val json = JSONObject(payload)
-                val hum = json.optDouble("humedad", 0.0).toFloat()
-                val temp = json.optDouble("temperatura", 0.0).toFloat()
-                val humSuelo = json.optDouble("humedadSuelo", 0.0).toFloat()
+                val sensores = json.optJSONObject("sensores")
+                val hum = sensores?.optDouble("humedad_aire", 0.0)?.toFloat() ?: json.optDouble("humedad", 0.0).toFloat()
+                val temp = sensores?.optDouble("temperatura_aire", 0.0)?.toFloat() ?: json.optDouble("temperatura", 0.0).toFloat()
+                val humSuelo = sensores?.optDouble("humedad_suelo", 0.0)?.toFloat() ?: json.optDouble("humedadSuelo", 0.0).toFloat()
+
                 val riego = json.optBoolean("riegoActivo", false)
                 val tiempo = json.optInt("tiempoRestante", 0)
                 onSensorsUpdated(parcelId, hum, temp, humSuelo, riego, tiempo)

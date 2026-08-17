@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.material.Scaffold
@@ -21,6 +22,7 @@ import androidx.wear.compose.material3.Text
 @Composable
 fun IrrigationSuccessScreen(
     nombreParcela: String,
+    variedad: String,
     onDismiss: () -> Unit
 ) {
     Scaffold(
@@ -54,7 +56,14 @@ fun IrrigationSuccessScreen(
 
             Text(
                 text = nombreParcela,
-                style = MaterialTheme.typography.labelSmall
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold
+            )
+            
+            Text(
+                text = variedad,
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.Gray
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -66,11 +75,11 @@ fun IrrigationSuccessScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Duración: 20 min",
+                    text = "Duración: 10 min",
                     style = MaterialTheme.typography.labelSmall
                 )
                 Text(
-                    text = "320 L estimados",
+                    text = "Estimado: 160 L",
                     style = MaterialTheme.typography.labelSmall,
                     textAlign = TextAlign.Center
                 )

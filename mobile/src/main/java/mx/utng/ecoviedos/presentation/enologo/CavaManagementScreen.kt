@@ -32,6 +32,10 @@ fun CavaManagementScreen(
     val isLoading by enologoViewModel.isLoading.collectAsState()
     val token by mainViewModel.sessionToken.collectAsState(initial = "")
 
+    LaunchedEffect(Unit) {
+        enologoViewModel.cargarDatos()
+    }
+
     var showAddCavaDialog by remember { mutableStateOf(false) }
     var selectedCavaForSection by remember { mutableStateOf<CavaResponse?>(null) }
 

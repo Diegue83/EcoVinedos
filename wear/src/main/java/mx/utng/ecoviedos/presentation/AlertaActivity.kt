@@ -88,8 +88,17 @@ fun AlertUI(
             Text(
                 text = nombre,
                 style = MaterialTheme.typography.titleMedium,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                fontWeight = FontWeight.Bold
             )
+
+            if (variedad.isNotBlank()) {
+                Text(
+                    text = variedad,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.Gray
+                )
+            }
 
             Text(
                 text = "Humedad: $humedad",

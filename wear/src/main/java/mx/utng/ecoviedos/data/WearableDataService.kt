@@ -33,8 +33,8 @@ class WearableDataService : WearableListenerService() {
                 
                 val parcelasWear = parcelasMobile.map { m ->
                     Parcela(
-                        id = m.id,
-                        nombreParcela = m.nombreParcela ?: "Parcela ${m.id}",
+                        id = m._id,
+                        nombreParcela = m.nombreParcela ?: "Parcela ${m._id}",
                         variedad = m.variedad ?: "",
                         areaM2 = m.areaM2,
                         umbralHumedad = m.umbralHumedad,
@@ -48,12 +48,13 @@ class WearableDataService : WearableListenerService() {
                         humedadSuelo = m.humedadSuelo ?: 0f,
                         riegoActivo = m.riegoActivo ?: false,
                         tiempoRestanteRiego = (m.tiempoRestanteRiego ?: 0) * 60, // Sincronizar en segundos
-                        tipoRiego = m.tipoRiego ?: "MANUAL"
+                        tipoRiego = m.tipoRiego ?: "MANUAL",
+                        nodoVinculado = m.nodoVinculado
                     )
                 }
 
                 Handler(Looper.getMainLooper()).post {
-                    ParcelaRepository.updateParcelas(parcelasWear)
+                    ParcelaRepository.updateParcelas(parcelasWear, this@WearableDataService)
                     Log.d("WearableDataService", "Sincronización por mensaje completada en Main Thread: ${parcelasWear.size} parcelas.")
                     checkCriticalSoilMoisture(parcelasWear)
                 }
@@ -76,7 +77,13 @@ class WearableDataService : WearableListenerService() {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(channelId, "Alertas Críticas", NotificationManager.IMPORTANCE_HIGH)
+            val channel = NotificationChannel(channelId, "Alertas Críticas", NotificationManager.IMPORTANCE_HIGH).apply {
+                description = "Alertas de humedad crítica en parcelas"
+                enableLights(true)
+                lightColor = android.graphics.Color.RED
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 500, 200, 500)
+            }
             notificationManager.createNotificationChannel(channel)
         }
 

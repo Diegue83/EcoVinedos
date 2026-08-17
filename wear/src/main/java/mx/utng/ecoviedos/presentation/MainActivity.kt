@@ -47,6 +47,14 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         
         mx.utng.ecoviedos.data.ParcelaRepository.init(application)
+        
+        // Iniciar servicio MQTT en segundo plano
+        val mqttIntent = Intent(this, mx.utng.ecoviedos.data.mqtt.MqttWearService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(mqttIntent)
+        } else {
+            startService(mqttIntent)
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -88,7 +96,8 @@ class MainActivity : ComponentActivity() {
                         val selectedParcel = uiState.parcelas.find { it.id == selectedId }
                         
                         IrrigationSuccessScreen(
-                            nombreParcela = "Parcela ${selectedParcel?.id ?: ""} - ${selectedParcel?.nombreParcela ?: ""}",
+                            nombreParcela = selectedParcel?.nombreParcela ?: "Parcela",
+                            variedad = selectedParcel?.variedad ?: "",
                             onDismiss = { navController.popBackStack() }
                         )
                     }

@@ -24,9 +24,14 @@ fun MyParcelsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val selectedId by viewModel.selectedParcelId.collectAsState()
+    val showAll by viewModel.showAllParcels.collectAsState()
     
-    val sortedParcelas = remember(uiState.parcelas) {
-        uiState.parcelas.sortedWith(
+    val filteredParcelas = remember(uiState.parcelas, showAll) {
+        if (showAll) uiState.parcelas else uiState.parcelas.filter { it.nodoVinculado != null }
+    }
+
+    val sortedParcelas = remember(filteredParcelas) {
+        filteredParcelas.sortedWith(
             compareByDescending<mx.utng.ecoviedos.domain.model.Parcela> { it.esHumedadCritica() }
             .thenBy { it.humedadSuelo }
         )
@@ -41,11 +46,23 @@ fun MyParcelsScreen(
             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 20.dp)
         ) {
             item {
-                Text(
-                    text = "MIS PARCELAS",
-                    style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "MIS PARCELAS",
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                    androidx.wear.compose.material3.TextButton(
+                        onClick = { viewModel.toggleShowAllParcels() },
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Text(
+                            text = if (showAll) "Ocultar sin sensores" else "Ver todas",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFFB4F391)
+                        )
+                    }
+                }
             }
 
             items(sortedParcelas) { parcela ->

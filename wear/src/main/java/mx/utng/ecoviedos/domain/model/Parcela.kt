@@ -18,7 +18,8 @@ data class Parcela(
     var humedadSuelo: Float = 0f, // Campo real de sensor
     var riegoActivo: Boolean = false,
     var tiempoRestanteRiego: Int = 0,
-    val tipoRiego: String = "MANUAL"
+    val tipoRiego: String = "MANUAL",
+    val nodoVinculado: String? = null
 ) {
     // Verificar si la humedad es crítica (basado en humedad del suelo)
     fun esHumedadCritica(): Boolean {
