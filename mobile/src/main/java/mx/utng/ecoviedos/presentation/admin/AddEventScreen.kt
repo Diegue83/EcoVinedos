@@ -51,8 +51,23 @@ fun AddEventScreen(
     val coroutineScope = rememberCoroutineScope()
     val isEdit = eventId != null
     val token by mainViewModel.sessionToken.collectAsState(initial = "")
+    val events by tourismViewModel.eventos.collectAsState()
     val isLoading by tourismViewModel.isLoading.collectAsState()
     var isUploading by remember { mutableStateOf(false) }
+
+    LaunchedEffect(eventId, events) {
+        if (isEdit && events.isNotEmpty()) {
+            events.find { it._id == eventId }?.let { event ->
+                title = event.titulo
+                description = event.descripcion
+                type = event.tipo
+                cupo = event.cupo.toString()
+                precio = event.precio.toString()
+                imageUrl = event.imagenUrl ?: ""
+                location = event.ubicacion ?: ""
+            }
+        }
+    }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -212,10 +227,17 @@ fun AddEventScreen(
                                     tipo = type,
                                     precio = precio.toDoubleOrNull() ?: 0.0,
                                     cupo = cupo.toIntOrNull() ?: 0,
-                                    imagenUrl = imageUrl
+                                    imagenUrl = imageUrl,
+                                    ubicacion = location
                                 )
-                                tourismViewModel.crearEvento(it, request) {
-                                    onNavigateBack()
+                                if (isEdit) {
+                                    tourismViewModel.actualizarEvento(it, eventId!!, request) {
+                                        onNavigateBack()
+                                    }
+                                } else {
+                                    tourismViewModel.crearEvento(it, request) {
+                                        onNavigateBack()
+                                    }
                                 }
                             } catch (e: Exception) {}
                         }
@@ -230,7 +252,7 @@ fun AddEventScreen(
                 } else {
                     Icon(Icons.Default.Save, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Publicar Actividad", fontWeight = FontWeight.Bold)
+                    Text(if (isEdit) "Guardar Cambios" else "Publicar Actividad", fontWeight = FontWeight.Bold)
                 }
             }
         }

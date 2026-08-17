@@ -54,11 +54,13 @@ fun ActivitiesScreen(
                 Text("No hay actividades programadas", color = Color.Gray)
             }
         } else {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(24.dp)
+            androidx.compose.foundation.lazy.LazyRow(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(24.dp),
+                contentPadding = PaddingValues(end = 32.dp)
             ) {
-                activities.forEach { activity ->
+                items(activities.size) { index ->
+                    val activity = activities[index]
                     ActivityCard(
                         title = activity.titulo,
                         desc = activity.descripcion,
@@ -66,7 +68,7 @@ fun ActivitiesScreen(
                         tag = if(activity.tipo == "TOURISM") "Turismo" else "Evento",
                         imageUrl = activity.imagenUrl,
                         bgColor = if(activity.tipo == "TOURISM") Color(0xFF2E7D32) else Color(0xFF1565C0),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.width(300.dp)
                     )
                 }
             }

@@ -162,9 +162,10 @@ class EnologoViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun actualizarBotellas(token: String, seccionId: String, cantidad: Int) {
+    fun actualizarBotellas(token: String, seccionId: String, cantidad: Int, onComplete: () -> Unit = {}) {
         if (token.isBlank()) {
             Log.e("EnologoViewModel", "Error: Token vacío al intentar actualizar botellas")
+            onComplete()
             return
         }
         
@@ -181,6 +182,8 @@ class EnologoViewModel(application: Application) : AndroidViewModel(application)
                     requestBody["cava"] = it.cava
                 }
 
+                Log.d("EnologoViewModel", "Enviando PUT para sección $seccionId: $requestBody")
+
                 val response = RetrofitClient.cavaService.actualizarSeccion(
                     "Bearer $token", 
                     seccionId, 
@@ -195,6 +198,8 @@ class EnologoViewModel(application: Application) : AndroidViewModel(application)
                 }
             } catch (e: Exception) {
                 Log.e("EnologoViewModel", "Excepción al actualizar botellas", e)
+            } finally {
+                onComplete()
             }
         }
     }

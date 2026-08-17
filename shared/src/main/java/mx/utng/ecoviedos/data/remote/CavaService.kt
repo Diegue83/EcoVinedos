@@ -81,7 +81,7 @@ interface CavaService {
     suspend fun actualizarSeccion(
         @Header("Authorization") token: String,
         @Path("id") id: String,
-        @Body request: Map<String, Any>
+        @Body request: Map<String, @JvmSuppressWildcards Any>
     ): Response<SeccionCavaResponse>
 
     @DELETE("api/cavas/secciones/{id}")

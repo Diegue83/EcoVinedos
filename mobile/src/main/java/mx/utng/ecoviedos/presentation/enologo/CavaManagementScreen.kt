@@ -186,7 +186,6 @@ fun SeccionManageItem(
     // Sincronizar el estado local si el remoto cambia (ej. tras cargarDatos)
     LaunchedEffect(seccion.botellasActuales) {
         bottles = seccion.botellasActuales.toString()
-        isSaving = false
     }
     
     Card(
@@ -238,7 +237,12 @@ fun SeccionManageItem(
                 Button(
                     onClick = { 
                         isSaving = true
-                        enologoViewModel.actualizarBotellas(token, seccion._id, bottles.toIntOrNull() ?: 0) 
+                        enologoViewModel.actualizarBotellas(
+                            token = token, 
+                            seccionId = seccion._id, 
+                            cantidad = bottles.toIntOrNull() ?: 0,
+                            onComplete = { isSaving = false }
+                        )
                     },
                     enabled = !isSaving && token.isNotEmpty(),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF384B2F)),

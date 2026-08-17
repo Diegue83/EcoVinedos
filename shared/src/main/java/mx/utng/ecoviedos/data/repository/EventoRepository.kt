@@ -70,5 +70,26 @@ class EventoRepository {
             Result.failure(e)
         }
     }
+
+    /**
+     * Actualiza un evento existente.
+     *
+     * @param token Token de autenticación.
+     * @param id Identificador único del evento.
+     * @param request Datos actualizados.
+     * @return [Result] con el [EventoResponse] actualizado.
+     */
+    suspend fun actualizarEvento(token: String, id: String, request: EventoRequest): Result<EventoResponse> {
+        return try {
+            val response = service.actualizarEvento("Bearer $token", id, request)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception("Error al actualizar evento"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
 

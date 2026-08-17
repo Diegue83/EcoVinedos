@@ -43,6 +43,17 @@ class TourismViewModel : ViewModel() {
         }
     }
 
+    fun actualizarEvento(token: String, id: String, request: EventoRequest, onExito: () -> Unit) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            repository.actualizarEvento(token, id, request).onSuccess {
+                cargarEventos()
+                onExito()
+            }
+            _isLoading.value = false
+        }
+    }
+
     fun eliminarEvento(token: String, id: String) {
         viewModelScope.launch {
             repository.eliminarEvento(token, id).onSuccess {

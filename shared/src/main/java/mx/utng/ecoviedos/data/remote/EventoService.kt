@@ -9,7 +9,8 @@ data class EventoRequest(
     val tipo: String,
     val precio: Double = 0.0,
     val cupo: Int = 0,
-    val imagenUrl: String? = null
+    val imagenUrl: String? = null,
+    val ubicacion: String? = null
 )
 
 data class EventoResponse(
@@ -20,7 +21,8 @@ data class EventoResponse(
     val tipo: String,
     val precio: Double = 0.0,
     val cupo: Int = 0,
-    val imagenUrl: String? = null
+    val imagenUrl: String? = null,
+    val ubicacion: String? = null
 )
 
 interface EventoService {
