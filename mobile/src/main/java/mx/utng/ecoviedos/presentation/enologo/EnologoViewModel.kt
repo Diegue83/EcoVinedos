@@ -174,20 +174,20 @@ class EnologoViewModel(application: Application) : AndroidViewModel(application)
                 // Buscar la sección actual para enviar los datos requeridos por el backend
                 val seccionActual = _cavas.value.flatMap { it.secciones }.find { it._id == seccionId }
                 
-                val requestBody = mutableMapOf<String, Any>("botellasActuales" to cantidad)
-                seccionActual?.let {
-                    requestBody["nombre"] = it.nombre
-                    requestBody["tipo"] = it.tipo
-                    requestBody["capacidadBotellas"] = it.capacidadBotellas
-                    requestBody["cava"] = it.cava
-                }
+                val request = SeccionCavaRequest(
+                    botellasActuales = cantidad,
+                    nombre = seccionActual?.nombre,
+                    tipo = seccionActual?.tipo,
+                    capacidadBotellas = seccionActual?.capacidadBotellas,
+                    cava = seccionActual?.cava
+                )
 
-                Log.d("EnologoViewModel", "Enviando PUT para sección $seccionId: $requestBody")
+                Log.d("EnologoViewModel", "Enviando PUT para sección $seccionId: $request")
 
                 val response = RetrofitClient.cavaService.actualizarSeccion(
                     "Bearer $token", 
                     seccionId, 
-                    requestBody,
+                    request,
                 )
                 if (response.isSuccessful) {
                     Log.d("EnologoViewModel", "Botellas actualizadas exitosamente: $cantidad")

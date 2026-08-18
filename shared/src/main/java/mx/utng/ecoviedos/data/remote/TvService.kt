@@ -31,4 +31,7 @@ interface TvService {
         @Header("Authorization") token: String,
         @Body request: LinkTvRequest
     ): Response<Map<String, String>>
+
+    @POST("api/tv/unlink")
+    suspend fun unlinkTV(@Body request: PairCodeRequest): Response<Map<String, String>>
 }

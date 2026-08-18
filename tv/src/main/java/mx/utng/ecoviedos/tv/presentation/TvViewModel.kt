@@ -166,8 +166,21 @@ class TvViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun desvincularTv() {
-        _uiState.value = TvUiState.Loading
-        startPairingProcess()
+        viewModelScope.launch {
+            try {
+                _uiState.value = TvUiState.Loading
+                // Desconectar MQTT
+                mqttManager?.disconnect()
+                mqttManager = null
+                // Avisar al servidor para romper el vínculo
+                RetrofitClient.tvService.unlinkTV(PairCodeRequest(deviceId))
+                // Reiniciar el proceso de emparejamiento
+                startPairingProcess()
+            } catch (e: Exception) {
+                Log.e("TvViewModel", "Error al desvincular", e)
+                startPairingProcess()
+            }
+        }
     }
 
     fun retry() {

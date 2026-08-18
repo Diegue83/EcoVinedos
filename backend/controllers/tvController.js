@@ -78,8 +78,31 @@ const linkTV = async (req, res, next) => {
   }
 };
 
+// @desc    Unlink TV (From TV or Mobile)
+// @route   POST /api/tv/unlink
+const unlinkTV = async (req, res, next) => {
+  try {
+    const { deviceId } = req.body;
+    if (!deviceId) return res.status(400).json({ mensaje: 'deviceId es requerido' });
+
+    const session = await TVSession.findOne({ deviceId });
+    if (!session) return res.status(404).json({ mensaje: 'Sesión no encontrada' });
+
+    session.isLinked = false;
+    session.linkedBy = null;
+    // Restablecer tiempo de expiración corto para obligar a re-vincular
+    session.expiresAt = new Date(Date.now() - 1000);
+    await session.save();
+
+    res.json({ mensaje: 'TV desvinculada correctamente' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getPairingCode,
   checkStatus,
-  linkTV
+  linkTV,
+  unlinkTV
 };

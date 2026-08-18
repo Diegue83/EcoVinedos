@@ -41,6 +41,7 @@ fun TvDashboardScreen(
     // Focus management
     val focusRequesterCava = remember { FocusRequester() }
     val focusRequesterActivities = remember { FocusRequester() }
+    val focusRequesterLogout = remember { FocusRequester() }
     var lastFocusedCard by remember { mutableStateOf("cava") }
 
     LaunchedEffect(Unit) {
@@ -90,7 +91,12 @@ fun TvDashboardScreen(
                 Button(
                     onClick = onLogout,
                     colors = ButtonDefaults.colors(containerColor = Color.Red.copy(alpha = 0.1f), contentColor = Color.Red),
-                    modifier = Modifier.padding(end = 16.dp)
+                    modifier = Modifier
+                        .padding(end = 16.dp)
+                        .focusRequester(focusRequesterLogout),
+                    border = ButtonDefaults.border(
+                        focusedBorder = Border(border = BorderStroke(2.dp, Color.Red))
+                    )
                 ) {
                     Icon(Icons.Default.Logout, contentDescription = "Desvincular")
                     Spacer(Modifier.width(8.dp))

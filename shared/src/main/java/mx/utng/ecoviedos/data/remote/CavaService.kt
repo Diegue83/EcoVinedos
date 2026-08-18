@@ -45,9 +45,9 @@ data class CavaRequest(
  */
 data class SeccionCavaRequest(
     val cava: String? = null, // ID de la cava padre
-    val nombre: String,
-    val tipo: String,
-    val capacidadBotellas: Int,
+    val nombre: String? = null,
+    val tipo: String? = null,
+    val capacidadBotellas: Int? = null,
     val botellasActuales: Int? = null,
     val sensorId: String? = null
 )
@@ -81,7 +81,7 @@ interface CavaService {
     suspend fun actualizarSeccion(
         @Header("Authorization") token: String,
         @Path("id") id: String,
-        @Body request: Map<String, @JvmSuppressWildcards Any>
+        @Body request: SeccionCavaRequest
     ): Response<SeccionCavaResponse>
 
     @DELETE("api/cavas/secciones/{id}")
