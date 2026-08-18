@@ -53,7 +53,7 @@ fun AdminPanelScreen(
     val adminOptions = allOptions.filter { option ->
         when (option.title) {
             "Usuarios" -> userRol == "superusuario"
-            "Modo Enólogo" -> userRol == "superusuario" || userRol == "administrador"
+            "Modo Enólogo" -> true // Todos los admin/super/enologo pueden entrar si llegaron aquí, pero filtramos por rol antes
             else -> true
         }
     }

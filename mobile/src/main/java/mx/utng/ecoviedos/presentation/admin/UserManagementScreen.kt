@@ -219,16 +219,19 @@ fun UserFormDialog(
                 )
                 
                 Text("Rol:", style = MaterialTheme.typography.labelMedium)
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                // FlowRow o similar para acomodar los roles
+                Column(modifier = Modifier.fillMaxWidth()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         RadioButton(selected = rol == "superusuario", onClick = { rol = "superusuario" })
-                        Text("Super", color = Color.White, fontSize = 12.sp)
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Superusuario", color = Color.White, fontSize = 12.sp)
+                        Spacer(Modifier.width(16.dp))
                         RadioButton(selected = rol == "administrador", onClick = { rol = "administrador" })
-                        Text("Admin", color = Color.White, fontSize = 12.sp)
+                        Text("Administrador", color = Color.White, fontSize = 12.sp)
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(selected = rol == "enologo", onClick = { rol = "enologo" })
+                        Text("Enólogo", color = Color.White, fontSize = 12.sp)
+                        Spacer(Modifier.width(16.dp))
                         RadioButton(selected = rol == "trabajador", onClick = { rol = "trabajador" })
                         Text("Trabajador", color = Color.White, fontSize = 12.sp)
                     }
