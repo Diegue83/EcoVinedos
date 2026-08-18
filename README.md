@@ -207,3 +207,31 @@ npm start
 <img width="1280" height="720" alt="image" src="https://github.com/user-attachments/assets/e610cab0-fc67-4fc8-b895-1be7233185fc" />
 
 
+
+#  Demostración Técnica de EcoViñedo
+
+En el siguiente video se presenta una **demostración técnica de EcoViñedo**, donde se explica de manera detallada el funcionamiento de la aplicación, su arquitectura y el código utilizado durante su desarrollo.
+
+## Contenido del Video
+
+-  Explicación de la funcionalidad de la aplicación.
+-  Explicación de la arquitectura del sistema.
+-  Explicación del código utilizado.
+-  Explicación de la comunicación entre los componentes.
+-  Tecnologías y herramientas utilizadas.
+-  Demostración del funcionamiento de la aplicación.
+-  Opinión y retroalimentación de nuestro beneficiario.
+
+## Video de Demostración
+
+Puedes visualizar el video completo en el siguiente enlace:
+
+ [**Ver demostración técnica de EcoViñedo**](https://drive.google.com/file/d/1DDA6qiNraviuU4gfa8U6L6Aml-QMHuFz/view?usp=sharing)
+
+##  Presentación Utilizada
+
+Durante la demostración se utilizó una presentación como apoyo para explicar la arquitectura, funcionamiento y aspectos técnicos de **EcoViñedo**.
+
+ [**Ver presentación de EcoViñedo**](https://docs.google.com/presentation/d/1u8C7dp1klzrbUEhEx9HAvB4m2ax4rIer/edit?usp=sharing&ouid=100248462384268098238&rtpof=true&sd=true)
+
+>  El video incluye la explicación técnica de la aplicación, su arquitectura, el código utilizado y, al final, la opinión de nuestro beneficiario.
