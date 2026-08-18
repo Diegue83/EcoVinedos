@@ -70,6 +70,9 @@ Desarrollar una aplicación multiplataforma para enoturismo y gestión del mante
 - Node.js para lógica de servidor.
 - MongoDB como base de datos.
 
+## Diagrama de arquitectura
+<img width="2600" height="4544" alt="ecovinedos_arquitectura" src="https://github.com/user-attachments/assets/3ee18a54-dfa4-48f2-82d4-74646c90088a" />
+
 ---
 
 ## Instrucciones para Ejecutar el Proyecto
@@ -195,3 +198,12 @@ npm start
 
 ### Registrar Muestra
 <img width="260" alt="Registrar Muestra" src="https://github.com/user-attachments/assets/7ee85e33-2437-444d-939e-7c130596da63" />
+
+## TV
+
+<img width="1280" height="720" alt="image" src="https://github.com/user-attachments/assets/f6e43d07-b31f-4d19-8901-770ee61a650d" />
+<img width="1280" height="720" alt="image" src="https://github.com/user-attachments/assets/2acc6c77-e4e8-4d53-b6df-1f240a2efd4d" />
+
+<img width="1280" height="720" alt="image" src="https://github.com/user-attachments/assets/e610cab0-fc67-4fc8-b895-1be7233185fc" />
+
+
