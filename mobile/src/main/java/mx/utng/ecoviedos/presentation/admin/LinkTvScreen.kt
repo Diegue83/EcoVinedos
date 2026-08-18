@@ -27,6 +27,7 @@ import mx.utng.ecoviedos.presentation.main.MainViewModel
 @Composable
 fun LinkTvScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToEnologo: () -> Unit,
     mainViewModel: MainViewModel = viewModel()
 ) {
     var code by remember { mutableStateOf("") }
@@ -72,7 +73,7 @@ fun LinkTvScreen(
                     options.setDesiredBarcodeFormats(ScanOptions.QR_CODE)
                     options.setPrompt("Escanea el QR de la TV")
                     options.setBeepEnabled(true)
-                    options.setOrientationLocked(false)
+                    options.setOrientationLocked(true) // Forzar orientación actual (Vertical)
                     scanLauncher.launch(options)
                 },
                 modifier = Modifier.size(100.dp)
@@ -105,7 +106,9 @@ fun LinkTvScreen(
                 Text(
                     text = message!!,
                     color = if (isError) Color.Red else Color(0xFFB4F391),
-                    modifier = Modifier.padding(top = 16.dp)
+                    modifier = Modifier.padding(top = 16.dp),
+                    fontWeight = FontWeight.Bold,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
             }
 
@@ -121,9 +124,11 @@ fun LinkTvScreen(
                                 LinkTvRequest(code)
                             )
                             if (response.isSuccessful) {
-                                message = "¡TV Vinculada con éxito!"
+                                message = "¡Sincronización Exitosa! Redirigiendo..."
                                 isError = false
                                 code = ""
+                                kotlinx.coroutines.delay(2000)
+                                onNavigateToEnologo()
                             } else {
                                 message = "Código inválido o expirado"
                                 isError = true

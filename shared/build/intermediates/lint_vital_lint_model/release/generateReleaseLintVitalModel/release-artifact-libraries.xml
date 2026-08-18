@@ -8,6 +8,10 @@
       jars="C:\Users\52418\AndroidStudioProjects\MemoryWearWatch\caches\modules-2\files-2.1\com.squareup.retrofit2\retrofit\2.11.0\6ca8c6caf842271f3232e075519fe04081ef7069\retrofit-2.11.0.jar"
       resolved="com.squareup.retrofit2:retrofit:2.11.0"/>
   <library
+      name="org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5@jar"
+      jars="C:\Users\52418\AndroidStudioProjects\MemoryWearWatch\caches\modules-2\files-2.1\org.eclipse.paho\org.eclipse.paho.client.mqttv3\1.2.5\1546cfc794449c39ad569853843a930104fdc297\org.eclipse.paho.client.mqttv3-1.2.5.jar"
+      resolved="org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5"/>
+  <library
       name="androidx.lifecycle:lifecycle-runtime-ktx-android:2.11.0@aar"
       jars="C:\Users\52418\AndroidStudioProjects\MemoryWearWatch\caches\9.4.1\transforms\b4defd2c3e509094147c9528a4d7fbf2\transformed\lifecycle-runtime-ktx\jars\classes.jar"
       resolved="androidx.lifecycle:lifecycle-runtime-ktx-android:2.11.0"

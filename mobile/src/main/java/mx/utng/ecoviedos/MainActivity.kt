@@ -233,6 +233,11 @@ class MainActivity : ComponentActivity() {
                             composable("link_tv") {
                                 LinkTvScreen(
                                     onNavigateBack = { navController.popBackStack() },
+                                    onNavigateToEnologo = {
+                                        navController.navigate("enologo_panel") {
+                                            popUpTo("admin") { inclusive = false }
+                                        }
+                                    },
                                     mainViewModel = mainViewModel
                                 )
                             }

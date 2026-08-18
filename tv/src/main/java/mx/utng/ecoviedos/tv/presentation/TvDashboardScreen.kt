@@ -208,9 +208,10 @@ fun TvDashboardScreen(
                     if (eventos.isEmpty()) {
                         PromotionCardSummary("Cargando eventos...", "", Color(0xFF1565C0))
                     } else {
-                        eventos.take(3).forEach { evento ->
-                            PromotionCardSummary(evento.titulo, "$${evento.precio} MXN", if(evento.tipo == "TOURISM") Color(0xFF2E7D32) else Color(0xFF1565C0))
-                            Spacer(Modifier.height(12.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            eventos.take(3).forEach { evento ->
+                                PromotionCardSummary(evento.titulo, "$${evento.precio} MXN", if(evento.tipo == "TOURISM") Color(0xFF2E7D32) else Color(0xFF1565C0))
+                            }
                         }
                     }
                 }
@@ -278,7 +279,7 @@ fun PromotionCardSummary(title: String, price: String, bgColor: Color) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(80.dp)
+            .height(60.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(bgColor.copy(alpha = 0.8f))
             .padding(12.dp)
@@ -288,7 +289,16 @@ fun PromotionCardSummary(title: String, price: String, bgColor: Color) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = title, style = MaterialTheme.typography.titleMedium, color = Color.White, fontWeight = FontWeight.Bold)
+            Text(
+                text = title, 
+                style = MaterialTheme.typography.titleMedium, 
+                color = Color.White, 
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(8.dp))
             Text(text = price, style = MaterialTheme.typography.labelLarge, color = Color(0xFFB4F391), fontWeight = FontWeight.Bold)
         }
     }

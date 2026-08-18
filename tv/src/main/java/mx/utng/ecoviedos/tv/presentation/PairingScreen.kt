@@ -28,7 +28,7 @@ fun PairingScreen(pairingCode: String) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(48.dp),
+            .padding(horizontal = 48.dp, vertical = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -42,7 +42,7 @@ fun PairingScreen(pairingCode: String) {
             text = "Escanea el código QR o ingresa el código en la app del administrador",
             style = MaterialTheme.typography.bodyLarge,
             color = Color.Gray,
-            modifier = Modifier.padding(top = 8.dp, bottom = 32.dp)
+            modifier = Modifier.padding(top = 4.dp, bottom = 24.dp)
         )
 
         Row(
@@ -94,10 +94,13 @@ fun PairingScreen(pairingCode: String) {
             }
         }
 
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
         // Steps
-        Column(modifier = Modifier.fillMaxWidth(0.6f)) {
+        Column(
+            modifier = Modifier.fillMaxWidth(0.7f),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             StepItem(1, "Abre la app del administrador en tu teléfono")
             StepItem(2, "Ve a Configuración -> Vincular TV")
             StepItem(3, "Ingresa el código o escanea el QR")
@@ -107,7 +110,7 @@ fun PairingScreen(pairingCode: String) {
             text = "El panel se activará automáticamente al vincular",
             style = MaterialTheme.typography.bodySmall,
             color = Color.Gray.copy(alpha = 0.5f),
-            modifier = Modifier.padding(top = 32.dp)
+            modifier = Modifier.padding(top = 24.dp)
         )
     }
 }
@@ -116,19 +119,26 @@ fun PairingScreen(pairingCode: String) {
 @Composable
 fun StepItem(number: Int, text: String) {
     Row(
-        modifier = Modifier.padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top
     ) {
         Surface(
             shape = RoundedCornerShape(50),
             colors = SurfaceDefaults.colors(containerColor = Color(0xFF3897F0)),
-            modifier = Modifier.size(24.dp)
+            modifier = Modifier
+                .padding(top = 2.dp)
+                .size(24.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Text(text = number.toString(), style = MaterialTheme.typography.labelSmall, color = Color.White)
             }
         }
         Spacer(modifier = Modifier.width(16.dp))
-        Text(text = text, style = MaterialTheme.typography.bodyMedium, color = Color.White)
+        Text(
+            text = text, 
+            style = MaterialTheme.typography.bodyLarge, 
+            color = Color.White,
+            lineHeight = 24.sp
+        )
     }
 }

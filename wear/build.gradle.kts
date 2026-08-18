@@ -16,8 +16,18 @@ android {
 
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("../ecovinedos-release.jks")
+            storePassword = "genkeypwd#11\$08"
+            keyAlias = "ecovinedos"
+            keyPassword = "genkeypwd#11\$08"
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release")
             optimization {
                 enable = false
             }
@@ -27,7 +37,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    useLibrary("wear-sdk")
     buildFeatures {
         compose = true
     }
