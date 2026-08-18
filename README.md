@@ -74,6 +74,15 @@ Desarrollar una aplicación multiplataforma para enoturismo y gestión del mante
 <img width="2600" height="4544" alt="ecovinedos_arquitectura" src="https://github.com/user-attachments/assets/3ee18a54-dfa4-48f2-82d4-74646c90088a" />
 
 ---
+## Documentación Técnica
+
+| Módulo | Enlace | Descripción |
+|--------|--------|-------------|
+| **Mobile** | [MOBILE.md](https://github.com/Diegue83/EcoVinedos/blob/main/DOCUMENTACION/MOBILE.md) | Aplicación Android en Kotlin con autenticación, roles y comunicación MQTT |
+| **Shared** | [SHARED.md](https://github.com/Diegue83/EcoVinedos/blob/main/DOCUMENTACION/SHARED.md) | Recursos compartidos: modelos de datos, utilidades y configuraciones |
+| **Smart TV** | [TV.md](https://github.com/Diegue83/EcoVinedos/blob/main/DOCUMENTACION/TV.md) | Aplicación para Android TV con visualización de datos en tiempo real |
+| **Wearable** | [WEAR.md](https://github.com/Diegue83/EcoVinedos/blob/main/DOCUMENTACION/WEAR.md) | Aplicación para Wear OS con notificaciones y sincronización MQTT |
+---
 
 ## Instrucciones para Ejecutar el Proyecto
 
