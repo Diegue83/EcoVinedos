@@ -261,9 +261,9 @@ flowchart TD
 ---
 
 
-## Código Fuente Completo (documentado, en el orden del árbol de directorios)
+## Código Fuente Completo (comentado, en el orden del árbol de directorios)
 
-A continuación se incluye el código fuente íntegro de cada archivo Kotlin del módulo `:mobile`, en el mismo orden en que aparecen en el árbol de la sección anterior. El código conserva su documentación KDoc original; en los archivos que no la traían en el repositorio se añadieron comentarios explicativos para dejar clara la responsabilidad de cada clase/función.
+A continuación se incluye el código fuente íntegro de cada archivo Kotlin del módulo `:mobile`, en el mismo orden en que aparecen en el árbol de la sección anterior. Cada archivo incluye comentarios explicando qué hace cada bloque y, sobre todo, **por qué** se hizo así (decisiones de diseño, workarounds de plataforma, relación con otros módulos).
 
 ### `MainActivity.kt`
 **Ubicación:** `mobile/src/main/java/mx/utng/ecoviedos/MainActivity.kt`
@@ -330,11 +330,17 @@ import mx.utng.ecoviedos.presentation.theme.EcoViedosTheme
  * 3. Solicitar permisos necesarios (como notificaciones).
  * 4. Programar tareas en segundo plano mediante [WorkManager].
  * 5. Proveer los [ViewModel] principales a la jerarquía de UI.
+ *
+ * Es la ÚNICA Activity "de verdad" de la app (patrón single-activity): todas las pantallas son
+ * composables dentro de un mismo NavHost, no Activities separadas. Esto simplifica compartir
+ * estado (p. ej. MainViewModel) entre pantallas sin pasar por Bundles/Intents.
  */
 class MainActivity : ComponentActivity() {
     /**
      * Maneja los nuevos intents recibidos mientras la actividad está en ejecución.
-     * Útil para la navegación desde notificaciones.
+     * Útil para la navegación desde notificaciones: cuando el usuario toca una notificación con
+     * la app ya abierta, Android reutiliza la misma Activity y dispara onNewIntent en vez de
+     * onCreate; sin este override, el extra "navigate_to" del nuevo intent se perdería.
      */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -347,8 +353,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        // Se programa el sondeo periódico de notificaciones apenas arranca la app.
         scheduleNotificationWorker()
 
+        // Desde Android 13 (TIRAMISU) hay que pedir permiso explícito para mostrar notificaciones.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 101)
@@ -363,30 +371,40 @@ class MainActivity : ComponentActivity() {
                 ) {
                     val navController = rememberNavController()
                     
-                    // Inicializar ViewModels para persistencia durante la sesión
+                    // Inicializar ViewModels para persistencia durante la sesión.
+                    // Se crean aquí (alcance de Activity/NavHost raíz) para que sobrevivan a la
+                    // navegación entre pantallas y sean compartidos por varias de ellas.
                     val mainViewModel: MainViewModel = viewModel()
                     val adminViewModel: AdminViewModel = viewModel()
                     val configViewModel: DeviceConfigViewModel = viewModel()
                     val historialViewModel: HistorialViewModel = viewModel()
                     
-                    // Conectar ViewModels para el testeo local
+                    // Conectar ViewModels para el testeo local: así, tras un alta/edición/baja
+                    // desde AdminViewModel, se puede refrescar la lista global de MainViewModel.
                     adminViewModel.setMainViewModel(mainViewModel)
 
+                    // "loading" es un valor centinela: evita parpadear a "login" antes de que
+                    // DataStore termine de leer si en realidad ya había una sesión guardada.
                     val token by mainViewModel.sessionToken.collectAsState(initial = "loading")
                     val userRol by mainViewModel.sessionRol.collectAsState(initial = "")
 
                     if (token != "loading") {
                         NavHost(
                             navController = navController,
+                            // La pantalla inicial depende del estado de sesión y del rol:
+                            // sin token -> login; rol enólogo -> panel de enólogo; resto -> panel general.
                             startDestination = when {
                                 token.isNullOrBlank() -> "login"
                                 userRol == "enologo" -> "enologo_panel"
                                 else -> "main"
                             }
                         ) {
+                            // ---------- Autenticación ----------
                             composable("login") {
                                 LoginScreen(
                                     onLoginSuccess = { rol ->
+                                        // Tras iniciar sesión se decide el destino según el rol
+                                        // y se limpia "login" del back stack (no se puede volver a él).
                                         if (rol == "enologo") {
                                             navController.navigate("enologo_panel") {
                                                 popUpTo("login") { inclusive = true }
@@ -400,6 +418,7 @@ class MainActivity : ComponentActivity() {
                                     onForgotPassword = { navController.navigate("forgot_password") }
                                 )
                             }
+                            // ---------- Perfil Enólogo ----------
                             composable("enologo_panel") {
                                 EnologoMainScreen(
                                     mainViewModel = mainViewModel,
@@ -412,6 +431,8 @@ class MainActivity : ComponentActivity() {
                                     onNavigateToAddActivity = { navController.navigate("add_event") },
                                     onNavigateToEditActivity = { id -> navController.navigate("add_event?id=$id") },
                                     onNavigateToLinkSensor = { id, name -> 
+                                        // Reutiliza el wizard BLE, indicando que el destino a vincular
+                                        // es una SECCIÓN DE CAVA (type=CAVA) en vez de una parcela.
                                         navController.navigate("device_config?targetId=$id&targetName=$name&type=CAVA")
                                     }
                                 )
@@ -428,10 +449,12 @@ class MainActivity : ComponentActivity() {
                                     mainViewModel = mainViewModel
                                 )
                             }
+                            // ---------- Recuperación de contraseña (3 pasos) ----------
                             composable("forgot_password") {
                                 ForgotPasswordScreen(
                                     onNavigateBack = { navController.popBackStack() },
                                     onCodeSent = { email -> 
+                                        // El correo viaja como parte de la ruta hacia los siguientes pasos.
                                         navController.navigate("verify_code/$email")
                                     }
                                 )
@@ -453,13 +476,18 @@ class MainActivity : ComponentActivity() {
                                     email = email,
                                     code = code,
                                     onPasswordReset = {
+                                        // Al terminar, se regresa a login limpiando toda la pila
+                                        // del flujo de recuperación (forgot -> verify -> reset).
                                         navController.navigate("login") {
                                             popUpTo("forgot_password") { inclusive = true }
                                         }
                                     }
                                 )
                             }
+                            // ---------- Panel principal (roles no-enólogo) ----------
                             composable("main") {
+                                // Si la app se abrió desde la notificación de fin de riego
+                                // (RiegoAlarmReceiver / MainViewModel), se abre directo en la pestaña de Riego.
                                 val navigateTo = intent.getStringExtra("navigate_to")
                                 val initialTab = if (navigateTo == "riego") 2 else 0
                                 // Limpiar el extra para que no se repita en recomposiciones
@@ -480,6 +508,7 @@ class MainActivity : ComponentActivity() {
                                     }
                                 )
                             }
+                            // ---------- Administración ----------
                             composable("admin") {
                                 val userRol by mainViewModel.sessionRol.collectAsState(initial = "")
                                 AdminPanelScreen(
@@ -512,6 +541,7 @@ class MainActivity : ComponentActivity() {
                                     mainViewModel = mainViewModel
                                 )
                             }
+                            // ---------- Turismo / Eventos ----------
                             composable("tourism_management") {
                                 TourismManagementScreen(
                                     onNavigateBack = { navController.popBackStack() },
@@ -520,6 +550,8 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             composable(
+                                // Ruta con argumento OPCIONAL "id": misma pantalla sirve para alta y edición;
+                                // si "id" viene, AddEventScreen precarga los datos del evento existente.
                                 route = "add_event?id={id}",
                                 arguments = listOf(
                                     navArgument("id") {
@@ -534,6 +566,7 @@ class MainActivity : ComponentActivity() {
                                     eventId = id
                                 )
                             }
+                            // ---------- Detalle y muestras de parcela ----------
                             composable("parcel_details/{id}") { backStackEntry ->
                                 val id = backStackEntry.arguments?.getString("id") ?: ""
                                 val userRol by mainViewModel.sessionRol.collectAsState(initial = "")
@@ -550,11 +583,14 @@ class MainActivity : ComponentActivity() {
                                 RegisterSampleScreen(
                                     parcelId = id,
                                     onNavigateBack = {
+                                        // Al volver del registro de muestra se refresca la lista de
+                                        // parcelas por si el backend recalculó el índice de maduración.
                                         mainViewModel.cargarParcelas()
                                         navController.popBackStack()
                                     }
                                 )
                             }
+                            // ---------- Gestión de parcelas (admin) ----------
                             composable("parcel_management") {
                                 ParcelManagementScreen(
                                     onNavigateBack = { navController.popBackStack() },
@@ -564,7 +600,11 @@ class MainActivity : ComponentActivity() {
                                     adminViewModel = adminViewModel
                                 )
                             }
+                            // ---------- Configuración de hardware (BLE) ----------
                             composable(
+                                // Tres argumentos opcionales: permiten reutilizar el mismo wizard tanto
+                                // para vincular un nodo nuevo desde cero como para vincular uno a una
+                                // parcela o sección de cava ya elegida de antemano (targetId/targetName/type).
                                 route = "device_config?targetId={targetId}&targetName={targetName}&type={type}",
                                 arguments = listOf(
                                     navArgument("targetId") { nullable = true; defaultValue = null },
@@ -586,6 +626,7 @@ class MainActivity : ComponentActivity() {
                                     linkType = type
                                 )
                             }
+                            // ---------- Ajustes, usuarios, alta de parcela, muestras, notificaciones ----------
                             composable("settings") {
                                 SettingsScreen(
                                     onNavigateBack = { navController.popBackStack() },
@@ -630,7 +671,8 @@ class MainActivity : ComponentActivity() {
 
     /**
      * Programa la tarea periódica de sincronización de notificaciones.
-     * Se ejecuta cada 15 minutos para verificar nuevas alertas desde el servidor.
+     * Se ejecuta cada 15 minutos para verificar nuevas alertas desde el servidor,
+     * usando `KEEP` para no reprogramar el trabajo si ya hay uno pendiente.
      */
     private fun scheduleNotificationWorker() {
         val workRequest = PeriodicWorkRequestBuilder<NotificationWorker>(
@@ -671,6 +713,11 @@ import mx.utng.ecoviedos.data.remote.RetrofitClient
 /**
  * Trabajador en segundo plano encargado de la sincronización de notificaciones.
  *
+ * Por qué existe: MQTT solo avisa mientras la app está corriendo; para notificaciones
+ * generadas por el backend (por umbrales u otros eventos del servidor) que pueden llegar con
+ * la app completamente cerrada, se usa WorkManager para hacer un sondeo periódico (cada 15 min,
+ * ver MainActivity.scheduleNotificationWorker) que sobrevive a reinicios del sistema.
+ *
  * Utiliza [CoroutineWorker] de la biblioteca AndroidX WorkManager para realizar consultas
  * periódicas al servidor y verificar si hay nuevas notificaciones sin leer para el usuario actual.
  *
@@ -697,6 +744,7 @@ class NotificationWorker(
         val sessionManager = SessionManager(applicationContext)
         val token = sessionManager.token.first()
 
+        // Sin sesión activa no hay nada que consultar; se sale "en éxito" para no reintentar en vano.
         if (token.isNullOrBlank()) {
             return ListenableWorker.Result.success()
         }
@@ -704,12 +752,15 @@ class NotificationWorker(
         return try {
             val response = RetrofitClient.notificacionService.obtenerMisNotificaciones("Bearer $token")
             if (response.isSuccessful && response.body() != null) {
+                // Solo interesan las notificaciones que el usuario todavía no ha visto.
                 val newNotifications = response.body()!!.filter { it.estado == "no leida" }
-                
+
                 if (newNotifications.isNotEmpty()) {
                     val mostRecent = newNotifications.first()
+                    // Si hay varias, se resume el conteo en vez de mostrar cada una por separado
+                    // (evita saturar al usuario con notificaciones apiladas cada 15 min).
                     showNotification(
-                        mostRecent.titulo, 
+                        mostRecent.titulo,
                         if (newNotifications.size > 1) "Tienes ${newNotifications.size} avisos nuevos" else mostRecent.mensaje
                     )
                 }
@@ -717,6 +768,7 @@ class NotificationWorker(
             ListenableWorker.Result.success()
         } catch (e: Exception) {
             Log.e("NotificationWorker", "Error checking notifications", e)
+            // Reintento automático de WorkManager con backoff (útil si fue un corte de red momentáneo).
             ListenableWorker.Result.retry()
         }
     }
@@ -737,11 +789,12 @@ class NotificationWorker(
             notificationManager.createNotificationChannel(channel)
         }
 
+        // Al tocar la notificación se abre la app directo en la bandeja de notificaciones.
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             putExtra("navigate_to", "notifications")
         }
-        
+
         val pendingIntent = PendingIntent.getActivity(
             context, 0, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
@@ -756,6 +809,7 @@ class NotificationWorker(
             .setContentIntent(pendingIntent)
             .build()
 
+        // ID fijo (999): una nueva notificación de este tipo reemplaza a la anterior en vez de apilarse.
         notificationManager.notify(999, notification)
     }
 }
@@ -778,32 +832,47 @@ import androidx.core.app.NotificationCompat
 import mx.utng.ecoviedos.MainActivity
 import mx.utng.ecoviedos.R
 
+/**
+ * Receptor de alarmas del sistema para el evento "fin de riego".
+ *
+ * Por qué existe: el riego se enciende/apaga por MQTT, pero el usuario puede cerrar la app
+ * mientras el riego sigue corriendo. Para no depender de que la app esté abierta, MainViewModel
+ * programa una alarma EXACTA con AlarmManager (ver MainViewModel.toggleRiego) que el sistema
+ * operativo dispara en el instante justo, incluso con la app cerrada o el teléfono en reposo.
+ * Este receiver es el que recibe ese disparo y muestra la notificación correspondiente.
+ */
 class RiegoAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        // Datos que MainViewModel adjuntó al Intent al programar la alarma.
         val parcelaId = intent.getStringExtra("parcela_id") ?: return
         val parcelaNombre = intent.getStringExtra("parcela_nombre") ?: "Parcela"
-        val modo = intent.getStringExtra("modo") ?: "AUTO"
+        val modo = intent.getStringExtra("modo") ?: "AUTO" // AUTO o MANUAL
 
         val channelId = "riego_notifications"
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
+        // Los canales de notificación son obligatorios desde Android 8 (API 26).
+        // Se crea con prioridad alta porque es una alerta operativa relevante en campo.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(channelId, "Notificaciones de Riego", NotificationManager.IMPORTANCE_HIGH)
             notificationManager.createNotificationChannel(channel)
         }
 
+        // El mensaje cambia según el modo: en AUTO el sistema ya cerró la válvula solo,
+        // en MANUAL el usuario debe cerrarla a mano, así que el tono es más urgente.
         val message = if (modo == "AUTO") {
             "El riego automático en $parcelaNombre ha finalizado."
         } else {
             "¡Tiempo agotado en $parcelaNombre! Debes detener el riego manual."
         }
 
+        // Al tocar la notificación se abre la app directamente en la pantalla de riego.
         val launchIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             putExtra("navigate_to", "riego")
         }
         val pendingIntent = PendingIntent.getActivity(
-            context, parcelaId.hashCode(), launchIntent, 
+            context, parcelaId.hashCode(), launchIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
@@ -812,10 +881,12 @@ class RiegoAlarmReceiver : BroadcastReceiver() {
             .setContentTitle("Riego: $parcelaNombre")
             .setContentText(message)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true)
+            .setAutoCancel(true) // se descarta sola al tocarla
             .setContentIntent(pendingIntent)
             .build()
 
+        // Se usa el hash del ID de parcela como identificador único de notificación,
+        // así cada parcela tiene su propia notificación independiente (no se pisan entre sí).
         notificationManager.notify(parcelaId.hashCode(), notification)
     }
 }
@@ -833,26 +904,41 @@ import com.google.android.gms.wearable.Wearable
 import com.google.gson.Gson
 import mx.utng.ecoviedos.domain.model.Parcela
 
+/**
+ * Envía la lista de parcelas al reloj (Wear OS) usando el Data Layer de Google Play Services.
+ *
+ * Por qué existe: el módulo :wear no consulta el backend directamente en cada refresco (para
+ * ahorrar batería y datos del reloj); en vez de eso, el teléfono le "empuja" la información ya
+ * cargada cada vez que cambia, usando el MessageClient de Wearable.
+ */
 class WearableDataSender(private val context: Context) {
+    // MessageClient: canal de mensajería punto a punto hacia nodos (relojes) conectados.
     private val messageClient = Wearable.getMessageClient(context)
+    // NodeClient: permite listar los dispositivos (nodos) actualmente emparejados/conectados.
     private val nodeClient = Wearable.getNodeClient(context)
     private val gson = Gson()
 
+    /**
+     * Serializa la lista de parcelas a JSON y la envía a todos los relojes conectados.
+     * Se usa "/parcelas_message" como ruta fija para que el reloj sepa qué tipo de payload es.
+     */
     fun sendParcelas(parcelas: List<Parcela>) {
         val json = gson.toJson(parcelas)
         val data = json.toByteArray(Charsets.UTF_8)
 
+        // Primero se listan los nodos conectados; si no hay reloj emparejado, no hay nada que hacer.
         nodeClient.connectedNodes.addOnSuccessListener { nodes ->
             if (nodes.isEmpty()) {
                 Log.w("WearableDataSender", "No hay relojes conectados para enviar mensaje")
             }
+            // Se envía el mismo payload a cada nodo (normalmente solo hay uno: el reloj del usuario).
             nodes.forEach { node ->
                 messageClient.sendMessage(node.id, "/parcelas_message", data)
-                    .addOnSuccessListener { 
-                        Log.d("WearableDataSender", "¡MENSAJE ENVIADO INSTANTÁNEAMENTE A: ${node.displayName}!") 
+                    .addOnSuccessListener {
+                        Log.d("WearableDataSender", "¡MENSAJE ENVIADO INSTANTÁNEAMENTE A: ${node.displayName}!")
                     }
-                    .addOnFailureListener { e -> 
-                        Log.e("WearableDataSender", "Fallo al enviar mensaje", e) 
+                    .addOnFailureListener { e ->
+                        Log.e("WearableDataSender", "Fallo al enviar mensaje", e)
                     }
             }
         }
@@ -879,19 +965,25 @@ import java.util.*
 
 /**
  * Gestor de comunicaciones Bluetooth Low Energy (BLE).
- * 
+ *
+ * Por qué existe: los nodos de campo (placas ESP32 con sensores) no tienen pantalla ni forma de
+ * configurar WiFi directamente; BLE se usa como canal temporal de aprovisionamiento ("provisioning")
+ * para enviarle las credenciales de la red WiFi del viñedo y el ID de parcela al que se debe vincular.
+ * Una vez configurado, el nodo se conecta por WiFi/MQTT y BLE deja de usarse para ese dispositivo.
+ *
  * Centraliza la lógica de escaneo, conexión GATT, lectura/escritura de características
  * y recepción de notificaciones desde dispositivos periféricos (ESP32).
- * 
+ *
  * @property context Contexto de la aplicación necesario para acceder a los servicios de sistema.
  */
 class BleManager(private val context: Context) {
 
     companion object {
         // UUIDs: Asegúrate de que coincidan con BluetoothConfig.h en tu ESP32
-        val SERVICE_UUID: UUID = UUID.fromString("4fafc201-1fb5-459e-8fcc-c5c9c331914b")
-        val CONFIG_CHAR_UUID: UUID = UUID.fromString("beb5483e-36e1-4688-b7f5-ea07361b26a8")
-        val STATUS_CHAR_UUID: UUID = UUID.fromString("0b9a3f9e-2a2c-4c9a-9d7a-5a9f0b0e2b0d")
+        // Estos tres UUIDs definen el "contrato" BLE entre la app y el firmware del nodo:
+        val SERVICE_UUID: UUID = UUID.fromString("4fafc201-1fb5-459e-8fcc-c5c9c331914b") // Servicio EcoViñedos
+        val CONFIG_CHAR_UUID: UUID = UUID.fromString("beb5483e-36e1-4688-b7f5-ea07361b26a8") // Escritura: credenciales WiFi
+        val STATUS_CHAR_UUID: UUID = UUID.fromString("0b9a3f9e-2a2c-4c9a-9d7a-5a9f0b0e2b0d") // Notificación: estado de conexión del nodo
         private const val TAG = "BleManager"
     }
 
@@ -900,13 +992,14 @@ class BleManager(private val context: Context) {
 
     /**
      * Verifica si el adaptador Bluetooth está encendido.
-     * 
+     *
      * @return true si el Bluetooth está disponible y activo.
      */
     fun isBluetoothEnabled(): Boolean = adapter?.isEnabled == true
 
     private var bluetoothGatt: BluetoothGatt? = null
 
+    // Callbacks configurables por el ViewModel que consume este manager (DeviceConfigViewModel).
     private var onDeviceDiscovered: ((BluetoothDevice) -> Unit)? = null
     private var onConnectionStateChanged: ((Int) -> Unit)? = null
     private var onDataSent: ((Boolean) -> Unit)? = null
@@ -919,8 +1012,10 @@ class BleManager(private val context: Context) {
         @SuppressLint("MissingPermission")
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             val device = result.device
+            // El nombre puede venir del "scan record" (anuncio BLE) o del propio objeto device.
             val name = result.scanRecord?.deviceName ?: device.name
 
+            // Se descartan dispositivos sin nombre anunciado (ruido BLE de otros aparatos cercanos).
             if (name != null) {
                 Log.d(TAG, "Dispositivo encontrado: $name [${device.address}]")
                 onDeviceDiscovered?.invoke(device)
@@ -938,6 +1033,8 @@ class BleManager(private val context: Context) {
     private val gattCallback = object : BluetoothGattCallback() {
         @SuppressLint("MissingPermission")
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
+            // Se traducen los códigos de error GATT más comunes en mensajes entendibles,
+            // porque en campo (fuera de rango, placa apagada) son los errores más frecuentes.
             if (status != BluetoothGatt.GATT_SUCCESS) {
                 val errorMsg = when(status) {
                     133 -> "Error 133: El sistema BLE está saturado o el dispositivo rechazó la conexión. Intenta reiniciar el Bluetooth del celular."
@@ -952,8 +1049,10 @@ class BleManager(private val context: Context) {
             }
 
             if (newState == BluetoothProfile.STATE_CONNECTED) {
+                // No se reporta "conectado" todavía: primero se negocia un MTU más grande
+                // para poder enviar el JSON de configuración (SSID+password) en un solo paquete.
                 Log.i(TAG, "GATT Conectado. Solicitando MTU mayor...")
-                gatt.requestMtu(512) 
+                gatt.requestMtu(512)
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 Log.i(TAG, "GATT Desconectado.")
                 onConnectionStateChanged?.invoke(newState)
@@ -963,12 +1062,15 @@ class BleManager(private val context: Context) {
         @SuppressLint("MissingPermission")
         override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
             Log.i(TAG, "MTU cambiado a: $mtu, status: $status")
+            // Recién con el MTU ya negociado se descubren los servicios/características del nodo.
             gatt.discoverServices()
         }
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 Log.i(TAG, "Servicios descubiertos con éxito.")
+                // Se valida que el dispositivo conectado realmente sea un nodo EcoViñedos
+                // (podría tratarse de cualquier otro periférico BLE cercano).
                 val service = gatt.getService(SERVICE_UUID)
                 if (service != null) {
                     Log.i(TAG, "Servicio EcoViñedos encontrado.")
@@ -982,12 +1084,15 @@ class BleManager(private val context: Context) {
         }
 
         override fun onCharacteristicWrite(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
+            // Confirma si el envío del JSON de configuración (WiFi) llegó bien al nodo.
             if (characteristic.uuid == CONFIG_CHAR_UUID) {
                 Log.d(TAG, "Escritura completada. Status: $status")
                 onDataSent?.invoke(status == BluetoothGatt.GATT_SUCCESS)
             }
         }
 
+        // API antigua (deprecated) de notificación de características, se mantiene por compatibilidad
+        // con versiones de Android donde la nueva sobrecarga con ByteArray aún no existe.
         @Deprecated("Deprecated in Java")
         override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
             if (characteristic.uuid == STATUS_CHAR_UUID) {
@@ -997,6 +1102,7 @@ class BleManager(private val context: Context) {
             }
         }
 
+        // Sobrecarga moderna (API 33+) que recibe el valor directamente como parámetro.
         override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, value: ByteArray) {
             if (characteristic.uuid == STATUS_CHAR_UUID) {
                 val data = String(value).trim().replace("\u0000", "")
@@ -1008,7 +1114,7 @@ class BleManager(private val context: Context) {
 
     /**
      * Inicia el escaneo de dispositivos de bajo consumo.
-     * 
+     *
      * @param onDiscovered Callback invocado cada vez que se detecta un dispositivo válido.
      */
     @SuppressLint("MissingPermission")
@@ -1025,6 +1131,7 @@ class BleManager(private val context: Context) {
 
     /**
      * Detiene el escaneo activo de dispositivos BLE.
+     * Importante llamarlo apenas se elige un dispositivo: escanear consume batería rápidamente.
      */
     @SuppressLint("MissingPermission")
     fun stopScan() {
@@ -1033,18 +1140,20 @@ class BleManager(private val context: Context) {
 
     /**
      * Inicia una solicitud de conexión GATT con un dispositivo específico.
-     * 
+     *
      * @param address Dirección MAC del dispositivo.
      * @param onStateChange Callback para notificar cambios en el estado de la conexión.
      */
     @SuppressLint("MissingPermission")
     fun connect(address: String, onStateChange: (Int) -> Unit) {
         onConnectionStateChanged = onStateChange
-        disconnect()
-        
+        disconnect() // por seguridad, se cierra cualquier conexión GATT previa antes de abrir una nueva
+
         val device = adapter.getRemoteDevice(address)
         Log.d(TAG, "Intentando conectar a ${device.address}...")
 
+        // Pequeño retraso (500ms) antes de conectar: mitiga un bug conocido de la pila BLE de Android
+        // donde conectar inmediatamente después de detener el escaneo puede fallar silenciosamente.
         Handler(Looper.getMainLooper()).postDelayed({
             bluetoothGatt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
@@ -1056,7 +1165,7 @@ class BleManager(private val context: Context) {
 
     /**
      * Envía una cadena JSON al dispositivo mediante la característica de configuración.
-     * 
+     *
      * @param json Contenido a enviar.
      * @param onResult Callback que indica si la escritura fue exitosa.
      */
@@ -1080,7 +1189,9 @@ class BleManager(private val context: Context) {
 
     /**
      * Habilita las notificaciones asíncronas para la característica de estado del nodo.
-     * 
+     * Así el ESP32 puede avisar en tiempo real si logró o no conectarse al WiFi recién configurado,
+     * sin que la app tenga que hacer polling.
+     *
      * @param onReceived Callback invocado cada vez que llega un nuevo mensaje del nodo.
      */
     @SuppressLint("MissingPermission")
@@ -1091,6 +1202,8 @@ class BleManager(private val context: Context) {
 
         if (characteristic != null) {
             bluetoothGatt?.setCharacteristicNotification(characteristic, true)
+            // El descriptor 0x2902 (Client Characteristic Configuration) es el estándar BLE
+            // para decirle al periférico "avísame cuando cambie este valor".
             val descriptor = characteristic.getDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"))
             if (descriptor != null) {
                 descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
@@ -1102,6 +1215,7 @@ class BleManager(private val context: Context) {
 
     /**
      * Cierra la conexión GATT activa y libera los recursos del adaptador.
+     * Es fundamental llamar a close(): no hacerlo puede agotar los "slots" de conexión BLE del sistema.
      */
     @SuppressLint("MissingPermission")
     fun disconnect() {
@@ -1126,10 +1240,17 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
+// Extensión de Context que crea/expone un único DataStore de preferencias llamado "sesion".
+// Al ser una extensión a nivel de archivo, Android garantiza una sola instancia por proceso.
 private val Context.dataStore by preferencesDataStore(name = "sesion")
 
 /**
  * Gestor de la sesión persistente del usuario utilizando Jetpack DataStore Preferences.
+ *
+ * Por qué DataStore y no SharedPreferences: DataStore es asíncrono (basado en Flow/coroutines),
+ * evita bloquear el hilo principal y es el reemplazo recomendado por Google. Como toda la app
+ * es reactiva (StateFlow en los ViewModels), tener el token como Flow permite que la navegación
+ * (login vs. main) se actualice sola en cuanto cambia la sesión, sin polling manual.
  *
  * Esta clase encapsula el acceso a los datos de autenticación y configuración local,
  * proporcionando flujos reactivos ([Flow]) para observar cambios en tiempo real.
@@ -1146,12 +1267,13 @@ class SessionManager(private val context: Context) {
         val NOMBRE_KEY = stringPreferencesKey("nombre")
         /** Clave para el rol asignado (e.g., "admin", "enologo", "trabajador"). */
         val ROL_KEY = stringPreferencesKey("rol")
-        /** Clave para la dirección IP del broker MQTT configurado manualmente. */
+        /** Clave para la dirección IP del broker MQTT configurado manualmente (ver SettingsScreen). */
         val MQTT_IP_KEY = stringPreferencesKey("mqttIp")
     }
 
     /**
      * Almacena de forma persistente la información de sesión tras un inicio de sesión exitoso.
+     * Se guardan varios campos en una sola transacción `edit {}` para que la escritura sea atómica.
      *
      * @param token Token JWT recibido del servidor.
      * @param userId Identificador del usuario.
@@ -1169,6 +1291,8 @@ class SessionManager(private val context: Context) {
 
     /**
      * Guarda la dirección IP del servidor MQTT.
+     * Existe porque en desarrollo/pruebas de campo el broker puede correr en una IP local
+     * distinta al valor por defecto embebido en MqttConfig; esta pantalla de ajustes la sobreescribe.
      *
      * @param ip Dirección IP o nombre de dominio del broker.
      */
@@ -1189,6 +1313,7 @@ class SessionManager(private val context: Context) {
 
     /**
      * Elimina todos los datos de la sesión actual, efectivamente cerrando la sesión del usuario.
+     * Al limpiar el DataStore, el Flow `token` emite null y MainActivity navega solo a "login".
      */
     suspend fun cerrarSesion() {
         context.dataStore.edit { it.clear() }
@@ -1202,13 +1327,21 @@ class SessionManager(private val context: Context) {
 ```kotlin
 package mx.utng.ecoviedos.data.sync
 
+/**
+ * DTO (Data Transfer Object) pensado para una futura cola de sincronización OFFLINE de bitácora.
+ *
+ * Por qué existe: en campo la señal de datos móviles puede fallar; la idea de este modelo es
+ * poder guardar localmente (p. ej. en Room) un registro de bitácora creado sin conexión, usando
+ * un "id" numérico local autogenerado, y luego reenviarlo al backend cuando vuelva la conexión.
+ * Actualmente no está conectado a ningún repositorio activo: es la base para esa funcionalidad.
+ */
 data class BitacoraSyncPayload(
-    val id: Int,
-    val idParcela: String,
-    val fecha: Long, // epoch millis
+    val id: Int,               // ID local autoincremental (no es el _id de Mongo)
+    val idParcela: String,     // Parcela a la que pertenece el registro
+    val fecha: Long,           // Fecha del evento en epoch millis (fácil de comparar/ordenar)
     val titulo: String,
     val descripcion: String,
-    val audio: String?
+    val audio: String?         // Ruta local de una nota de voz opcional (ver permiso RECORD_AUDIO)
 )
 ```
 
@@ -1216,15 +1349,21 @@ data class BitacoraSyncPayload(
 **Ubicación:** `mobile/src/main/java/mx/utng/ecoviedos/data/sync/RiegoSyncPayload.kt`
 
 ```kotlin
-﻿package mx.utng.ecoviedos.data.sync
+package mx.utng.ecoviedos.data.sync
 
+/**
+ * DTO para una futura cola de sincronización OFFLINE de eventos de riego.
+ *
+ * Mismo propósito que [BitacoraSyncPayload]: permitir registrar un riego realizado sin conexión
+ * a internet y sincronizarlo después con el backend, sin perder el dato por falta de señal en el viñedo.
+ */
 data class RiegoSyncPayload(
-    val id: Int,
+    val id: Int,          // ID local autoincremental
     val idParcela: String,
-    val fecha: Long,
-    val duracion: Int,
-    val litros: Float,
-    val estado: String
+    val fecha: Long,       // epoch millis
+    val duracion: Int,     // Duración del riego en minutos
+    val litros: Float,     // Consumo de agua estimado
+    val estado: String     // Estado final del riego (completado, cancelado, etc.)
 )
 ```
 
@@ -1266,6 +1405,12 @@ import mx.utng.ecoviedos.presentation.main.MainViewModel
 import mx.utng.ecoviedos.utils.UriPathHelper
 
 @OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Formulario de alta/edición de un evento de enoturismo.
+ * Si [eventId] viene con valor, la pantalla precarga los datos del evento existente (modo edición);
+ * si es null, es un alta nueva. Incluye selección de imagen desde galería, subida vía
+ * UriPathHelper.prepareMultipart y envío multipart/form-data al backend.
+ */
 @Composable
 fun AddEventScreen(
     onNavigateBack: () -> Unit,
@@ -1517,6 +1662,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import mx.utng.ecoviedos.presentation.main.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Formulario de alta/edición de parcela: nombre, variedad, área, umbrales de humedad/temperatura
+ * (aire y suelo), consumo de agua por m² y tipo de riego. Reutiliza el mismo composable para
+ * crear y editar; si [parcelId] viene con valor, precarga los datos de esa parcela mediante
+ * MainViewModel y al guardar delega en AdminViewModel.updateParcel; si no, en addParcel.
+ */
 @Composable
 fun AddParcelScreen(
     onNavigateBack: () -> Unit,
@@ -1887,6 +2038,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+/**
+ * Menú principal de administración: una grilla de tarjetas (AdminCard) que dan acceso a
+ * gestión de parcelas, turismo, modo enólogo, vínculo de TV, configuración de hardware IoT,
+ * usuarios y ajustes generales. Es el punto de entrada de todo el flujo administrativo.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminPanelScreen(
@@ -1900,8 +2056,9 @@ fun AdminPanelScreen(
     onNavigateToSettings: () -> Unit,
     onNavigateToDeviceConfig: () -> Unit,
     onLogout: () -> Unit,
-    userRol: String
+    userRol: String // usado para decidir qué opciones mostrar (control de acceso por rol)
 ) {
+    // Catálogo completo de opciones del panel, cada una con su ícono, acción de navegación y descripción.
     val allOptions = listOf(
         AdminOption("Gestión Parcelas", Icons.Default.Map, onNavigateToParcelManagement, "Registra o edita parcelas"),
         AdminOption("Turismo y Eventos", Icons.Default.Explore, onNavigateToTourismManagement, "Gestionar eventos del viñedo"),
@@ -1965,6 +2122,7 @@ fun AdminPanelScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
+            // Grilla de 2 columnas: layout estándar para tarjetas de navegación tipo "launcher".
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -1979,6 +2137,7 @@ fun AdminPanelScreen(
     }
 }
 
+/** Modelo simple para representar una opción del panel administrativo (reutilizado también por EnologoPanelScreen). */
 data class AdminOption(
     val title: String,
     val icon: ImageVector,
@@ -1986,6 +2145,7 @@ data class AdminOption(
     val description: String
 )
 
+/** Tarjeta individual de una opción administrativa: ícono + título + descripción corta. */
 @Composable
 fun AdminCard(option: AdminOption) {
     ElevatedCard(
@@ -2075,6 +2235,10 @@ sealed class UserManagementUiState {
  * Provee funcionalidad para la gestión de parcelas (crear, actualizar, eliminar)
  * y la administración de usuarios del sistema.
  *
+ * Por qué es un ViewModel separado de MainViewModel: MainViewModel se centra en el estado "en vivo"
+ * (telemetría, MQTT, riego) que consumen casi todas las pantallas; AdminViewModel agrupa en cambio
+ * las operaciones CRUD que solo usa el rol administrador, manteniendo responsabilidades separadas.
+ *
  * @param application Instancia de la aplicación.
  */
 class AdminViewModel(application: Application) : AndroidViewModel(application) {
@@ -2084,6 +2248,8 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
     private val usuarioRepository = UsuarioRepository()
     private val bitacoraRepository = BitacoraRemoteRepository()
 
+    // Referencia opcional al ViewModel global de parcelas: se inyecta desde MainActivity
+    // (ver setMainViewModel) para poder refrescar la lista compartida tras cada operación CRUD.
     private var mainViewModel: MainViewModel? = null
 
     /** Flujo de estado para las acciones sobre parcelas. */
@@ -2140,10 +2306,13 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
             val resultado = parcelaRepository.crearParcela(token, request)
             resultado
                 .onSuccess { parcela ->
+                    // Se refresca la lista global (MainViewModel) para que aparezca de inmediato
+                    // en el dashboard, sin esperar al próximo ciclo de MQTT.
                     mainViewModel?.cargarParcelas()
                     _uiState.value = AddParcelUiState.Success
                     
-                    // Registrar evento en bitácora
+                    // Registrar evento en bitácora: cada alta de parcela queda auditada
+                    // automáticamente, indicando si ya quedó vinculada a un nodo IoT o no.
                     val descripcion = if (parcela.nodoVinculado == null) {
                         "Nueva parcela '${parcela.nombreParcela}' registrada. Aún no tiene un nodo IoT vinculado."
                     } else {
@@ -2350,6 +2519,12 @@ import mx.utng.ecoviedos.domain.model.Parcela
 import mx.utng.ecoviedos.presentation.main.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Wizard de 3 pasos para vincular un nodo IoT (ESP32) por BLE: 1) escanear y elegir el
+ * dispositivo cercano (ScanDevicesStep), 2) capturar SSID/contraseña de la red WiFi del viñedo
+ * (WifiConfigStep), 3) elegir la parcela o sección de cava destino (LinkParcelaStep).
+ * Todo el estado del flujo BLE vive en [configViewModel] (DeviceConfigViewModel / BleUiState).
+ */
 @Composable
 fun DeviceConfigScreen(
     onNavigateBack: () -> Unit,
@@ -2533,6 +2708,7 @@ fun DeviceConfigScreen(
     }
 }
 
+/** Diálogo modal simple de "cargando" con un mensaje de estado (usado entre pasos del wizard BLE). */
 @Composable
 fun LoadingDialog(message: String) {
     AlertDialog(
@@ -2548,6 +2724,7 @@ fun LoadingDialog(message: String) {
     )
 }
 
+/** Indicador visual de progreso (1-2-3) del wizard: resalta el paso activo. */
 @Composable
 fun StepIndicator(num: Int, label: String, active: Boolean) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -2564,6 +2741,7 @@ fun StepIndicator(num: Int, label: String, active: Boolean) {
     }
 }
 
+/** Paso 1: lista los dispositivos BLE descubiertos y permite seleccionar el nodo a configurar. */
 @Composable
 fun ScanDevicesStep(
     devices: List<BluetoothDevice>,
@@ -2641,6 +2819,7 @@ fun ScanDevicesStep(
     }
 }
 
+/** Paso 2: formulario de SSID/contraseña de la red WiFi que se enviará al nodo por BLE. */
 @Composable
 fun WifiConfigStep(
     ssid: String,
@@ -2691,6 +2870,7 @@ fun WifiConfigStep(
     }
 }
 
+/** Paso 3: selección de la parcela (o sección de cava) a la que se vincula el nodo ya configurado. */
 @Composable
 fun ColumnScope.LinkParcelaStep(
     parcelas: List<Parcela>,
@@ -2785,6 +2965,11 @@ sealed class BleUiState {
 
 /**
  * ViewModel que gestiona la vinculación de nodos IoT mediante Bluetooth Low Energy.
+ *
+ * Por qué existe como ViewModel separado de BleManager: BleManager es solo el "driver" de bajo
+ * nivel (callbacks crudos de Android BLE); este ViewModel traduce esos callbacks a un StateFlow
+ * de UI (`BleUiState`) que las pantallas de Compose pueden observar de forma reactiva y segura
+ * ante recomposiciones/rotaciones de pantalla.
  */
 class DeviceConfigViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -2995,6 +3180,11 @@ import mx.utng.ecoviedos.data.remote.LinkTvRequest
 import mx.utng.ecoviedos.data.remote.RetrofitClient
 import mx.utng.ecoviedos.presentation.main.MainViewModel
 
+/**
+ * Pantalla de vinculación de una Smart TV: el usuario escanea el QR mostrado en la TV
+ * (o escribe el código manualmente) y la app lo envía al backend para emparejar esa sesión
+ * de TV con la cuenta actual (ver TvService / LinkTvRequest).
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LinkTvScreen(
@@ -3009,6 +3199,8 @@ fun LinkTvScreen(
     
     val token by mainViewModel.sessionToken.collectAsState(initial = "")
 
+    // Launcher de ZXing: al escanear un QR válido, su contenido se vuelca directo al campo "code",
+    // como si el usuario lo hubiera tecleado a mano.
     val scanLauncher = rememberLauncherForActivityResult(
         contract = ScanContract(),
         onResult = { result ->
@@ -3039,6 +3231,7 @@ fun LinkTvScreen(
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Botón de escaneo QR: configura la cámara para leer específicamente códigos QR.
             IconButton(
                 onClick = { 
                     val options = ScanOptions()
@@ -3064,6 +3257,8 @@ fun LinkTvScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
+            // Alternativa manual al QR: se limita a 6 caracteres y se fuerza a mayúsculas,
+            // igual que el formato de código que genera la TV.
             OutlinedTextField(
                 value = code,
                 onValueChange = { if (it.length <= 6) code = it.uppercase() },
@@ -3089,6 +3284,8 @@ fun LinkTvScreen(
             Button(
                 onClick = {
                     isLoading = true
+                    // Se usa mainViewModel.viewModelScope en vez de un ViewModel propio de esta
+                    // pantalla, ya que es una operación puntual que no necesita sobrevivir a rotaciones.
                     mainViewModel.viewModelScope.launch {
                         try {
                             val response = RetrofitClient.tvService.linkTV(
@@ -3099,6 +3296,8 @@ fun LinkTvScreen(
                                 message = "¡Sincronización Exitosa! Redirigiendo..."
                                 isError = false
                                 code = ""
+                                // Pequeña pausa para que el usuario alcance a leer el mensaje de éxito
+                                // antes de navegar automáticamente.
                                 kotlinx.coroutines.delay(2000)
                                 onNavigateToEnologo()
                             } else {
@@ -3114,7 +3313,7 @@ fun LinkTvScreen(
                     }
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
-                enabled = code.length >= 4 && !isLoading,
+                enabled = code.length >= 4 && !isLoading, // evita enviar códigos evidentemente incompletos
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB4F391), contentColor = Color.Black)
             ) {
                 if (isLoading) {
@@ -3154,6 +3353,10 @@ import mx.utng.ecoviedos.domain.model.Parcela
 import mx.utng.ecoviedos.presentation.main.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Lista todas las parcelas registradas (leídas desde [viewModel], el MainViewModel global)
+ * y permite navegar a alta/edición o eliminarlas vía [adminViewModel].
+ */
 @Composable
 fun ParcelManagementScreen(
     onNavigateBack: () -> Unit,
@@ -3235,6 +3438,7 @@ fun ParcelManagementScreen(
     }
 }
 
+/** Fila individual de la lista: nombre, variedad y estado activa/inactiva de una parcela, con acciones de editar/eliminar. */
 @Composable
 fun ParcelManagementItem(
     parcela: Parcela,
@@ -3312,6 +3516,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Listado de muestras de laboratorio con estadísticas resumidas.
+ * Nota: usa datos de ejemplo (mock) en lugar de MuestraViewModel/backend real.
+ */
 @Composable
 fun SampleRecordsScreen(onNavigateBack: () -> Unit) {
     // Datos mock para visualización
@@ -3375,6 +3583,7 @@ data class SampleData(
     val acidez: String
 )
 
+/** Tarjeta de una muestra individual (Brix/pH/acidez) dentro del listado. */
 @Composable
 fun SampleItem(sample: SampleData) {
     Card(
@@ -3410,6 +3619,7 @@ fun SampleItem(sample: SampleData) {
     }
 }
 
+/** Par etiqueta/valor reutilizable para mostrar una métrica dentro de SampleItem. */
 @Composable
 fun SampleStat(label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -3439,6 +3649,10 @@ import androidx.compose.ui.unit.dp
 import mx.utng.ecoviedos.presentation.main.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Pantalla de ajustes: permite configurar la IP/host del broker MQTT manualmente (persistida
+ * vía SessionManager.guardarMqttIp), útil en desarrollo o cuando el broker corre en una LAN local.
+ */
 @Composable
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
@@ -3536,6 +3750,7 @@ import mx.utng.ecoviedos.data.remote.EventoResponse
 import mx.utng.ecoviedos.presentation.main.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
+/** Listado de eventos de enoturismo registrados, con navegación a alta/edición (AddEventScreen). */
 @Composable
 fun TourismManagementScreen(
     onNavigateBack: () -> Unit,
@@ -3607,6 +3822,7 @@ fun TourismManagementScreen(
     }
 }
 
+/** Tarjeta de un evento turístico dentro del listado administrativo. */
 @Composable
 fun EventAdminCard(
     event: EventoResponse,
@@ -3669,6 +3885,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import mx.utng.ecoviedos.data.remote.UsuarioResponse
 
 @OptIn(ExperimentalMaterial3Api::class)
+/** CRUD completo de usuarios del sistema (solo accesible para rol superusuario), vía AdminViewModel. */
 @Composable
 fun UserManagementScreen(
     onNavigateBack: () -> Unit,
@@ -3781,6 +3998,7 @@ fun UserManagementScreen(
     }
 }
 
+/** Fila de un usuario en la lista, con acciones de editar/eliminar. */
 @Composable
 fun UserCard(user: UsuarioResponse, onEdit: () -> Unit, onDelete: () -> Unit) {
     OutlinedCard(
@@ -3817,6 +4035,7 @@ fun UserCard(user: UsuarioResponse, onEdit: () -> Unit, onDelete: () -> Unit) {
     }
 }
 
+/** Diálogo modal de alta/edición de usuario: nombre, correo, contraseña (solo en alta), rol y teléfono. */
 @Composable
 fun UserFormDialog(
     user: UsuarioResponse?,
@@ -3921,22 +4140,34 @@ import mx.utng.ecoviedos.data.local.SessionManager
 import mx.utng.ecoviedos.data.remote.LoginRequest
 import mx.utng.ecoviedos.data.remote.RetrofitClient
 
+/**
+ * Estados posibles del flujo de autenticación (login + recuperación de contraseña).
+ * Se modela como sealed class para que la UI pueda hacer un "when" exhaustivo y no olvidar casos.
+ */
 sealed class AuthUiState {
     data object Idle : AuthUiState()
     data object Loading : AuthUiState()
     data object Success : AuthUiState()
-    data class LoginSuccess(val rol: String) : AuthUiState()
+    data class LoginSuccess(val rol: String) : AuthUiState() // se propaga el rol para decidir a dónde navegar
     data class Error(val mensaje: String) : AuthUiState()
-    data object CodeSent : AuthUiState()
-    data object CodeVerified : AuthUiState()
+    data object CodeSent : AuthUiState()      // el código de recuperación fue enviado por correo
+    data object CodeVerified : AuthUiState()  // el código ingresado por el usuario es correcto
 }
 
+/**
+ * ViewModel de autenticación: login y flujo completo de "olvidé mi contraseña" en 3 pasos
+ * (solicitar código -> verificar código -> establecer nueva contraseña).
+ */
 class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val sessionManager = SessionManager(application)
 
     private val _uiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
+    /**
+     * Inicia sesión contra el backend. Valida localmente que los campos no estén vacíos antes
+     * de hacer la llamada de red (evita una petición inútil).
+     */
     fun login(correo: String, contraseña: String) {
         if (correo.isBlank() || contraseña.isBlank()) {
             _uiState.value = AuthUiState.Error("Completa correo y contraseña")
@@ -3951,17 +4182,21 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
                 if (response.isSuccessful && response.body() != null) {
                     val body = response.body()!!
+                    // Persiste token + datos de sesión; a partir de aquí SessionManager.token
+                    // emitirá el nuevo valor y MainActivity navegará automáticamente fuera del login.
                     sessionManager.guardarSesion(body.token, body._id, body.nombre, body.rol)
                     _uiState.value = AuthUiState.LoginSuccess(body.rol)
                 } else {
                     _uiState.value = AuthUiState.Error("Correo o contraseña incorrectos")
                 }
             } catch (e: Exception) {
+                // Cualquier excepción de red (sin internet, servidor caído, timeout) cae aquí.
                 _uiState.value = AuthUiState.Error("Error de conexión: revisa tu red o el servidor")
             }
         }
     }
 
+    /** Paso 1 de recuperación: pide al backend enviar un código de 6 dígitos al correo indicado. */
     fun solicitarCodigo(correo: String) {
         if (correo.isBlank()) {
             _uiState.value = AuthUiState.Error("Ingresa tu correo")
@@ -3982,6 +4217,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Paso 2: valida el código de 6 dígitos ingresado por el usuario contra el backend. */
     fun verificarCodigo(correo: String, codigo: String) {
         if (codigo.length != 6) {
             _uiState.value = AuthUiState.Error("El código debe ser de 6 dígitos")
@@ -4002,6 +4238,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Paso 3: establece la nueva contraseña, reutilizando correo + código ya verificados. */
     fun restablecerContraseña(correo: String, codigo: String, nuevaPass: String) {
         if (nuevaPass.length < 6) {
             _uiState.value = AuthUiState.Error("Mínimo 6 caracteres")
@@ -4024,6 +4261,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Vuelve el estado a Idle, típicamente al abandonar/reiniciar el flujo de auth. */
     fun resetState() {
         _uiState.value = AuthUiState.Idle
     }
@@ -4053,6 +4291,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
+/** Paso 1 de recuperación de contraseña: captura el correo y solicita el envío del código de 6 dígitos. */
 @Composable
 fun ForgotPasswordScreen(
     onNavigateBack: () -> Unit,
@@ -4184,6 +4423,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 
+/**
+ * Pantalla de inicio de sesión: formulario de correo/contraseña. En éxito invoca
+ * [onLoginSuccess] con el rol recibido para que MainActivity decida a qué panel navegar.
+ */
 @Composable
 fun LoginScreen(
     onLoginSuccess: (rol: String) -> Unit,
@@ -4350,6 +4593,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
+/** Paso 3 de recuperación: formulario de nueva contraseña, reutilizando correo+código ya verificados. */
 @Composable
 fun ResetPasswordScreen(
     email: String,
@@ -4529,6 +4773,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
+/** Paso 2 de recuperación: captura y valida el código de 6 dígitos enviado al correo del usuario. */
 @Composable
 fun VerifyCodeScreen(
     email: String,
@@ -4708,6 +4953,10 @@ import mx.utng.ecoviedos.data.remote.SeccionCavaResponse
 import mx.utng.ecoviedos.presentation.main.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
+/**
+ * CRUD completo de cavas y sus secciones (anaqueles/barricas): alta/baja de cavas,
+ * alta/baja de secciones y ajuste del inventario de botellas, todo vía EnologoViewModel.
+ */
 @Composable
 fun CavaManagementScreen(
     onNavigateBack: () -> Unit,
@@ -4794,6 +5043,7 @@ fun CavaManagementScreen(
     }
 }
 
+/** Tarjeta que agrupa visualmente una cava y la lista de sus secciones. */
 @Composable
 fun CavaGroupCard(
     cava: CavaResponse,
@@ -4859,6 +5109,7 @@ fun CavaGroupCard(
     }
 }
 
+/** Fila de una sección dentro de una cava: estado, botellas actuales/capacidad y acciones de gestión. */
 @Composable
 fun SeccionManageItem(
     seccion: SeccionCavaResponse, 
@@ -4947,6 +5198,7 @@ fun SeccionManageItem(
     }
 }
 
+/** Diálogo modal de alta de una nueva cava (nombre + ubicación). */
 @Composable
 fun AddCavaDialog(onDismiss: () -> Unit, onConfirm: (String, String) -> Unit) {
     var nombre by remember { mutableStateOf("") }
@@ -4972,6 +5224,7 @@ fun AddCavaDialog(onDismiss: () -> Unit, onConfirm: (String, String) -> Unit) {
     )
 }
 
+/** Diálogo modal de alta de una nueva sección dentro de [cavaNombre] (nombre, tipo, capacidad de botellas). */
 @Composable
 fun AddSeccionDialog(cavaNombre: String, onDismiss: () -> Unit, onConfirm: (String, String, Int) -> Unit) {
     var nombre by remember { mutableStateOf("") }
@@ -5024,6 +5277,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Estado en tiempo real de la cava: temperatura/humedad por sección (actualizado vía MQTT
+ * desde EnologoViewModel) y progreso de variedades en barrica.
+ */
 @Composable
 fun CavaStateScreen(
     onNavigateBack: () -> Unit,
@@ -5119,6 +5376,7 @@ fun CavaStateScreen(
     }
 }
 
+/** Tarjeta de una sección de cava con su temperatura, humedad y estado actual. */
 @Composable
 fun MobileCavaSection(name: String, temp: String, hum: String, status: String) {
     val statusColor = when(status) {
@@ -5166,6 +5424,7 @@ fun MobileCavaSection(name: String, temp: String, hum: String, status: String) {
     }
 }
 
+/** Barra de progreso de una variedad de vino en proceso (crianza/producción). */
 @Composable
 fun MobileVarietyProgress(name: String, progress: Float, label: String, color: Color) {
     Column(modifier = Modifier.padding(vertical = 8.dp)) {
@@ -5211,6 +5470,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
+/** Panel resumen para el rol enólogo: estadísticas generales y vista previa de las cavas registradas. */
 @Composable
 fun EnologoDashboardScreen(
     onLogout: () -> Unit,
@@ -5304,6 +5564,7 @@ fun EnologoDashboardScreen(
     }
 }
 
+/** Tarjeta compacta de una métrica resumen (label + valor) en el dashboard del enólogo. */
 @Composable
 fun DashboardStatCard(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
     Card(
@@ -5317,6 +5578,7 @@ fun DashboardStatCard(label: String, value: String, color: Color, modifier: Modi
     }
 }
 
+/** Vista previa resumida de una cava dentro del dashboard (sin detalle de secciones). */
 @Composable
 fun CavaPreviewItem(cava: CavaResponse) {
     val totalBottles = cava.secciones.sumOf { it.botellasActuales }
@@ -5364,6 +5626,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import mx.utng.ecoviedos.presentation.admin.TourismManagementScreen
 import mx.utng.ecoviedos.presentation.main.MainViewModel
 
+/** Contenedor de navegación interna del perfil enólogo (dashboard, cava, turismo). */
 @Composable
 fun EnologoMainScreen(
     mainViewModel: MainViewModel = viewModel(),
@@ -5449,6 +5712,7 @@ import mx.utng.ecoviedos.presentation.admin.AdminCard
 import mx.utng.ecoviedos.presentation.admin.AdminOption
 
 @OptIn(ExperimentalMaterial3Api::class)
+/** Menú de opciones del enólogo, reutilizando AdminCard/AdminOption del paquete admin. */
 @Composable
 fun EnologoPanelScreen(
     onNavigateBack: () -> Unit,
@@ -5545,6 +5809,10 @@ import mx.utng.ecoviedos.data.repository.EventoRepository
 /**
  * ViewModel para el perfil de Enólogo.
  * Gestiona la carga de datos de cavas, secciones y eventos de turismo.
+ *
+ * Por qué tiene su propio MqttManager (en vez de reusar el de MainViewModel): el enólogo
+ * necesita telemetría de SECCIONES DE CAVA, un dominio distinto al de PARCELAS que maneja
+ * MainViewModel; mantenerlos separados evita mezclar ambos tipos de datos en un mismo estado.
  */
 class EnologoViewModel(application: Application) : AndroidViewModel(application) {
     private val eventoRepository = EventoRepository()
@@ -5560,10 +5828,16 @@ class EnologoViewModel(application: Application) : AndroidViewModel(application)
     val isLoading = _isLoading.asStateFlow()
 
     init {
+        // Carga inicial vía HTTP (snapshot completo) + conexión MQTT para las actualizaciones en vivo.
         cargarDatos()
         initializeMqtt()
     }
 
+    /**
+     * Conecta el cliente MQTT y registra los callbacks relevantes para el rol enólogo:
+     * telemetría de secciones y lista completa de cavas, ignorando eventos que no le competen
+     * (riego y lista de parcelas, que son del dominio de MainViewModel).
+     */
     private fun initializeMqtt() {
         mqttManager = MqttManager(
             context = getApplication(),
@@ -5572,8 +5846,8 @@ class EnologoViewModel(application: Application) : AndroidViewModel(application)
                     actualizarSeccionEnTiempoReal(id, hum, temp)
                 }
             },
-            onRiegoStatusReceived = { _, _, _ -> },
-            onParcelListReceived = { },
+            onRiegoStatusReceived = { _, _, _ -> }, // no aplica a cavas
+            onParcelListReceived = { }, // no aplica a cavas
             onCavaListReceived = { payload ->
                 viewModelScope.launch(Dispatchers.Main) {
                     actualizarListaCavasMqtt(payload)
@@ -5586,10 +5860,16 @@ class EnologoViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    /**
+     * Actualiza en memoria la humedad/temperatura de UNA sección específica cuando llega
+     * un mensaje MQTT puntual de esa sección (tópico `.../stats`), sin tener que recargar
+     * toda la estructura de cavas por HTTP.
+     */
     private fun actualizarSeccionEnTiempoReal(id: String, hum: Float, temp: Float) {
         val currentCavas = _cavas.value.toMutableList()
         var changed = false
         
+        // Se recorre cada cava y, dentro de ella, se busca la sección con el id recibido.
         val updatedCavas = currentCavas.map { cava ->
             val index = cava.secciones.indexOfFirst { it._id == id }
             if (index != -1) {
@@ -5606,11 +5886,17 @@ class EnologoViewModel(application: Application) : AndroidViewModel(application)
             }
         }
         
+        // Solo se emite un nuevo estado si de verdad hubo cambios (evita recomposeos innecesarios).
         if (changed) {
             _cavas.value = updatedCavas
         }
     }
 
+    /**
+     * Procesa el payload retenido que el backend publica en `vinedo/secciones/lista`
+     * (ver backend/mqtt/connecction.js -> publicarListaParcelas): un array plano de TODAS
+     * las secciones de cava, útil para sincronizar de golpe tras reconectar el MQTT.
+     */
     private fun actualizarListaCavasMqtt(payload: String) {
         try {
             val type = object : TypeToken<List<SeccionCavaResponse>>() {}.type
@@ -5619,10 +5905,11 @@ class EnologoViewModel(application: Application) : AndroidViewModel(application)
             // Aquí agrupamos las secciones de vuelta en sus cavas correspondientes
             // O si el payload ya viniera agrupado sería más fácil, pero con la lógica actual de connecction.js
             // vinedo/secciones/lista envía un array plano de SeccionCavaResponse
-            
             val currentCavas = _cavas.value.toMutableList()
             val updatedCavas = currentCavas.map { cava ->
                 val seccionesActualizadas = cava.secciones.map { seccion ->
+                    // Se busca la versión actualizada de cada sección en el payload MQTT;
+                    // si no aparece (por ejemplo, quedó fuera del array), se conserva la anterior.
                     list.find { it._id == seccion._id } ?: seccion
                 }
                 cava.copy(secciones = seccionesActualizadas)
@@ -5635,6 +5922,7 @@ class EnologoViewModel(application: Application) : AndroidViewModel(application)
 
     /**
      * Carga todos los datos necesarios para el dashboard del enólogo.
+     * Se usa tanto en el arranque (init) como tras cada operación CRUD, para refrescar el snapshot completo.
      */
     fun cargarDatos() {
         viewModelScope.launch {
@@ -5660,6 +5948,7 @@ class EnologoViewModel(application: Application) : AndroidViewModel(application)
 
     // --- Gestión de Cavas ---
 
+    /** Crea una nueva cava (bodega física) y refresca la estructura completa al terminar. */
     fun crearCava(token: String, nombre: String, ubicacion: String, descripcion: String?) {
         viewModelScope.launch {
             try {
@@ -5669,6 +5958,7 @@ class EnologoViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    /** Elimina una cava completa (y, en cascada en el backend, sus secciones). */
     fun eliminarCava(token: String, id: String) {
         viewModelScope.launch {
             try {
@@ -5680,6 +5970,7 @@ class EnologoViewModel(application: Application) : AndroidViewModel(application)
 
     // --- Gestión de Secciones ---
 
+    /** Crea una sección (por ejemplo, un anaquel o barrica) dentro de una cava existente. */
     fun crearSeccion(token: String, cavaId: String, nombre: String, tipo: String, capacidad: Int) {
         viewModelScope.launch {
             try {
@@ -5690,6 +5981,11 @@ class EnologoViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    /**
+     * Actualiza la cantidad de botellas de una sección de cava.
+     * Se reconstruye el request con los datos actuales de la sección (nombre, tipo, capacidad)
+     * porque el endpoint espera el objeto completo (PUT), no un PATCH parcial.
+     */
     fun actualizarBotellas(token: String, seccionId: String, cantidad: Int, onComplete: () -> Unit = {}) {
         if (token.isBlank()) {
             Log.e("EnologoViewModel", "Error: Token vacío al intentar actualizar botellas")
@@ -5732,6 +6028,7 @@ class EnologoViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    /** Elimina una sección de cava. */
     fun eliminarSeccion(token: String, id: String) {
         viewModelScope.launch {
             try {
@@ -5743,6 +6040,7 @@ class EnologoViewModel(application: Application) : AndroidViewModel(application)
 
     // --- Gestión de Eventos ---
 
+    /** Registra un nuevo evento de enoturismo y ejecuta `onExito` para que la UI pueda navegar atrás. */
     fun registrarEvento(token: String, request: EventoRequest, onExito: () -> Unit) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -5756,6 +6054,7 @@ class EnologoViewModel(application: Application) : AndroidViewModel(application)
 
     override fun onCleared() {
         super.onCleared()
+        // Se corta la conexión MQTT al destruirse el ViewModel para no dejar sockets abiertos.
         mqttManager?.disconnect()
     }
 }
@@ -5789,6 +6088,10 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import mx.utng.ecoviedos.domain.model.Parcela
 
+/**
+ * Contenido principal del dashboard: tarjetas resumen (M3StatCard) y progreso de madurez
+ * por variedad (MaturityRow), con indicadores de alerta cuando se superan los umbrales configurados.
+ */
 @Composable
 fun DashboardContent(
     viewModel: MainViewModel, 
@@ -5943,6 +6246,7 @@ fun DashboardContent(
     }
 }
 
+/** Tarjeta de métrica tipo Material 3 (título + valor); se resalta en rojo/alerta si [isAlert] es true. */
 @Composable
 fun M3StatCard(title: String, value: String, icon: ImageVector, modifier: Modifier = Modifier, isAlert: Boolean = false) {
     OutlinedCard(
@@ -5965,6 +6269,7 @@ fun M3StatCard(title: String, value: String, icon: ImageVector, modifier: Modifi
     }
 }
 
+/** Fila de progreso de madurez de una variedad; se atenúa visualmente si la parcela está inactiva. */
 @Composable
 fun MaturityRow(variety: String, progress: Float, isInactive: Boolean = false) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
@@ -6024,6 +6329,10 @@ sealed class HistorialUiState {
 
 /**
  * ViewModel encargado de la consulta de datos históricos de telemetría.
+ *
+ * Por qué combina tres fuentes (historial de sensores, resumen diario y riegos): la pantalla de
+ * historial necesita cruzar cuándo se regó con cómo estaban la humedad/temperatura en ese momento,
+ * así que se piden los tres recursos juntos para una misma parcela.
  */
 class HistorialViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = HistorialRepository()
@@ -6036,6 +6345,7 @@ class HistorialViewModel(application: Application) : AndroidViewModel(applicatio
     private val _selectedParcelId = MutableStateFlow<String?>(null)
     val selectedParcelId: StateFlow<String?> = _selectedParcelId.asStateFlow()
 
+    /** Cambia la parcela seleccionada en el selector de la UI y dispara la carga de sus datos. */
     fun seleccionarParcela(id: String) {
         _selectedParcelId.value = id
         cargarDatos(id)
@@ -6043,13 +6353,16 @@ class HistorialViewModel(application: Application) : AndroidViewModel(applicatio
 
     /**
      * Carga tanto el historial reciente como los resúmenes diarios de una parcela.
-     * 
+     *
      * @param parcelaId Identificador de la parcela a consultar.
      */
     fun cargarDatos(parcelaId: String) {
         viewModelScope.launch {
             _uiState.value = HistorialUiState.Loading
-            
+
+            // Nota: estas tres llamadas se ejecutan de forma secuencial (no en paralelo con
+            // async/await); para una parcela normal el volumen de datos es pequeño así que
+            // el impacto en tiempo de carga es mínimo.
             val token = sessionManager.token.first() ?: ""
             val histResult = repository.obtenerHistorial(parcelaId)
             val resResult = repository.obtenerResumen(parcelaId)
@@ -6059,6 +6372,8 @@ class HistorialViewModel(application: Application) : AndroidViewModel(applicatio
                 _uiState.value = HistorialUiState.Success(
                     historial = histResult.getOrDefault(emptyList()),
                     resumen = resResult.getOrDefault(emptyList()),
+                    // Los riegos son "mejor esfuerzo": si fallan, se muestra el resto de la
+                    // información igual, en vez de bloquear toda la pantalla.
                     riegos = riegoResult.getOrDefault(emptyList())
                 )
             } else {
@@ -6105,6 +6420,10 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
+/**
+ * Pantalla de historial: pestañas de histórico reciente (RecentHistoryList) y resumen diario
+ * (DailySummaryList), cruzando lecturas de sensores con eventos de riego de la misma parcela.
+ */
 @Composable
 fun HistoryScreen(
     parcelas: List<Parcela>,
@@ -6205,6 +6524,7 @@ fun HistoryScreen(
     }
 }
 
+/** Lista de lecturas recientes de sensores combinadas con los riegos registrados de la parcela. */
 @Composable
 fun RecentHistoryList(historial: List<HistorialSensorResponse>, riegos: List<mx.utng.ecoviedos.data.remote.RiegoResponse>, parcela: Parcela?) {
     if (historial.isEmpty()) {
@@ -6245,6 +6565,7 @@ fun RecentHistoryList(historial: List<HistorialSensorResponse>, riegos: List<mx.
     }
 }
 
+/** Lista de resúmenes agregados por día (promedios/min/max) combinados con los riegos del día. */
 @Composable
 fun DailySummaryList(resumen: List<ResumenDiarioResponse>, riegos: List<mx.utng.ecoviedos.data.remote.RiegoResponse>, parcela: Parcela?) {
     if (resumen.isEmpty()) {
@@ -6266,6 +6587,7 @@ fun DailySummaryList(resumen: List<ResumenDiarioResponse>, riegos: List<mx.utng.
     }
 }
 
+/** Tarjeta individual de un registro histórico (fecha + métricas de sensor/riego). */
 @Composable
 fun HistoryItemCard(
     fecha: String, 
@@ -6305,6 +6627,7 @@ fun HistoryItemCard(
     }
 }
 
+/** Par etiqueta/valor con color configurable, reutilizado dentro de HistoryItemCard. */
 @Composable
 fun StatValue(label: String, value: String, color: Color) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -6313,6 +6636,7 @@ fun StatValue(label: String, value: String, color: Color) {
     }
 }
 
+/** Mensaje de "sin datos" reutilizable cuando una lista de historial viene vacía. */
 @Composable
 fun EmptyState(msg: String) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -6374,6 +6698,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import mx.utng.ecoviedos.domain.model.Parcela
 
+/**
+ * Centro de control de riego: permite activar/desactivar el riego por parcela (IrrigationM3Item),
+ * eligiendo duración y modo (AUTO/MANUAL), y muestra el tiempo restante en vivo (MainViewModel).
+ */
 @Composable
 fun IrrigationScreen(
     parcelas: List<Parcela>,
@@ -6523,6 +6851,7 @@ fun IrrigationScreen(
     }
 }
 
+/** Tarjeta de control de riego de una parcela individual: switch on/off, duración y modo. */
 @Composable
 fun IrrigationM3Item(
     name: String,
@@ -6595,6 +6924,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
+/**
+ * Scaffold raíz del perfil no-enólogo: navegación inferior entre Dashboard, Riego, Historial
+ * y Madurez. [initialTab] permite abrir directo en una pestaña específica (p. ej. Riego cuando
+ * se llega desde una notificación de fin de riego).
+ */
 @Composable
 fun MainScreen(
     viewModel: MainViewModel = viewModel(),
@@ -6713,6 +7047,10 @@ import kotlinx.coroutines.flow.first
  * - Sincronizar datos con el servidor backend mediante [ParcelaRepository].
  *
  * @param application Instancia de la aplicación para acceso a recursos del sistema y SharedPreferences.
+ *
+ * Por qué es el ViewModel más grande del módulo: concentra TODO lo que necesita estar vivo
+ * mientras la app está abierta (parcelas, MQTT, temporizador de riego), ya que se crea una sola
+ * vez en MainActivity y se comparte entre casi todas las pantallas del rol no-enólogo.
  */
 class MainViewModel(application: Application) : AndroidViewModel(application), MessageClient.OnMessageReceivedListener {
     /**
@@ -6756,6 +7094,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
      */
     val sessionRol: Flow<String?> = sessionManager.rol
 
+    // SharedPreferences (no DataStore) para guardar el timestamp exacto de fin de riego por parcela
+    // ("riego_end_{id}"). Se eligió SharedPreferences aquí -y no el SessionManager basado en
+    // DataStore- porque se necesita lectura SÍNCRONA e inmediata al recalcular el temporizador
+    // cada segundo (ver startLocalTimer), algo que un Flow asíncrono complicaría innecesariamente.
     private val prefs = application.getSharedPreferences("EcoViñedosPrefs", Context.MODE_PRIVATE)
 
     private var timerJob: kotlinx.coroutines.Job? = null
@@ -6923,6 +7265,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
         if (index != -1) {
             val oldParcela = currentList[index]
             
+            // Protección contra "falso apagado": el tópico /stats puede llegar con riegoActivo=false
+            // por ruido del sensor o timing, aun cuando el riego sigue realmente encendido. Solo se
+            // confía en un apagado si viene explícitamente por el tópico /control (ver updateRiegoStatus).
             val nuevaRiegoActivo = if (oldParcela.riegoActivo && !riego) {
                 // Mantener activo si la app ya lo tenía así (evita el falso apagado de stats)
                 true 
@@ -7195,6 +7540,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import mx.utng.ecoviedos.domain.model.Parcela
 
+/** Índice de maduración agregado y desglosado por parcela/variedad. */
 @Composable
 fun MaturationContent(
     parcelas: List<Parcela>, 
@@ -7382,6 +7728,10 @@ sealed class MuestraUiState {
 
 /**
  * ViewModel encargado de la gestión de muestras de laboratorio.
+ *
+ * Por qué existe: las muestras (Brix, pH, acidez) se toman manualmente en campo/laboratorio
+ * (no vienen de sensores IoT), así que necesitan su propio flujo de captura y consulta,
+ * independiente de la telemetría automática que maneja MainViewModel.
  */
 class MuestraViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = MuestraRepository()
@@ -7390,12 +7740,14 @@ class MuestraViewModel(application: Application) : AndroidViewModel(application)
     private val _uiState = MutableStateFlow<MuestraUiState>(MuestraUiState.Idle)
     val uiState: StateFlow<MuestraUiState> = _uiState.asStateFlow()
 
+    // Flag separado del uiState principal: permite que la pantalla de registro navegue
+    // "hacia atrás" apenas se guarda con éxito, sin interferir con el estado de carga del historial.
     private val _registroExitoso = MutableStateFlow(false)
     val registroExitoso: StateFlow<Boolean> = _registroExitoso.asStateFlow()
 
     /**
      * Carga el historial de muestras para una parcela determinada.
-     * 
+     *
      * @param parcelaId Identificador de la parcela.
      */
     fun cargarHistorial(parcelaId: String) {
@@ -7419,7 +7771,7 @@ class MuestraViewModel(application: Application) : AndroidViewModel(application)
 
     /**
      * Registra una nueva muestra de campo en el servidor.
-     * 
+     *
      * @param parcelaId ID de la parcela.
      * @param brix Grados Brix medidos.
      * @param ph pH medido.
@@ -7445,6 +7797,8 @@ class MuestraViewModel(application: Application) : AndroidViewModel(application)
             repository.registrarMuestra(token, request)
                 .onSuccess {
                     _registroExitoso.value = true
+                    // Se recarga el historial de inmediato para que la nueva muestra
+                    // aparezca sin que el usuario tenga que refrescar manualmente.
                     cargarHistorial(parcelaId)
                 }
                 .onFailure {
@@ -7455,6 +7809,7 @@ class MuestraViewModel(application: Application) : AndroidViewModel(application)
     
     /**
      * Resetea el estado de éxito tras navegar de regreso.
+     * Evita que, si el usuario vuelve a entrar a la pantalla, se dispare otra vez la navegación automática.
      */
     fun resetRegistroState() {
         _registroExitoso.value = false
@@ -7488,6 +7843,10 @@ sealed class NotificacionUiState {
 
 /**
  * ViewModel encargado de gestionar las notificaciones y el contador de no leídas.
+ *
+ * Nota: a diferencia de la mayoría de los ViewModels del módulo, este extiende `ViewModel` (no
+ * `AndroidViewModel`) porque no necesita el `Application context` — no toca DataStore ni
+ * servicios del sistema directamente, el token se le pasa como parámetro desde la UI.
  */
 class NotificacionViewModel : ViewModel() {
     private val repository = NotificacionRepository()
@@ -7495,6 +7854,8 @@ class NotificacionViewModel : ViewModel() {
     private val _uiState = MutableStateFlow<NotificacionUiState>(NotificacionUiState.Loading)
     val uiState: StateFlow<NotificacionUiState> = _uiState.asStateFlow()
 
+    // Contador independiente del uiState: se usa para pintar el "badge" de notificaciones
+    // sin obligar a que toda la bandeja esté cargada primero.
     private val _unreadCount = MutableStateFlow(0)
     val unreadCount: StateFlow<Int> = _unreadCount.asStateFlow()
 
@@ -7516,7 +7877,8 @@ class NotificacionViewModel : ViewModel() {
     }
 
     /**
-     * Cambia el estado de una notificación.
+     * Cambia el estado de una notificación (p. ej. marcar como leída o descartada)
+     * y recarga la lista para reflejar el cambio y recalcular el contador.
      */
     fun cambiarEstado(token: String, id: String, nuevoEstado: String) {
         viewModelScope.launch {
@@ -7556,6 +7918,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
+/** Bandeja de notificaciones del usuario, con acciones de marcar como leída/descartar (NotificacionViewModel). */
 @Composable
 fun NotificationScreen(
     onNavigateBack: () -> Unit,
@@ -7611,6 +7974,7 @@ fun NotificationScreen(
     }
 }
 
+/** Fila de una notificación individual con sus acciones de leer/descartar. */
 @Composable
 fun NotificationItem(notif: NotificacionResponse, onRead: () -> Unit, onDiscard: () -> Unit) {
     val isRead = notif.estado == "leida"
@@ -7722,6 +8086,11 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Vista de detalle de una parcela: telemetría en vivo (RealTimeCard), estimación de cosecha
+ * con selector de fecha (HarvestEstimateCard), estadísticas de muestras (SampleStatCard) y
+ * gráfico de evolución de Brix (BrixHistoryChart).
+ */
 @Composable
 fun ParcelDetailsScreen(
     parcelId: String,
@@ -7849,6 +8218,7 @@ fun ParcelDetailsScreen(
     }
 }
 
+/** Tarjeta de estimación de cosecha: muestra la fecha programada y el índice de maduración actual. */
 @Composable
 fun HarvestEstimateCard(fecha: Date?, indice: Float, onScheduleClick: () -> Unit) {
     val locale = LocalLocale.current.platformLocale
@@ -7930,6 +8300,7 @@ fun HarvestEstimateCard(fecha: Date?, indice: Float, onScheduleClick: () -> Unit
     }
 }
 
+/** Tarjeta de un valor de telemetría en vivo (humedad, temperatura, etc.) con ícono y color. */
 @Composable
 fun RealTimeCard(label: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color, modifier: Modifier) {
     Card(
@@ -7944,6 +8315,7 @@ fun RealTimeCard(label: String, value: String, icon: androidx.compose.ui.graphic
     }
 }
 
+/** Tarjeta compacta de una estadística de muestra de laboratorio (última lectura de Brix/pH/etc.). */
 @Composable
 fun SampleStatCard(label: String, value: String, modifier: Modifier) {
     Card(
@@ -8169,6 +8541,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Formulario de registro de una muestra de laboratorio (Brix, pH, acidez, pH de suelo,
+ * observaciones) para la parcela [parcelId]. Al guardar, delega en MuestraViewModel.registrarMuestra.
+ */
 @Composable
 fun RegisterSampleScreen(
     parcelId: String,
@@ -8332,13 +8708,15 @@ package mx.utng.ecoviedos.presentation.theme
 
 import androidx.compose.ui.graphics.Color
 
-val DarkBackground = Color(0xFF121212)
-val SurfaceDark = Color(0xFF1E1E1E)
-val PrimaryGreen = Color(0xFF2E7D32)
-val OnPrimary = Color.White
-val OnBackground = Color.White
-val OnSurface = Color.White
-val SecondaryGray = Color(0xFF757575)
+// Paleta de colores fija de la app. Se definen aquí como constantes reutilizables en vez de
+// escribir valores hexadecimales sueltos en cada pantalla, para mantener consistencia visual.
+val DarkBackground = Color(0xFF121212) // Fondo principal (modo oscuro puro)
+val SurfaceDark = Color(0xFF1E1E1E)    // Superficies elevadas (tarjetas, diálogos)
+val PrimaryGreen = Color(0xFF2E7D32)   // Color de marca EcoViñedos (verde viña)
+val OnPrimary = Color.White            // Texto/íconos sobre el color primario
+val OnBackground = Color.White         // Texto/íconos sobre el fondo
+val OnSurface = Color.White            // Texto/íconos sobre superficies
+val SecondaryGray = Color(0xFF757575)  // Texto secundario / elementos deshabilitados
 ```
 
 ### `presentation/theme/Theme.kt`
@@ -8351,6 +8729,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 
+// Se define un único esquema de color OSCURO (no hay versión clara): la app está pensada para
+// uso en campo, donde un fondo oscuro reduce el consumo de batería en pantallas OLED y es más
+// cómodo de leer bajo luz solar directa que una interfaz blanca.
 private val DarkColorScheme = darkColorScheme(
     primary = PrimaryGreen,
     onPrimary = OnPrimary,
@@ -8360,6 +8741,10 @@ private val DarkColorScheme = darkColorScheme(
     onSurface = OnSurface
 )
 
+/**
+ * Tema raíz de la aplicación. Envuelve todo el contenido de Compose (ver MainActivity.setContent)
+ * para que cada pantalla herede automáticamente colores y tipografía consistentes.
+ */
 @Composable
 fun EcoViedosTheme(
     content: @Composable () -> Unit
@@ -8416,10 +8801,24 @@ import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.state.getAppWidgetState
 import androidx.glance.appwidget.GlanceAppWidgetManager
 
+/**
+ * Widget de escritorio (Jetpack Glance) que muestra el estado de una parcela elegida por el
+ * usuario en WidgetConfigurationActivity: humedad de suelo/aire, temperatura y estado del riego,
+ * con un botón para encender/apagar el riego directamente desde la pantalla de inicio.
+ *
+ * Por qué existe: permite un vistazo rápido y una acción inmediata (activar riego) sin tener
+ * que abrir la app completa, útil para chequeos rápidos en campo.
+ */
 class ParcelaGlanceWidget : GlanceAppWidget() {
 
+    // Se usa PreferencesGlanceStateDefinition para persistir la configuración del widget
+    // (parcela elegida, transparencia, tiempo de riego) por cada instancia colocada en pantalla.
     override val stateDefinition: GlanceStateDefinition<*> = PreferencesGlanceStateDefinition
 
+    /**
+     * Punto de entrada de Glance: se ejecuta cada vez que el widget necesita redibujarse
+     * (colocación inicial, refresco periódico del sistema, o tras una actualización manual).
+     */
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val sessionManager = SessionManager(context)
         val token = sessionManager.token.first()
@@ -8429,6 +8828,7 @@ class ParcelaGlanceWidget : GlanceAppWidget() {
         val appWidgetId = GlanceAppWidgetManager(context).getAppWidgetId(id)
 
         provideContent {
+            // Preferencias específicas de ESTA instancia del widget (guardadas por WidgetConfigurationActivity).
             val prefs = currentState<androidx.datastore.preferences.core.Preferences>()
             val parcelId = prefs[stringPreferencesKey("parcel_id")]
             val parcelName = prefs[stringPreferencesKey("parcel_name")] ?: "Seleccionar Parcela"
@@ -8437,6 +8837,8 @@ class ParcelaGlanceWidget : GlanceAppWidget() {
 
             var parcelaData by remember { mutableStateOf<Parcela?>(null) }
 
+            // Se recarga la telemetría de la parcela elegida cada vez que cambia parcelId
+            // (p. ej. si el usuario reconfigura el widget para apuntar a otra parcela).
             LaunchedEffect(parcelId) {
                 if (parcelId != null && token != null) {
                     repo.obtenerParcelas(token).onSuccess { list ->
@@ -8449,6 +8851,7 @@ class ParcelaGlanceWidget : GlanceAppWidget() {
         }
     }
 
+    /** Composable raíz del contenido visual del widget: header + métricas + control de riego. */
     @SuppressLint("RestrictedApi")
     @Composable
     private fun WidgetContent(name: String, data: Parcela?, transparency: Float, riegoTime: Int, appWidgetId: Int) {
@@ -8456,7 +8859,7 @@ class ParcelaGlanceWidget : GlanceAppWidget() {
             modifier = GlanceModifier
                 .fillMaxSize()
                 .appWidgetBackground()
-                .background(ColorProvider(Color.Black.copy(alpha = transparency)))
+                .background(ColorProvider(Color.Black.copy(alpha = transparency))) // transparencia configurable por el usuario
                 .cornerRadius(16.dp)
                 .padding(12.dp),
             verticalAlignment = Alignment.Top,
@@ -8468,6 +8871,7 @@ class ParcelaGlanceWidget : GlanceAppWidget() {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
+                    // Tocar el nombre abre la app completa (MainActivity).
                     text = name,
                     modifier = GlanceModifier.defaultWeight().clickable(actionStartActivity<MainActivity>()),
                     style = TextStyle(
@@ -8478,6 +8882,8 @@ class ParcelaGlanceWidget : GlanceAppWidget() {
                 )
                 
                 // Engranaje para configurar - Acción corregida
+                // Al tocar el engranaje se relanza la actividad de configuración, pasando el
+                // mismo appWidgetId para que sepa qué instancia de widget está editando.
                 Box(
                     modifier = GlanceModifier
                         .padding(4.dp)
@@ -8498,6 +8904,7 @@ class ParcelaGlanceWidget : GlanceAppWidget() {
             Spacer(GlanceModifier.height(8.dp))
 
             if (data != null) {
+                // Fila de tres métricas rápidas: humedad de suelo, humedad ambiente y temperatura.
                 Row(
                     modifier = GlanceModifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -8525,6 +8932,7 @@ class ParcelaGlanceWidget : GlanceAppWidget() {
 
                 val statusColor = if (data.riegoActivo) Color(0xFF4CAF50) else Color(0xFFF44336)
                 
+                // Fila de estado de riego + botón de acción rápida (enciende/apaga vía ToggleRiegoAction).
                 Row(
                     modifier = GlanceModifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -8546,6 +8954,8 @@ class ParcelaGlanceWidget : GlanceAppWidget() {
 
                     Button(
                         text = if (data.riegoActivo) "Detener" else "Activar",
+                        // Se pasa el estado actual y el tiempo configurado como ActionParameters,
+                        // ya que ToggleRiegoAction corre en su propio proceso/callback sin acceso directo a este estado.
                         onClick = actionRunCallback<ToggleRiegoAction>(
                             actionParametersOf(
                                 ActionParameters.Key<Boolean>("riego_status") to data.riegoActivo,
@@ -8559,6 +8969,7 @@ class ParcelaGlanceWidget : GlanceAppWidget() {
                     )
                 }
             } else {
+                // Estado "sin configurar": todo el widget es clickable y lleva directo a elegir parcela.
                 Box(
                     modifier = GlanceModifier.fillMaxSize().clickable(actionStartActivity<WidgetConfigurationActivity>(
                         actionParametersOf(
@@ -8576,6 +8987,7 @@ class ParcelaGlanceWidget : GlanceAppWidget() {
         }
     }
 
+    /** Columna de un ícono + valor + etiqueta, usada tres veces (suelo/ambiente/temp) dentro de WidgetContent. */
     @SuppressLint("RestrictedApi")
     @Composable
     private fun RowScope.InfoItem(label: String, value: String, icon: String) {
@@ -8602,6 +9014,7 @@ class ParcelaGlanceWidget : GlanceAppWidget() {
         }
     }
 
+    /** Elige un emoji según el nivel de humedad del SUELO (seco -> muy húmedo), como ícono rápido sin assets. */
     private fun getHumedadSueloIcon(level: Float): String {
         return when {
             level < 20f -> "🏜️"
@@ -8611,6 +9024,7 @@ class ParcelaGlanceWidget : GlanceAppWidget() {
         }
     }
 
+    /** Elige un emoji según el nivel de humedad del AIRE. */
     private fun getHumedadAireIcon(level: Float): String {
         return when {
             level < 30f -> "🌵"
@@ -8619,6 +9033,7 @@ class ParcelaGlanceWidget : GlanceAppWidget() {
         }
     }
 
+    /** Elige un emoji según la temperatura (frío/templado/caliente). */
     private fun getTempIcon(temp: Float): String {
         return when {
             temp < 15f -> "❄️"
@@ -8638,6 +9053,11 @@ package mx.utng.ecoviedos.presentation.widget
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 
+/**
+ * Puente entre el sistema Android (AppWidgetManager) y el widget de Glance.
+ * Es la clase que se registra en AndroidManifest.xml (<receiver>) para que el sistema sepa
+ * qué GlanceAppWidget instanciar cuando el usuario coloca/actualiza el widget en pantalla.
+ */
 class ParcelaGlanceWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = ParcelaGlanceWidget()
 }
@@ -8659,22 +9079,34 @@ import kotlinx.coroutines.flow.first
 import mx.utng.ecoviedos.data.local.SessionManager
 import mx.utng.ecoviedos.shared.data.mqtt.MqttManager
 
+/**
+ * Acción del widget para encender/apagar el riego con un solo toque.
+ *
+ * Por qué crea un MqttManager efímero en vez de reusar uno persistente: los ActionCallback de
+ * Glance corren en un contexto de proceso corto y aislado (no tienen acceso al MainViewModel
+ * de la app, que puede ni siquiera estar en memoria); por eso se abre una conexión MQTT nueva,
+ * se envía el comando y se cierra, en vez de depender de una conexión ya existente.
+ */
 class ToggleRiegoAction : ActionCallback {
     override suspend fun onAction(
         context: Context,
         glanceId: GlanceId,
         parameters: ActionParameters
     ) {
+        // Se lee la parcela configurada para ESTA instancia de widget desde su propio DataStore.
         val prefs = PreferencesGlanceStateDefinition.getDataStore(context, glanceId.toString()).data.first()
         val parcelId = prefs[stringPreferencesKey("parcel_id")] ?: return
         
+        // Parámetros que ParcelaGlanceWidget adjuntó al botón (ver actionRunCallback en WidgetContent).
         val currentStatus = parameters[ActionParameters.Key<Boolean>("riego_status")] ?: false
         val riegoTime = parameters[ActionParameters.Key<Int>("riego_time")] ?: 5
         
         val sessionManager = SessionManager(context)
         val token = sessionManager.token.first() ?: return
 
-        // Enviar comando vía MQTT usando el tiempo configurado
+        // Enviar comando vía MQTT usando el tiempo configurado.
+        // Todos los callbacks van vacíos salvo lo estrictamente necesario: esta conexión solo
+        // publica un comando, no necesita escuchar telemetría ni listas.
         val mqttManager = MqttManager(
             context = context, 
             onMessageReceived = { _, _, _, _, _, _ -> }, 
@@ -8686,13 +9118,16 @@ class ToggleRiegoAction : ActionCallback {
         mqttManager.connect()
         
         // Damos un pequeño margen para conectar y enviamos
+        // (500ms: el handshake MQTT no es instantáneo, se espera a que la conexión esté lista).
         kotlinx.coroutines.delay(500)
         mqttManager.toggleRiego(parcelId, !currentStatus, duracionMinutos = riegoTime, modo = "MANUAL")
         
         // Forzar actualización del widget
+        // (para que el ícono/estado cambie de inmediato, sin esperar al próximo refresco periódico).
         ParcelaGlanceWidget().update(context, glanceId)
         
         // Desconectar después de enviar
+        // (1s de margen para que el publish realmente salga antes de cerrar el socket).
         kotlinx.coroutines.delay(1000)
         mqttManager.disconnect()
     }
@@ -8742,6 +9177,11 @@ import mx.utng.ecoviedos.data.local.SessionManager
 import mx.utng.ecoviedos.data.repository.ParcelaRepository
 import mx.utng.ecoviedos.domain.model.Parcela
 
+/**
+ * Actividad de configuración lanzada automáticamente por el sistema cuando el usuario agrega
+ * el [ParcelaGlanceWidget] a su pantalla de inicio (o toca el engranaje del widget ya colocado).
+ * Permite elegir la parcela a mostrar, la transparencia del fondo y el tiempo de riego por defecto.
+ */
 class WidgetConfigurationActivity : ComponentActivity() {
 
     private var appWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
@@ -8757,16 +9197,20 @@ class WidgetConfigurationActivity : ComponentActivity() {
 
         if (appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID) {
             // Reintentar obtenerlo si viene de una acción de Glance
+            // (el engranaje del widget pasa el id de otra forma que la colocación inicial).
             appWidgetId = intent?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID) 
                 ?: AppWidgetManager.INVALID_APPWIDGET_ID
         }
 
+        // Sin un ID de widget válido no hay nada que configurar: se cierra la actividad.
         if (appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID) {
             finish()
             return
         }
 
         setContent {
+            // Tema propio (no reutiliza EcoViedosTheme) porque esta Activity puede lanzarse
+            // desde fuera del proceso normal de la app (directamente por el sistema de widgets).
             MaterialTheme(
                 colorScheme = darkColorScheme(
                     primary = Color(0xFF4CAF50),
@@ -8785,6 +9229,11 @@ class WidgetConfigurationActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Persiste la configuración elegida en el DataStore específico de ESTE widget (vía
+     * updateAppWidgetState), fuerza un redibujado inmediato y devuelve RESULT_OK al sistema
+     * para que efectivamente coloque el widget en la pantalla de inicio.
+     */
     private fun saveSelectionAndFinish(parcela: Parcela, transparencia: Float, tiempo: Int) {
         lifecycleScope.launch {
             try {
@@ -8802,6 +9251,8 @@ class WidgetConfigurationActivity : ComponentActivity() {
                 
                 ParcelaGlanceWidget().update(this@WidgetConfigurationActivity, glanceId)
 
+                // Contrato estándar de AppWidgetConfigure: hay que devolver el appWidgetId en el
+                // resultado, o el sistema cancela la colocación del widget aunque hayamos guardado los datos.
                 val resultValue = Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
                 setResult(Activity.RESULT_OK, resultValue)
             } catch (e: Exception) {
@@ -8813,6 +9264,10 @@ class WidgetConfigurationActivity : ComponentActivity() {
     }
 }
 
+/**
+ * UI de configuración: 1) lista de parcelas para elegir una, 2) sliders de transparencia del
+ * fondo y tiempo de riego por defecto. Al confirmar, invoca [onConfigFinished] con la selección.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ParcelSelectorScreen(onConfigFinished: (Parcela, Float, Int) -> Unit) {
@@ -8824,6 +9279,7 @@ fun ParcelSelectorScreen(onConfigFinished: (Parcela, Float, Int) -> Unit) {
     
     val context = androidx.compose.ui.platform.LocalContext.current
 
+    // Carga única (Unit como key) de la lista de parcelas al entrar a la pantalla.
     LaunchedEffect(Unit) {
         val sessionManager = SessionManager(context)
         val token = sessionManager.token.first()
@@ -8853,6 +9309,7 @@ fun ParcelSelectorScreen(onConfigFinished: (Parcela, Float, Int) -> Unit) {
                 Text("1. Selecciona una Parcela", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.height(8.dp))
                 
+                // Lista seleccionable: se resalta la tarjeta de la parcela elegida.
                 LazyColumn(modifier = Modifier.weight(1f)) {
                     items(parcelas) { parcela ->
                         val isSelected = selectedParcela?.id == parcela.id
@@ -8884,6 +9341,7 @@ fun ParcelSelectorScreen(onConfigFinished: (Parcela, Float, Int) -> Unit) {
 
                 Text("2. Ajustes Visuales", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                 
+                // Slider de transparencia del fondo del widget (0% = invisible, 100% = negro sólido).
                 Text("Transparencia: ${(transparency * 100).toInt()}%", style = MaterialTheme.typography.bodyMedium)
                 Slider(
                     value = transparency,
@@ -8892,6 +9350,7 @@ fun ParcelSelectorScreen(onConfigFinished: (Parcela, Float, Int) -> Unit) {
                     colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary, activeTrackColor = MaterialTheme.colorScheme.primary)
                 )
 
+                // Slider del tiempo de riego por defecto que usará el botón rápido del widget (ToggleRiegoAction).
                 Text("Tiempo de Riego: $riegoTime min", style = MaterialTheme.typography.bodyMedium)
                 Slider(
                     value = riegoTime.toFloat(),
@@ -8904,7 +9363,7 @@ fun ParcelSelectorScreen(onConfigFinished: (Parcela, Float, Int) -> Unit) {
 
                 Button(
                     onClick = { selectedParcela?.let { onConfigFinished(it, transparency, riegoTime) } },
-                    enabled = selectedParcela != null,
+                    enabled = selectedParcela != null, // no se puede confirmar sin elegir parcela
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -8930,13 +9389,29 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
 import java.io.FileOutputStream
 
+/**
+ * Utilidad para convertir un [Uri] de galería/cámara en un [MultipartBody.Part] listo para
+ * subir con Retrofit.
+ *
+ * Por qué existe: Retrofit no puede subir un `content://` Uri directamente; hay que copiar
+ * su contenido a un archivo real en el sistema de archivos de la app y a partir de ahí armar
+ * el `multipart/form-data`. Se usa al adjuntar la foto de un evento de enoturismo (AddEventScreen).
+ */
 object UriPathHelper {
+    /**
+     * Punto de entrada: copia el contenido del [uri] a un archivo temporal y lo envuelve
+     * en un [MultipartBody.Part] con el nombre de campo [partName] esperado por el backend.
+     */
     fun prepareMultipart(context: Context, uri: Uri, partName: String): MultipartBody.Part? {
         val file = getFileFromUri(context, uri) ?: return null
         val requestFile = file.asRequestBody("image/*".toMediaTypeOrNull())
         return MultipartBody.Part.createFormData(partName, file.name, requestFile)
     }
 
+    /**
+     * Copia el stream del Uri a un archivo temporal en la caché de la app.
+     * Se usa un nombre único basado en el timestamp para no pisar archivos entre subidas.
+     */
     private fun getFileFromUri(context: Context, uri: Uri): File? {
         val inputStream = context.contentResolver.openInputStream(uri) ?: return null
         val file = File(context.cacheDir, "temp_image_${System.currentTimeMillis()}")
