@@ -17,6 +17,13 @@ import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.Text
 
+/**
+ * Pantalla de advertencia que informa sobre niveles de humedad peligrosos.
+ *
+ * @param idParcela Identificador técnico.
+ * @param nombreParcela Nombre descriptivo para el usuario.
+ * @param onActivateIrrigation Acción de control rápido.
+ */
 @Composable
 fun AlertScreen(
     idParcela: String,

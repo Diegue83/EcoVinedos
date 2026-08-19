@@ -19,6 +19,12 @@ import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material3.*
 import mx.utng.ecoviedos.presentation.theme.AppTheme
 
+/**
+ * Actividad de máxima prioridad que aparece cuando una parcela requiere riego urgente.
+ *
+ * Utiliza flags de ventana para despertar la pantalla e interrumpir el estado actual del reloj,
+ * asegurando que el trabajador vea la alerta de inmediato.
+ */
 class AlertaActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -55,6 +61,9 @@ class AlertaActivity : ComponentActivity() {
     }
 }
 
+/**
+ * Interfaz de usuario para la pantalla de alerta.
+ */
 @Composable
 fun AlertUI(
     nombre: String,

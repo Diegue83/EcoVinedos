@@ -7,8 +7,8 @@ import mx.utng.ecoviedos.data.remote.RetrofitClient
 /**
  * Repositorio encargado de la gestión remota de la bitácora de actividades.
  *
- * Proporciona métodos para consultar el historial de acciones y registrar nuevos eventos
- * administrativos o técnicos ocurridos en el viñedo.
+ * Actúa como mediador entre la UI y el servicio de red para el registro
+ * y consulta de eventos administrativos o técnicos en el viñedo.
  */
 class BitacoraRemoteRepository {
 

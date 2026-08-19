@@ -21,6 +21,7 @@ import mx.utng.ecoviedos.data.repository.RiegoRemoteRepository
 sealed class HistorialUiState {
     data object Idle : HistorialUiState()
     data object Loading : HistorialUiState()
+    /** Contiene las lecturas granulares, promedios diarios e historial de riegos. */
     data class Success(
         val historial: List<HistorialSensorResponse>,
         val resumen: List<ResumenDiarioResponse>,
@@ -30,7 +31,9 @@ sealed class HistorialUiState {
 }
 
 /**
- * ViewModel encargado de la consulta de datos históricos de telemetría.
+ * ViewModel encargado de la consulta de datos históricos de telemetría y eventos hídricos.
+ *
+ * @param application Instancia de la aplicación.
  */
 class HistorialViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = HistorialRepository()
@@ -38,20 +41,27 @@ class HistorialViewModel(application: Application) : AndroidViewModel(applicatio
     private val sessionManager = SessionManager(application)
 
     private val _uiState = MutableStateFlow<HistorialUiState>(HistorialUiState.Idle)
+    /** Flujo de estado de los datos históricos. */
     val uiState: StateFlow<HistorialUiState> = _uiState.asStateFlow()
 
     private val _selectedParcelId = MutableStateFlow<String?>(null)
+    /** Identificador de la parcela actualmente seleccionada para análisis. */
     val selectedParcelId: StateFlow<String?> = _selectedParcelId.asStateFlow()
 
+    /**
+     * Establece la parcela activa e inicia la carga de datos.
+     *
+     * @param id Identificador de la parcela.
+     */
     fun seleccionarParcela(id: String) {
         _selectedParcelId.value = id
         cargarDatos(id)
     }
 
     /**
-     * Carga tanto el historial reciente como los resúmenes diarios de una parcela.
-     * 
-     * @param parcelaId Identificador de la parcela a consultar.
+     * Recupera el historial granular, promedios diarios y riegos desde el servidor.
+     *
+     * @param parcelaId Identificador de la parcela.
      */
     fun cargarDatos(parcelaId: String) {
         viewModelScope.launch {

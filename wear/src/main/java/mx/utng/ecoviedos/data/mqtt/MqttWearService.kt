@@ -11,6 +11,13 @@ import mx.utng.ecoviedos.domain.model.Parcela
 import mx.utng.ecoviedos.presentation.AlertaActivity
 import mx.utng.ecoviedos.presentation.MainActivity
 
+/**
+ * Servicio en primer plano (Foreground Service) que mantiene la conexión MQTT persistente.
+ *
+ * Su responsabilidad es monitorear los sensores IoT del viñedo de forma ininterrumpida,
+ * actualizar el repositorio local y disparar alertas visuales si se detecta humedad crítica,
+ * incluso cuando la interfaz de usuario está cerrada.
+ */
 class MqttWearService : Service() {
     private var mqttManager: MqttManager? = null
     private val CHANNEL_ID = "mqtt_service_channel"
@@ -24,6 +31,9 @@ class MqttWearService : Service() {
         initializeMqtt()
     }
 
+    /**
+     * Crea el canal de notificación requerido para los servicios en primer plano en Android O+.
+     */
     private fun createNotificationChannel() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
@@ -36,6 +46,11 @@ class MqttWearService : Service() {
         }
     }
 
+    /**
+     * Crea la notificación persistente que se muestra mientras el servicio está activo.
+     *
+     * @return Objeto [Notification] configurado.
+     */
     private fun createNotification(): Notification {
         val intent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
@@ -51,6 +66,9 @@ class MqttWearService : Service() {
             .build()
     }
 
+    /**
+     * Inicializa el gestor MQTT y define los callbacks de actualización.
+     */
     private fun initializeMqtt() {
         mqttManager = MqttManager(
             context = this,
@@ -67,6 +85,10 @@ class MqttWearService : Service() {
         mqttManager?.connect()
     }
 
+    /**
+     * Actualiza la información de una parcela en el repositorio local.
+     * Si la humedad es crítica, dispara una alerta urgente.
+     */
     private fun updateParcelaLocalmente(id: String, hum: Float, temp: Float, humsuel: Float, riego: Boolean, tiempo: Int) {
         val currentParcelas = ParcelaRepository.parcelas.value.toMutableList()
         val index = currentParcelas.indexOfFirst { it.id == id }
@@ -90,6 +112,9 @@ class MqttWearService : Service() {
         }
     }
 
+    /**
+     * Actualiza el estado de riego de una parcela.
+     */
     private fun updateRiegoLocalmente(id: String, activo: Boolean, tiempo: Int) {
         val currentParcelas = ParcelaRepository.parcelas.value.toMutableList()
         val index = currentParcelas.indexOfFirst { it.id == id }
@@ -103,6 +128,11 @@ class MqttWearService : Service() {
         }
     }
 
+    /**
+     * Muestra una notificación de alta prioridad que interrumpe al usuario.
+     *
+     * @param parcela Parcela con problemas de humedad.
+     */
     private fun showUrgentAlert(parcela: Parcela) {
         val alertChannelId = "critical_alerts"
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

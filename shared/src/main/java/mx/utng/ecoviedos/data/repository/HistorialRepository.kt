@@ -7,17 +7,15 @@ import mx.utng.ecoviedos.data.remote.RetrofitClient
 /**
  * Repositorio para la consulta y análisis de datos históricos capturados por los sensores IoT.
  *
- * Provee acceso a lecturas granulares (recientes) y resúmenes estadísticos diarios para el
- * monitoreo a largo plazo de las condiciones climáticas y de suelo en cada parcela.
+ * Actúa como punto de acceso único para la telemetría histórica almacenada en el servidor.
  */
 class HistorialRepository {
 
     /**
      * Obtiene el historial detallado de lecturas de sensores de una parcela específica.
-     * Generalmente devuelve lecturas cada 15 minutos de los últimos días.
      *
      * @param parcelaId Identificador único de la parcela a consultar.
-     * @return [Result] con la lista de [HistorialSensorResponse] con telemetría granular.
+     * @return [Result] con la lista de lecturas granulares o un error.
      */
     suspend fun obtenerHistorial(parcelaId: String): Result<List<HistorialSensorResponse>> {
         return try {
@@ -34,10 +32,9 @@ class HistorialRepository {
 
     /**
      * Obtiene un resumen consolidado de promedios diarios para una parcela.
-     * Útil para visualizaciones gráficas de tendencias anuales o mensuales.
      *
      * @param parcelaId Identificador único de la parcela.
-     * @return [Result] con la lista de [ResumenDiarioResponse].
+     * @return [Result] con la lista de resúmenes diarios.
      */
     suspend fun obtenerResumen(parcelaId: String): Result<List<ResumenDiarioResponse>> {
         return try {

@@ -9,9 +9,21 @@ import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import mx.utng.ecoviedos.MainActivity
-import mx.utng.ecoviedos.R
 
+/**
+ * Receptor de alarmas del sistema para notificar la finalización de riegos.
+ *
+ * Esta clase se activa cuando expira un temporizador de riego programado en la aplicación,
+ * disparando una notificación local de alta visibilidad para el usuario.
+ */
 class RiegoAlarmReceiver : BroadcastReceiver() {
+    
+    /**
+     * Procesa el evento de alarma recibida.
+     *
+     * @param context Contexto del sistema.
+     * @param intent Intent que contiene los datos de la parcela y el modo de riego.
+     */
     override fun onReceive(context: Context, intent: Intent) {
         val parcelaId = intent.getStringExtra("parcela_id") ?: return
         val parcelaNombre = intent.getStringExtra("parcela_nombre") ?: "Parcela"

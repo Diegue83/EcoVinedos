@@ -6,6 +6,12 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/**
+ * Parsea una cadena de fecha en formato ISO a un objeto [Date].
+ *
+ * @param fecha Cadena de fecha recibida del backend.
+ * @return Objeto [Date] parseado o la fecha actual en caso de error.
+ */
 private fun parseFechaIso(fecha: String?): Date {
     if (fecha.isNullOrBlank()) return Date()
     return try {
@@ -16,6 +22,14 @@ private fun parseFechaIso(fecha: String?): Date {
     }
 }
 
+/**
+ * Convierte un objeto de respuesta de la API a un modelo de dominio de Parcela.
+ *
+ * Realiza las transformaciones necesarias, como convertir minutos a segundos
+ * para el cronómetro de la aplicación.
+ *
+ * @return Instancia de [Parcela] lista para ser usada por la lógica de negocio.
+ */
 fun ParcelaResponse.toDomain(): Parcela {
     return Parcela(
         id = _id,

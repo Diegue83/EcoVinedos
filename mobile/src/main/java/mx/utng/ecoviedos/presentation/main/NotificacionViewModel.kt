@@ -14,24 +14,29 @@ import mx.utng.ecoviedos.data.repository.NotificacionRepository
  */
 sealed class NotificacionUiState {
     data object Loading : NotificacionUiState()
+    /** Lista de alertas recibidas. */
     data class Success(val notificaciones: List<NotificacionResponse>) : NotificacionUiState()
     data class Error(val mensaje: String) : NotificacionUiState()
 }
 
 /**
- * ViewModel encargado de gestionar las notificaciones y el contador de no leídas.
+ * ViewModel encargado de gestionar las notificaciones y el contador de mensajes sin leer.
  */
 class NotificacionViewModel : ViewModel() {
     private val repository = NotificacionRepository()
 
     private val _uiState = MutableStateFlow<NotificacionUiState>(NotificacionUiState.Loading)
+    /** Flujo de estado de las notificaciones. */
     val uiState: StateFlow<NotificacionUiState> = _uiState.asStateFlow()
 
     private val _unreadCount = MutableStateFlow(0)
+    /** Cantidad actual de mensajes marcados como "no leida". */
     val unreadCount: StateFlow<Int> = _unreadCount.asStateFlow()
 
     /**
-     * Obtiene el listado de notificaciones del servidor y actualiza el contador.
+     * Obtiene el listado de notificaciones del servidor y actualiza el contador global.
+     *
+     * @param token Token JWT del usuario.
      */
     fun cargarNotificaciones(token: String) {
         viewModelScope.launch {
@@ -48,7 +53,11 @@ class NotificacionViewModel : ViewModel() {
     }
 
     /**
-     * Cambia el estado de una notificación.
+     * Modifica el estado de una alerta (ej. marcar como leída).
+     *
+     * @param token Token JWT.
+     * @param id Identificador de la notificación.
+     * @param nuevoEstado Estado a establecer (leida/no leida).
      */
     fun cambiarEstado(token: String, id: String, nuevoEstado: String) {
         viewModelScope.launch {

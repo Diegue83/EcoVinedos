@@ -43,8 +43,18 @@ data class CavaRequest(
 /**
  * Petición para crear o actualizar una sección de cava.
  */
+/**
+ * Petición para crear o actualizar una sección de cava.
+ *
+ * @property cava ID de la cava padre.
+ * @property nombre Nombre descriptivo de la sección.
+ * @property tipo Material o uso de la sección (e.g., ROBLE, ACERO).
+ * @property capacidadBotellas Límite máximo de almacenamiento.
+ * @property botellasActuales Conteo actual de botellas.
+ * @property sensorId Identificador del sensor IoT vinculado.
+ */
 data class SeccionCavaRequest(
-    val cava: String? = null, // ID de la cava padre
+    val cava: String? = null,
     val nombre: String? = null,
     val tipo: String? = null,
     val capacidadBotellas: Int? = null,
@@ -54,29 +64,39 @@ data class SeccionCavaRequest(
 
 /**
  * Interfaz de Retrofit para la gestión de cavas y secciones.
+ *
+ * Provee acceso a la estructura física de la bodega y sus condiciones ambientales.
  */
 interface CavaService {
+    /**
+     * Obtiene el listado de todas las cavas registradas.
+     *
+     * @return Lista de cavas con sus secciones incluidas.
+     */
     @GET("api/cavas")
     suspend fun obtenerCavas(): Response<List<CavaResponse>>
 
-    @POST("api/cavas")
-    suspend fun crearCava(
-        @Header("Authorization") token: String,
-        @Body request: CavaRequest
-    ): Response<CavaResponse>
-
-    @DELETE("api/cavas/{id}")
-    suspend fun eliminarCava(
-        @Header("Authorization") token: String,
-        @Path("id") id: String
-    ): Response<Unit>
-
+    /**
+     * Registra una nueva sección en una cava existente.
+     *
+     * @param token Token de autenticación.
+     * @param request Datos de la sección a crear.
+     * @return Sección creada.
+     */
     @POST("api/cavas/secciones")
     suspend fun crearSeccion(
         @Header("Authorization") token: String,
         @Body request: SeccionCavaRequest
     ): Response<SeccionCavaResponse>
 
+    /**
+     * Actualiza el estado o información de una sección de cava.
+     *
+     * @param token Token de autenticación.
+     * @param id Identificador de la sección.
+     * @param request Datos a actualizar (e.g., stock de botellas).
+     * @return Sección actualizada.
+     */
     @PUT("api/cavas/secciones/{id}")
     suspend fun actualizarSeccion(
         @Header("Authorization") token: String,
@@ -84,6 +104,13 @@ interface CavaService {
         @Body request: SeccionCavaRequest
     ): Response<SeccionCavaResponse>
 
+    /**
+     * Elimina una sección específica de la cava.
+     *
+     * @param token Token de autenticación.
+     * @param id Identificador de la sección.
+     * @return Éxito de la operación.
+     */
     @DELETE("api/cavas/secciones/{id}")
     suspend fun eliminarSeccion(
         @Header("Authorization") token: String,

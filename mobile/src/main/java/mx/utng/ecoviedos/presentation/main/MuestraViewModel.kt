@@ -19,27 +19,32 @@ import mx.utng.ecoviedos.data.repository.MuestraRepository
 sealed class MuestraUiState {
     data object Idle : MuestraUiState()
     data object Loading : MuestraUiState()
+    /** Contiene la lista histórica de análisis para la parcela. */
     data class Success(val historial: List<MuestraResponse>) : MuestraUiState()
     data class Error(val mensaje: String) : MuestraUiState()
 }
 
 /**
- * ViewModel encargado de la gestión de muestras de laboratorio.
+ * ViewModel encargado de la gestión de muestras analíticas (laboratorio de campo).
+ *
+ * @param application Instancia de la aplicación.
  */
 class MuestraViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = MuestraRepository()
     private val sessionManager = SessionManager(application)
 
     private val _uiState = MutableStateFlow<MuestraUiState>(MuestraUiState.Idle)
+    /** Flujo de estado de la consulta de muestras. */
     val uiState: StateFlow<MuestraUiState> = _uiState.asStateFlow()
 
     private val _registroExitoso = MutableStateFlow(false)
+    /** Notifica si la última muestra se guardó correctamente. */
     val registroExitoso: StateFlow<Boolean> = _registroExitoso.asStateFlow()
 
     /**
      * Carga el historial de muestras para una parcela determinada.
      * 
-     * @param parcelaId Identificador de la parcela.
+     * @param parcelaId Identificador único de la parcela.
      */
     fun cargarHistorial(parcelaId: String) {
         viewModelScope.launch {
@@ -63,12 +68,13 @@ class MuestraViewModel(application: Application) : AndroidViewModel(application)
     /**
      * Registra una nueva muestra de campo en el servidor.
      * 
-     * @param parcelaId ID de la parcela.
+     * @param parcelaId ID de la parcela vinculada.
      * @param brix Grados Brix medidos.
-     * @param ph pH medido.
-     * @param acidez Acidez medida.
-     * @param phSuelo pH del suelo medido.
-     * @param observaciones Notas adicionales del técnico.
+     * @param ph Nivel de pH medido.
+     * @param acidez Nivel de acidez medido.
+     * @param phSuelo pH del suelo.
+     * @param indiceMaduracion Índice calculado de madurez.
+     * @param observaciones Comentarios adicionales.
      */
     fun registrarMuestra(
         parcelaId: String,
@@ -97,7 +103,7 @@ class MuestraViewModel(application: Application) : AndroidViewModel(application)
     }
     
     /**
-     * Resetea el estado de éxito tras navegar de regreso.
+     * Resetea el flag de éxito de registro.
      */
     fun resetRegistroState() {
         _registroExitoso.value = false

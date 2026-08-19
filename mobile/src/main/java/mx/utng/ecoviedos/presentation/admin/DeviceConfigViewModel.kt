@@ -27,6 +27,7 @@ sealed class BleUiState {
     data object Connecting : BleUiState()
     data object Connected : BleUiState()
     data object Sending : BleUiState()
+    /** Estado intermedio mientras el nodo intenta conectarse a la red WiFi. */
     data class VerifyingWiFi(val message: String) : BleUiState()
     data object Success : BleUiState()
     data class Error(val message: String) : BleUiState()
@@ -34,18 +35,25 @@ sealed class BleUiState {
 
 /**
  * ViewModel que gestiona la vinculación de nodos IoT mediante Bluetooth Low Energy.
+ *
+ * Facilita el escaneo, conexión y envío de credenciales de red a dispositivos periféricos.
+ *
+ * @param application Instancia de la aplicación.
  */
 class DeviceConfigViewModel(application: Application) : AndroidViewModel(application) {
 
     private val bleManager = BleManager(application)
     
     private val _uiState = MutableStateFlow<BleUiState>(BleUiState.Idle)
+    /** Flujo de estado del proceso BLE. */
     val uiState: StateFlow<BleUiState> = _uiState.asStateFlow()
 
     private val _isBluetoothEnabled = MutableStateFlow(true)
+    /** Indica si el adaptador Bluetooth del sistema está activo. */
     val isBluetoothEnabled: StateFlow<Boolean> = _isBluetoothEnabled.asStateFlow()
 
     private val _discoveredDevices = MutableStateFlow<List<BluetoothDevice>>(emptyList())
+    /** Lista de dispositivos periféricos detectados durante el escaneo. */
     val discoveredDevices: StateFlow<List<BluetoothDevice>> = _discoveredDevices.asStateFlow()
 
     private var selectedDevice: BluetoothDevice? = null
@@ -75,7 +83,7 @@ class DeviceConfigViewModel(application: Application) : AndroidViewModel(applica
     }
 
     /**
-     * Inicia el proceso de escaneo de dispositivos BLE cercanos.
+     * Inicia el proceso de escaneo de dispositivos de bajo consumo cercanos.
      */
     fun startScanning() {
         checkBluetoothStatus()
@@ -97,7 +105,7 @@ class DeviceConfigViewModel(application: Application) : AndroidViewModel(applica
     }
 
     /**
-     * Detiene el escaneo de dispositivos BLE.
+     * Detiene el escaneo activo de dispositivos BLE.
      */
     fun stopScanning() {
         bleManager.stopScan()
@@ -119,7 +127,6 @@ class DeviceConfigViewModel(application: Application) : AndroidViewModel(applica
                 when (state) {
                     BluetoothProfile.STATE_CONNECTED -> {
                         _uiState.value = BleUiState.Connected
-                        // Al conectar, habilitamos las notificaciones de estado
                         bleManager.enableStatusNotifications { jsonResponse ->
                             handleFeedback(jsonResponse)
                         }
@@ -135,7 +142,7 @@ class DeviceConfigViewModel(application: Application) : AndroidViewModel(applica
     }
 
     /**
-     * Procesa la respuesta JSON enviada por el ESP32 tras el intento de configuración.
+     * Procesa la respuesta JSON enviada por el nodo tras el intento de configuración.
      * 
      * @param json Cadena de texto recibida por BLE.
      */
@@ -166,7 +173,7 @@ class DeviceConfigViewModel(application: Application) : AndroidViewModel(applica
     }
 
     /**
-     * Envía las credenciales WiFi y el ID de la parcela al nodo mediante una característica BLE.
+     * Envía las credenciales WiFi y el ID de la parcela al nodo mediante BLE.
      * 
      * @param ssid Nombre de la red WiFi.
      * @param pass Contraseña de la red WiFi.

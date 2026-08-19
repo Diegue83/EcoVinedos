@@ -6,6 +6,19 @@ import org.eclipse.paho.client.mqttv3.*
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence
 import org.json.JSONObject
 
+/**
+ * Gestor centralizado de la comunicación MQTT para el ecosistema EcoViñedos.
+ *
+ * Esta clase encapsula la conexión con el broker de Mosquitto (HiveMQ), la suscripción a tópicos
+ * de telemetría y el procesamiento de mensajes de sensores en tiempo real.
+ *
+ * @param context Contexto de la aplicación necesario para la persistencia.
+ * @param onMessageReceived Callback ejecutado al recibir telemetría de una parcela (ID, Humedad Aire, Temperatura, Humedad Suelo, Estado Riego, Tiempo).
+ * @param onRiegoStatusReceived Callback ejecutado al recibir cambios explícitos en el estado de las válvulas.
+ * @param onParcelListReceived Callback para actualizaciones masivas de la lista de parcelas.
+ * @param onCavaListReceived Callback para actualizaciones de sensores en bodega/cava.
+ * @param onConnectionStatusChanged Notifica cambios en el estado de la conexión al broker.
+ */
 class MqttManager(
     context: Context,
     private val onMessageReceived: (parcelId: String, humedad: Float, temp: Float, humedadSuelo: Float, riegoActivo: Boolean, tiempoRestante: Int) -> Unit,
@@ -18,10 +31,14 @@ class MqttManager(
     private val clientId = "AndroidMobile_${System.currentTimeMillis()}"
     private var isConnecting = false
 
+    /**
+     * Establece la conexión con el broker MQTT utilizando las credenciales de [MqttConfig].
+     *
+     * @param customBrokerUrl URL opcional para pruebas con otros brokers.
+     */
     fun connect(customBrokerUrl: String? = null) {
         if (isConnecting) return
         
-        // Usar la URL personalizada si se proporciona y es válida, de lo contrario usar HiveMQ
         val serverUri = if (!customBrokerUrl.isNullOrBlank() && customBrokerUrl.startsWith("ssl://")) {
             customBrokerUrl
         } else {
@@ -50,7 +67,6 @@ class MqttManager(
                 connectionTimeout = 20
                 keepAliveInterval = 60
                 
-                // Solo usar SSL si la URL lo indica
                 if (serverUri.startsWith("ssl://")) {
                     sslProperties = java.util.Properties()
                 }
@@ -92,10 +108,7 @@ class MqttManager(
                         }
 
                     } catch (e: Exception) {
-                        Log.e(
-                            "MQTT",
-                            "Error procesando mensaje: ${e.message}"
-                        )
+                        Log.e("MQTT", "Error procesando mensaje: ${e.message}")
                     }
                 }
 
@@ -106,15 +119,19 @@ class MqttManager(
             
         } catch (e: MqttException) {
             isConnecting = false
-            val errorMsg = "Error HiveMQ: ${e.reasonCode}"
-            Log.e("MQTT", "Fallo HiveMQ: $errorMsg", e)
-            onConnectionStatusChanged(false, errorMsg)
+            onConnectionStatusChanged(false, "Error MQTT")
         } catch (e: Exception) {
             isConnecting = false
             onConnectionStatusChanged(false, "Error de red")
         }
     }
 
+    /**
+     * Procesa los mensajes de estadísticas de sensores.
+     *
+     * @param topic Tópico de origen (contiene el ID de la parcela).
+     * @param payload Cuerpo del mensaje en formato JSON.
+     */
     private fun handleStatsMessage(topic: String, payload: String) {
         val parts = topic.split("/")
         if (parts.size >= 3) {
@@ -135,6 +152,12 @@ class MqttManager(
         }
     }
 
+    /**
+     * Procesa los mensajes de estado y control de riego.
+     *
+     * @param topic Tópico de origen.
+     * @param payload Cuerpo del mensaje JSON.
+     */
     private fun handleRiegoMessage(topic: String, payload: String) {
         val parts = topic.split("/")
         if (parts.size >= 3) {
@@ -146,8 +169,7 @@ class MqttManager(
                 val activo = (comando == "ON" || estado == "ACTIVO")
                 val duracionInput = json.optInt("duracion", 0)
                 
-                // Si el valor es pequeño (< 120), es muy probable que sean minutos.
-                // Lo convertimos a segundos para el cronómetro de la app.
+                // Si el valor es pequeño (< 120), se asume que son minutos y se convierte a segundos.
                 val tiempoSegundos = if (duracionInput > 0 && duracionInput < 120) duracionInput * 60 else duracionInput
                 
                 onRiegoStatusReceived(parcelId, activo, tiempoSegundos)
@@ -157,6 +179,9 @@ class MqttManager(
         }
     }
 
+    /**
+     * Suscribe el cliente a todos los tópicos necesarios para la operación del sistema.
+     */
     private fun subscribeToTopics() {
         try {
             mqttClient?.let {
@@ -171,6 +196,14 @@ class MqttManager(
         } catch (e: Exception) { }
     }
 
+    /**
+     * Envía un comando de activación o desactivación de riego al broker.
+     *
+     * @param parcelId Identificador de la parcela a controlar.
+     * @param activo True para encender, False para apagar.
+     * @param duracionMinutos Tiempo programado (solo para encendido).
+     * @param modo Modo de operación ("AUTO" o "MANUAL").
+     */
     fun toggleRiego(parcelId: String, activo: Boolean, duracionMinutos: Int = 1, modo: String = "AUTO") {
         try {
             mqttClient?.let {
@@ -179,7 +212,7 @@ class MqttManager(
                     val payload = JSONObject().apply {
                         put("comando", if (activo) "ON" else "OFF")
                         put("duracion", duracionMinutos)
-                        put("modo", modo) // "AUTO" or "MANUAL"
+                        put("modo", modo)
                     }.toString()
                     Log.d("MQTT", "Publicando a $topic: $payload")
                     it.publish(topic, MqttMessage(payload.toByteArray()).apply { qos = 1 })
@@ -192,6 +225,9 @@ class MqttManager(
         }
     }
 
+    /**
+     * Cierra la conexión de forma segura y libera los recursos del cliente MQTT.
+     */
     fun disconnect() {
         try {
             mqttClient?.let {

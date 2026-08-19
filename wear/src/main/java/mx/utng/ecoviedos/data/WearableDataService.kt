@@ -18,9 +18,20 @@ import mx.utng.ecoviedos.presentation.AlertaActivity
 import mx.utng.ecoviedos.presentation.MainActivity
 import java.util.Date
 
+/**
+ * Servicio que escucha los eventos del Google Play Services Data Layer.
+ *
+ * Su función principal es recibir la lista de parcelas sincronizada desde el smartphone,
+ * actualizar el repositorio local y disparar alertas inmediatas si se detecta una condición crítica.
+ */
 class WearableDataService : WearableListenerService() {
     private val gson = Gson()
 
+    /**
+     * Callback invocado cuando se recibe un mensaje desde otro nodo (normalmente el smartphone).
+     *
+     * @param messageEvent Objeto que contiene el path y los bytes del mensaje.
+     */
     override fun onMessageReceived(messageEvent: MessageEvent) {
         Log.d("WearableDataService", "¡MENSAJE RECIBIDO DESDE EL MÓVIL! Path: ${messageEvent.path}")
         
@@ -64,6 +75,11 @@ class WearableDataService : WearableListenerService() {
         }
     }
 
+    /**
+     * Evalúa la humedad de todas las parcelas recibidas y dispara una alerta si es necesario.
+     *
+     * @param parcelas Lista de parcelas sincronizadas.
+     */
     private fun checkCriticalSoilMoisture(parcelas: List<Parcela>) {
         val criticalParcels = parcelas.filter { it.esHumedadCritica() }
         if (criticalParcels.isNotEmpty()) {
@@ -72,6 +88,11 @@ class WearableDataService : WearableListenerService() {
         }
     }
 
+    /**
+     * Construye y muestra una notificación de alta prioridad que lanza la [AlertaActivity] en pantalla completa.
+     *
+     * @param parcela Parcela que requiere atención urgente.
+     */
     private fun showUrgentAlert(parcela: Parcela) {
         val channelId = "critical_alerts"
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

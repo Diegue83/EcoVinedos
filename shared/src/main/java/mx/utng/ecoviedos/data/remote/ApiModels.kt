@@ -2,11 +2,26 @@ package mx.utng.ecoviedos.data.remote
 
 import com.google.gson.annotations.SerializedName
 
+/**
+ * Petición para el inicio de sesión.
+ *
+ * @property correo Correo electrónico del usuario.
+ * @property contrasena Contraseña de acceso.
+ */
 data class LoginRequest(
     val correo: String,
     @SerializedName("contraseña") val contrasena: String
 )
 
+/**
+ * Respuesta del servidor tras un inicio de sesión exitoso.
+ *
+ * @property _id Identificador único del usuario.
+ * @property nombre Nombre completo del usuario.
+ * @property correo Email del usuario.
+ * @property rol Rol asignado (admin, enologo, trabajador).
+ * @property token Token JWT para autorizar peticiones.
+ */
 data class LoginResponse(
     val _id: String,
     val nombre: String,
@@ -15,6 +30,11 @@ data class LoginResponse(
     val token: String
 )
 
+/**
+ * Representación de una Parcela recibida del servidor.
+ *
+ * Contiene todos los metadatos y mediciones actuales de una parcela.
+ */
 data class ParcelaResponse(
     val _id: String,
     val nombreParcela: String? = null,
@@ -43,6 +63,9 @@ data class ParcelaResponse(
     val updatedAt: String? = null
 )
 
+/**
+ * Datos requeridos para crear o actualizar una parcela.
+ */
 data class ParcelaRequest(
     val nombreParcela: String,
     val variedad: String,
@@ -60,6 +83,9 @@ data class ParcelaRequest(
     val fechaCosecha: String? = null
 )
 
+/**
+ * Información básica de un usuario del sistema.
+ */
 data class UsuarioResponse(
     val _id: String,
     val nombre: String,
@@ -69,6 +95,9 @@ data class UsuarioResponse(
     val fechaRegistro: String? = null
 )
 
+/**
+ * Petición para registrar o modificar un usuario.
+ */
 data class UsuarioRequest(
     val nombre: String,
     val correo: String,
@@ -77,15 +106,21 @@ data class UsuarioRequest(
     val telefono: String? = null
 )
 
+/**
+ * Registro de una actividad en la bitácora.
+ */
 data class BitacoraResponse(
     val _id: String,
-    val parcela: String, // ID de la parcela
-    val usuario: String, // ID del usuario
+    val parcela: String,
+    val usuario: String,
     val accion: String,
     val descripcion: String?,
     val fecha: String?
 )
 
+/**
+ * Datos para crear un nuevo registro de bitácora.
+ */
 data class BitacoraRequest(
     val parcela: String,
     val accion: String,
@@ -93,6 +128,9 @@ data class BitacoraRequest(
     val fecha: String? = null
 )
 
+/**
+ * Historial de un evento de riego.
+ */
 data class RiegoResponse(
     val _id: String,
     val parcela: String,
@@ -102,6 +140,9 @@ data class RiegoResponse(
     val estado: String
 )
 
+/**
+ * Petición para programar o registrar un riego.
+ */
 data class RiegoRequest(
     val parcela: String,
     val duracion: Int,
@@ -109,6 +150,9 @@ data class RiegoRequest(
     val estado: String? = "programado"
 )
 
+/**
+ * Resultados de una muestra analítica de campo.
+ */
 data class MuestraResponse(
     val _id: String,
     val parcela: String,
@@ -122,6 +166,9 @@ data class MuestraResponse(
     val createdAt: String?
 )
 
+/**
+ * Datos para el registro de una nueva muestra de laboratorio.
+ */
 data class MuestraRequest(
     val parcelaId: String,
     val brix: Double,
@@ -133,6 +180,9 @@ data class MuestraRequest(
     val fecha: String? = null
 )
 
+/**
+ * Alerta o aviso del sistema.
+ */
 data class NotificacionResponse(
     val _id: String,
     val tipo: String,

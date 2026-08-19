@@ -11,6 +11,9 @@ import mx.utng.ecoviedos.data.local.SessionManager
 import mx.utng.ecoviedos.data.remote.LoginRequest
 import mx.utng.ecoviedos.data.remote.RetrofitClient
 
+/**
+ * Estados de la interfaz de autenticación.
+ */
 sealed class AuthUiState {
     data object Idle : AuthUiState()
     data object Loading : AuthUiState()
@@ -21,12 +24,24 @@ sealed class AuthUiState {
     data object CodeVerified : AuthUiState()
 }
 
+/**
+ * ViewModel encargado del flujo de autenticación y recuperación de contraseñas.
+ *
+ * @param application Instancia de la aplicación.
+ */
 class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val sessionManager = SessionManager(application)
 
     private val _uiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
+    /** Flujo de estado de la UI de autenticación. */
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
+    /**
+     * Intenta iniciar sesión con las credenciales proporcionadas.
+     *
+     * @param correo Email del usuario.
+     * @param contraseña Password del usuario.
+     */
     fun login(correo: String, contraseña: String) {
         if (correo.isBlank() || contraseña.isBlank()) {
             _uiState.value = AuthUiState.Error("Completa correo y contraseña")
@@ -52,6 +67,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Solicita un código de recuperación de contraseña al correo electrónico.
+     *
+     * @param correo Email del usuario.
+     */
     fun solicitarCodigo(correo: String) {
         if (correo.isBlank()) {
             _uiState.value = AuthUiState.Error("Ingresa tu correo")
@@ -72,6 +92,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Verifica si el código ingresado es válido para la recuperación.
+     *
+     * @param correo Email del usuario.
+     * @param codigo Código de 6 dígitos recibido.
+     */
     fun verificarCodigo(correo: String, codigo: String) {
         if (codigo.length != 6) {
             _uiState.value = AuthUiState.Error("El código debe ser de 6 dígitos")
@@ -92,6 +118,13 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Establece una nueva contraseña tras validar el código.
+     *
+     * @param correo Email del usuario.
+     * @param codigo Código verificado.
+     * @param nuevaPass Nueva contraseña a establecer.
+     */
     fun restablecerContraseña(correo: String, codigo: String, nuevaPass: String) {
         if (nuevaPass.length < 6) {
             _uiState.value = AuthUiState.Error("Mínimo 6 caracteres")
@@ -114,6 +147,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Regresa el estado del flujo a su valor inicial.
+     */
     fun resetState() {
         _uiState.value = AuthUiState.Idle
     }
