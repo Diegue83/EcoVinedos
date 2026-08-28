@@ -64,7 +64,9 @@ fun AlertUI(
     onCerrar: () -> Unit
 ) {
     Box(
-        modifier = Modifier.fillMaxSize().padding(8.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(8.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -90,6 +92,14 @@ fun AlertUI(
                 style = MaterialTheme.typography.titleMedium,
                 textAlign = TextAlign.Center
             )
+
+            if (variedad.isNotEmpty()) {
+                Text(
+                    text = variedad,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.LightGray
+                )
+            }
 
             Text(
                 text = "Humedad: $humedad",

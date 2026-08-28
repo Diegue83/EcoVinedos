@@ -1,11 +1,8 @@
 package mx.utng.ecoviedos.presentation
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -18,9 +15,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.wear.compose.material.Button
-import androidx.wear.compose.material.ButtonDefaults
-import androidx.wear.compose.material.Text
+import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
+import androidx.wear.compose.material3.Button
+import androidx.wear.compose.material3.ButtonDefaults
+import androidx.wear.compose.material3.MaterialTheme
+import androidx.wear.compose.material3.Text
 
 @Composable
 fun AlertaScreen(
@@ -32,95 +31,94 @@ fun AlertaScreen(
     var isRiegoActivado by remember { mutableStateOf(false) }
     var minutosRestantes by remember { mutableIntStateOf(20) }
 
-    Column(
+    TransformingLazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(12.dp)
-            .verticalScroll(rememberScrollState()),
+            .padding(horizontal = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
 
-        if (!isRiegoActivado) {
-
-            Text(
-                text = "⚠️",
-                fontSize = 48.sp,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-
-            Text(
-                text = "¡Alerta!",
-                color = Color.Red,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-
-            Text(
-                text = humedad,
-                color = Color.White,
-                fontSize = 16.sp,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-
-            Text(
-                text = "$parcela - $variedad",
-                color = Color.White,
-                fontSize = 14.sp,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-
-            Button(
-                onClick = { isRiegoActivado = true },
-                colors = ButtonDefaults.primaryButtonColors(
-                    backgroundColor = Color.Red
-                ),
-                modifier = Modifier.padding(horizontal = 16.dp)
-            ) {
+        item {
+            if (!isRiegoActivado) {
                 Text(
-                    text = "ACTIVAR RIEGO",
+                    text = "⚠️",
+                    fontSize = 48.sp,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                Text(
+                    text = "¡Alerta!",
+                    color = Color.Red,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                Text(
+                    text = humedad,
                     color = Color.White,
-                    fontSize = 14.sp
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+
+                Text(
+                    text = "$parcela - $variedad",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                Button(
+                    onClick = { isRiegoActivado = true },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Red
+                    ),
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                ) {
+                    Text(
+                        text = "ACTIVAR RIEGO",
+                        color = Color.White,
+                        fontSize = 14.sp
+                    )
+                }
+
+            } else {
+
+                Text(
+                    text = "✅",
+                    fontSize = 32.sp,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                Text(
+                    text = "¡Riego activado!",
+                    color = Color(0xFF4CAF50),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+
+                Text(
+                    text = "$parcela - $variedad",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+
+                Text(
+                    text = "Duración: $minutosRestantes min",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+
+                Text(
+                    text = "320 L estimados",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
-
-        } else {
-
-            Text(
-                text = "✅",
-                fontSize = 32.sp,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-
-            Text(
-                text = "¡Riego activado!",
-                color = Color(0xFF4CAF50),
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-
-            Text(
-                text = "$parcela - $variedad",
-                color = Color.White,
-                fontSize = 14.sp,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-
-            Text(
-                text = "Duración: $minutosRestantes min",
-                color = Color.White,
-                fontSize = 14.sp,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-
-            Text(
-                text = "320 L estimados",
-                color = Color.White,
-                fontSize = 14.sp
-            )
         }
     }
 }
-
